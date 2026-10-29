@@ -566,3 +566,23 @@ button.box-team:hover{background:var(--card-2);}
 .leaders .who{align-items:flex-start;gap:2px;}
 .leaders .who small .team-link{font-size:inherit;}
 .box .chart svg{width:100%;height:210px;}
+
+/* Hinweis „App auf Homebildschirm speichern“ (nur im Browser auf Handy/Tablet) */
+.install{position:fixed;z-index:55;left:max(12px, env(safe-area-inset-left, 0px));right:max(12px, env(safe-area-inset-right, 0px));
+  bottom:calc(96px + env(safe-area-inset-bottom, 0px));display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;
+  padding:14px 12px 14px 14px;border-radius:20px;background:var(--card-2);color:var(--text);
+  backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);
+  box-shadow:inset 0 0 0 1px var(--line), 0 18px 40px rgba(0,0,0,0.45);animation:ins-in .35s cubic-bezier(.2,.7,.2,1);}
+.install.is-gone{opacity:0;transform:translateY(12px);transition:opacity .25s, transform .25s;}
+.install img{width:44px;height:44px;border-radius:12px;}
+.ins-text h2{margin:0 0 4px;font-size:0.98rem;font-weight:600;}
+.ins-text p{margin:0;font-size:0.85rem;line-height:1.45;color:var(--dim);}
+.ins-text b{color:var(--text);font-weight:600;}
+.ins-ico{display:inline-block;width:16px;height:16px;vertical-align:-3px;fill:none;stroke:var(--blue-hi);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.ins-acts{display:flex;gap:8px;margin-top:10px;}
+.ins-go{min-height:40px;padding:0 16px;border:0;border-radius:12px;background:var(--blue);color:var(--on-color);font-weight:600;cursor:pointer;}
+.ins-later{min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--dim);font-weight:500;cursor:pointer;}
+.ins-close{width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--dim);font-size:1.3rem;line-height:1;cursor:pointer;}
+@media (min-width:821px){ .install{left:auto;right:24px;bottom:24px;width:380px;} }
+@keyframes ins-in{from{opacity:0;transform:translateY(16px);}}
+@media (prefers-reduced-motion: reduce){ .install{animation:none;} .install.is-gone{transition:none;} }

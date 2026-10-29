@@ -775,6 +775,47 @@ setTab(tab, false);
 setupPullToRefresh();
 refresh({ withNews: true }).then(() => loadPlayers()).then(render);
 
+// ---------- Hinweis „App auf Homebildschirm speichern“ ----------
+// Nur im Browser (nicht in der Web-App vom Home-Bildschirm) und nur auf Handy/Tablet. „Später“ oder × blendet ihn für
+// zwei Wochen aus. Android-Browser bieten das Installieren selbst an (beforeinstallprompt) – dann direkt ein Knopf.
+const INSTALL_KEY = 'el-install-later';
+const INSTALL_PAUSE_MS = 14 * 864e5;
+let installEvent = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; });
+window.addEventListener('appinstalled', () => $('#install')?.remove());
+function standalone() {
+  return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+function setupInstallHint() {
+  const force = params.get('install') === '1'; // zum Ausprobieren: ?install=1 zeigt den Hinweis immer
+  if (standalone() && !force) return;
+  if (!force && !matchMedia('(pointer: coarse)').matches) return; // nur Handy/Tablet
+  if (!force && Date.now() - Number(store.get(INSTALL_KEY, 0)) < INSTALL_PAUSE_MS) return;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const shareIcon = '<svg class="ins-ico" viewBox="0 0 24 24" aria-label="Teilen"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+  setTimeout(() => {
+    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open) return;
+    const howto = ios
+      ? `Tippe in Safari auf ${shareIcon} <b>Teilen</b> (bei neueren iPhones im Menü <b>«…»</b>) und dann auf <b>«Zum Home-Bildschirm»</b>. Danach öffnet sich die Seite wie eine App – ohne Adresszeile.`
+      : installEvent ? 'Mit einem Tipp auf «Installieren» liegt die Seite wie eine App auf deinem Startbildschirm.'
+      : 'Öffne im Browser das Menü <b>⋮</b> und wähle <b>«App installieren»</b> bzw. <b>«Zum Startbildschirm hinzufügen»</b>.';
+    const box = el('section', 'install', `<img src="icon-180.png" alt="" width="44" height="44">
+      <div class="ins-text"><h2>App auf Homebildschirm speichern</h2><p>${howto}</p>
+        <div class="ins-acts">${!ios && installEvent ? '<button type="button" class="ins-go" data-ins="go">Installieren</button>' : ''}<button type="button" class="ins-later" data-ins="later">Später</button></div></div>
+      <button type="button" class="ins-close" data-ins="later" aria-label="Hinweis schliessen">×</button>`);
+    box.id = 'install'; box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'Hinweis: App auf Homebildschirm speichern');
+    box.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-ins]'); if (!b) return;
+      if (b.dataset.ins === 'go' && installEvent) { installEvent.prompt(); await installEvent.userChoice.catch(() => null); installEvent = null; }
+      else store.set(INSTALL_KEY, String(Date.now()));
+      box.classList.add('is-gone');
+      setTimeout(() => box.remove(), 250);
+    });
+    document.body.append(box);
+  }, 2500);
+}
+setupInstallHint();
+
 // Offline-Modus: sw.js hält den letzten Stand bereit (nur über https bzw. localhost)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
