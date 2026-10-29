@@ -39,6 +39,7 @@ const ICON = {
   star: '<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
   bars: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   trend: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
 };
 const icon = (name, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
@@ -432,7 +433,48 @@ document.addEventListener('click', (e) => {
 $('#newsSearch').addEventListener('input', (e) => { feedState.q = e.target.value; renderFeed(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); else clearTimeout(dataTimer); });
 
+// Ganz oben nach unten ziehen lädt die Seite neu (wie in iPhone-Apps) – vor allem für die Web-App vom
+// Home-Bildschirm, die keinen Neu-laden-Knopf hat. Bringt neueste Spielstände, News und Version der Seite.
+function setupPullToRefresh() {
+  const THRESHOLD = 70, MAX = 110;
+  const ind = el('div', 'ptr', icon('refresh'));
+  ind.setAttribute('aria-hidden', 'true');
+  document.body.append(ind);
+  let startY = null, startX = 0, dy = 0, busy = false;
+  const show = (d) => {
+    const pos = Math.min(d, MAX);
+    ind.style.transform = `translate(-50%, ${pos - 50}px) rotate(${pos * 3}deg)`;
+    ind.style.opacity = String(Math.min(pos / THRESHOLD, 1));
+    ind.classList.toggle('is-ready', d >= THRESHOLD);
+  };
+  const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
+  window.addEventListener('touchstart', (e) => {
+    if (busy || e.touches.length !== 1 || window.scrollY > 0) return;
+    startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (startY == null) return;
+    const y = e.touches[0].clientY - startY, x = e.touches[0].clientX - startX;
+    // Seitwärts wischen (Spiele von heute) oder nach oben scrollen: kein Aktualisieren
+    if (y <= 0 || Math.abs(x) > y || window.scrollY > 0) { startY = null; reset(); return; }
+    dy = y * 0.6; // etwas Widerstand, wie bei iOS
+    show(dy);
+  }, { passive: true });
+  window.addEventListener('touchend', () => {
+    if (startY == null) return;
+    startY = null;
+    if (dy < THRESHOLD) return reset();
+    busy = true;
+    ind.classList.add('is-loading');
+    ind.style.transform = 'translate(-50%, 20px)';
+    ind.style.opacity = '1';
+    location.reload();
+  });
+  window.addEventListener('touchcancel', () => { startY = null; reset(); });
+}
+
 // Marke: „Sport“ führt zur KI-News-Seite
 $('#siteLink').href = KI_NEWS_URL;
 setTab(tab, false);
+setupPullToRefresh();
 refresh({ withNews: true });
