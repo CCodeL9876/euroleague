@@ -458,7 +458,13 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   .box-mid .num{font-size:1.9rem;}
 }
 
-/* ---------- Heller Modus: nur wenn oben rechts gewählt (data-theme="light"); sonst gilt das Glas-Design (glass.css) ---------- */
+/* ---------- Heller Modus: gleiche Bausteine, helle Werte. Ohne eigene Wahl folgt die Seite dem iPhone ---------- */
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){color-scheme:light;
+    --frame:#DCDCF3;--bg:#F5F5FC;--panel:#FFFFFF;--card:#EEEEF8;--card-2:#E3E4F3;--line:#D6D7EA;
+    --text:#1D1E3B;--dim:#4C4F74;--faint:#5F628A;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--coral:#D23C47;
+    --green:#12774F;--orange:#B85E25;--gold:#946A00;}
+}
 :root[data-theme="light"]{color-scheme:light;
   --frame:#DCDCF3;--bg:#F5F5FC;--panel:#FFFFFF;--card:#EEEEF8;--card-2:#E3E4F3;--line:#D6D7EA;
   --text:#1D1E3B;--dim:#4C4F74;--faint:#5F628A;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--coral:#D23C47;

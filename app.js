@@ -708,8 +708,8 @@ $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarge
 document.addEventListener('change', (e) => { if (e.target.id === 'shotPlayer') { boxState.shooter = e.target.value; renderBox(); $('#shotPlayer')?.focus(); } });
 
 // ---------- Hell / Dunkel ----------
-// Standard ist das dunkle Glas-Design (glass.css); hell nur auf Wunsch. theme-boot.js setzt die Wahl schon vor dem ersten Zeichnen
-const currentTheme = () => (document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+// Ohne eigene Wahl folgt die Seite dem iPhone; theme-boot.js setzt eine gespeicherte Wahl schon vor dem ersten Zeichnen
+const currentTheme = () => document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 function themeUi() {
   const dark = currentTheme() === 'dark';
   const btn = $('#themeBtn');
@@ -724,6 +724,7 @@ function toggleTheme() {
   store.set('el-theme', next);
   themeUi();
 }
+matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', themeUi);
 themeUi();
 // Klick neben das Fenster schliesst es
 $('#box').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
