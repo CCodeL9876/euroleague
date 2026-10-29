@@ -17,7 +17,7 @@ Die Tabelle, die Form der Teams und die Kurve werden auf der Seite aus allen Res
 Ebenso Heim-/Auswärtsbilanz, Serie und die Vorschau vor einem Spiel (Form, Tabellenplatz, Duelle dieser Saison).
 
 **Offline:** `sw.js` hält Seite und letzten Datenstand bereit; ohne Netz steht „Offline – angezeigt wird der Stand von …“.
-**Hell/Dunkel:** folgt dem iPhone; der Knopf oben rechts legt es fest (nur auf diesem Gerät, `theme-boot.js`).
+**Design:** Standard ist das dunkle Glas-Design (`glass.css`: Dunkelgrün, Schwarz, Grau). Der Knopf oben rechts schaltet auf hell um (nur auf diesem Gerät, `theme-boot.js`).
 
 ## Einrichtung
 
