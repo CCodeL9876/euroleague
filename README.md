@@ -9,9 +9,15 @@ Läuft auf GitHub Pages, ohne Build-Schritt (reines HTML/CSS/JavaScript).
 |---|---|---|
 | Resultate, Spielplan, Tabelle, Live-Stände | Supabase-Funktion `euroleague` (holt sie von den öffentlichen Schnittstellen der EuroLeague) | bei jedem Öffnen; während eines Spiels jede Minute |
 | Spielbericht (Antippen eines Spiels: Viertel, Teamvergleich, Spielerstatistik) | Supabase-Funktion `euroleague` mit `?game=…` (Boxscore der EuroLeague) | beim Öffnen; während eines Spiels alle 30 Sekunden |
+| Wurfkarte (im Spielbericht) | Supabase-Funktion `euroleague` mit `?game=…` (Würfe mit Koordinaten) | wie der Spielbericht |
+| Bestenlisten, Kader, Top-Spieler der Vorschau | Supabase-Funktion `euroleague` mit `?players=1` (Saisonwerte pro Spiel aller Spieler) | höchstens alle 30 Minuten neu |
 | News (16 Meldungen) | `news.json` in diesem Repository | täglich um 07:15 durch eine Claude-Aufgabe |
 
 Die Tabelle, die Form der Teams und die Kurve werden auf der Seite aus allen Resultaten der Saison berechnet.
+Ebenso Heim-/Auswärtsbilanz, Serie und die Vorschau vor einem Spiel (Form, Tabellenplatz, Duelle dieser Saison).
+
+**Offline:** `sw.js` hält Seite und letzten Datenstand bereit; ohne Netz steht „Offline – angezeigt wird der Stand von …“.
+**Hell/Dunkel:** folgt dem iPhone; der Knopf oben rechts legt es fest (nur auf diesem Gerät, `theme-boot.js`).
 
 ## Einrichtung
 

@@ -10,7 +10,12 @@
 //
 //   GET ?game=83  → Spielbericht eines Spiels (auch während es läuft):
 //   → { code, live, quarters: [[…Heim], […Gast]], teams: [{ code, name, coach, totals, players: [{ no, name, start, on,
-//       min, pts, fg2, fg3, ft, oreb, dreb, reb, ast, stl, tov, blk, pf, pir, pm }] }] }   (fg2/fg3/ft: [Treffer, Versuche])
+//       min, pts, fg2, fg3, ft, oreb, dreb, reb, ast, stl, tov, blk, pf, pir, pm }] }],
+//       shots: [{ t: Team, p: Spieler, x, y, m: getroffen, v: 2|3 }] }   (fg2/fg3/ft: [Treffer, Versuche];
+//       x/y in cm vom Korb aus, y Richtung Mittellinie)
+//
+//   GET ?players=1 → Saisonwerte aller Spieler (pro Spiel) für Bestenlisten, Kader und Vorschau:
+//   → { updated, players: [{ id, name, team, img, gp, gs, min, pts, reb, oreb, ast, stl, blk, tov, pir, fg2p, fg3p, ftp, fg3m }] }
 //
 // Quelle sind die öffentlichen Schnittstellen der EuroLeague: der Spielplan der Saison (api-live.euroleague.net) und
 // pro laufendem Spiel der aktuelle Stand (live.euroleague.net). Nur öffentliche Daten, keine Anmeldung nötig.
@@ -26,6 +31,7 @@ const SCHEDULE_MS = 2 * 60 * 1000;
 const LIVE_MS = 20 * 1000;
 const BOX_LIVE_MS = 20 * 1000;
 const BOX_FINAL_MS = 60 * 60 * 1000;
+const PLAYERS_MS = 30 * 60 * 1000;
 // Stand abfragen ab 5 Minuten vor dem angesetzten Beginn bis 4 Stunden danach (solange nicht „played“)
 const EARLY_MS = 5 * 60 * 1000;
 const LATE_MS = 4 * 3600 * 1000;
@@ -105,12 +111,48 @@ export function buildBox(code, box) {
   return { code, live: box?.Live === true, quarters: (box?.ByQuarter || []).slice(0, 2).map(quarter), teams };
 }
 
+// Würfe aus dem Feld (ohne Freiwürfe) für die Wurfkarte
+export function buildShots(points) {
+  const kinds = { '2FGM': [2, true], '2FGA': [2, false], '3FGM': [3, true], '3FGA': [3, false] };
+  return (points?.Rows || []).filter((r) => kinds[String(r.ID_ACTION || '').trim()]).map((r) => {
+    const [v, m] = kinds[String(r.ID_ACTION).trim()];
+    return { t: String(r.TEAM || '').trim(), p: playerName(r.PLAYER), x: Number(r.COORD_X) || 0, y: Number(r.COORD_Y) || 0, m, v };
+  });
+}
+
+// Saisonwerte (pro Spiel) der EuroLeague → kompakte Liste. Bei Wechseln („BAS;TEL“) zählt das letzte Team.
+const pctNum = (v) => { const n = parseFloat(String(v ?? '').replace('%', '')); return Number.isFinite(n) ? n : 0; };
+const r1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
+export function buildPlayers(stats) {
+  return (stats?.players || []).map((s) => {
+    const pl = s.player || {};
+    const team = String(pl.team?.code || '').split(';').pop().trim();
+    return { id: String(pl.code || ''), name: playerName(pl.name), team, img: String(pl.imageUrl || ''),
+      gp: Number(s.gamesPlayed) || 0, gs: Number(s.gamesStarted) || 0, min: r1(s.minutesPlayed), pts: r1(s.pointsScored),
+      reb: r1(s.totalRebounds), oreb: r1(s.offensiveRebounds), ast: r1(s.assists), stl: r1(s.steals), blk: r1(s.blocks),
+      tov: r1(s.turnovers), pir: r1(s.pir), fg2p: pctNum(s.twoPointersPercentage), fg3p: pctNum(s.threePointersPercentage),
+      ftp: pctNum(s.freeThrowsPercentage), fg3m: r1(s.threePointersMade) };
+  }).filter((p) => p.id && p.team);
+}
+
+let players = { at: 0, season: '', data: null };
+async function playersOf(season) {
+  if (players.season === season && players.data && Date.now() - players.at < PLAYERS_MS) return players.data;
+  const raw = await getJson(`https://api-live.euroleague.net/v3/competitions/E/statistics/players/traditional?seasonMode=Single&seasonCode=${season}&statisticMode=PerGame&limit=500`);
+  const data = { updated: new Date().toISOString(), players: buildPlayers(raw) };
+  players = { at: Date.now(), season, data };
+  return data;
+}
+
 const boxes = new Map();
 async function boxOf(season, code) {
   const hit = boxes.get(code);
   if (hit && Date.now() - hit.at < (hit.data.live ? BOX_LIVE_MS : BOX_FINAL_MS)) return hit.data;
-  const raw = await getJson(`https://live.euroleague.net/api/Boxscore?gamecode=${code}&seasoncode=${season}`);
-  const data = buildBox(code, raw);
+  const [raw, points] = await Promise.all([
+    getJson(`https://live.euroleague.net/api/Boxscore?gamecode=${code}&seasoncode=${season}`),
+    getJson(`https://live.euroleague.net/api/Points?gamecode=${code}&seasoncode=${season}`).catch(() => null),
+  ]);
+  const data = { ...buildBox(code, raw), shots: buildShots(points) };
   // Noch ohne Spieler (Spiel nicht begonnen): nur kurz merken
   boxes.set(code, { at: data.teams.some((t) => t.players.length) ? Date.now() : Date.now() - BOX_FINAL_MS + BOX_LIVE_MS, data });
   return data;
@@ -160,7 +202,16 @@ async function handle(req) {
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers: { ...cors, 'Content-Type': 'application/json' } });
   const now = new Date();
   const season = seasonCode(now);
-  const game = new URL(req.url).searchParams.get('game');
+  const params = new URL(req.url).searchParams;
+  if (params.has('players')) {
+    const headers = { ...cors, 'Content-Type': 'application/json' };
+    try {
+      return new Response(JSON.stringify(await playersOf(season)), { headers: { ...headers, 'Cache-Control': 'public, max-age=600' } });
+    } catch {
+      return new Response(JSON.stringify({ error: 'Die Spielerstatistik ist gerade nicht erreichbar.' }), { status: 502, headers });
+    }
+  }
+  const game = params.get('game');
   if (game != null) {
     const code = Number(game);
     const headers = { ...cors, 'Content-Type': 'application/json' };

@@ -6,7 +6,8 @@
   <title>Sport-News Euroleague</title>
   <meta name="description" content="Euroleague-Tagesüberblick: News, Resultate, Tabelle und Live-Spielstände.">
   <meta name="theme-color" content="#262746">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
+  <script src="theme-boot.js"></script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -26,6 +27,7 @@
         <h1><a class="site-link" id="siteLink" href="#" title="Zur KI-News-Seite wechseln">Sport</a>-News <em>Euroleague</em></h1>
       </div>
       <div class="masthead-top"><span id="issue">Erscheint täglich</span><span id="updated"></span></div>
+      <button type="button" class="theme-btn" id="themeBtn" data-act="theme" aria-label="Hell oder dunkel"></button>
     </div>
     <aside class="col col-left" id="left" aria-label="Deine Teams"></aside>
     <main class="col col-center" id="center" aria-label="Spieltag"><p class="notice">Lade Spiele …</p></main>
@@ -46,6 +48,7 @@
     <button type="button" data-tab="teams"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><span>Teams</span></button>
   </nav>
   <dialog class="box" id="box" aria-labelledby="boxTitle"></dialog>
+  <dialog class="box" id="teamDlg" aria-labelledby="teamTitle"></dialog>
   <div class="toast" id="toast" role="status" hidden></div>
   <script type="module" src="app.js"></script>
 </body>
