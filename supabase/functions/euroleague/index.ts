@@ -8,6 +8,10 @@
 //       games: [{ code, round, utc, home, away, hs, as, status, period, clock }] }
 //     status: 'pre' (noch nicht begonnen), 'live' (läuft), 'final' (beendet); period: Viertel, clock: Restzeit
 //
+//   GET ?game=83  → Spielbericht eines Spiels (auch während es läuft):
+//   → { code, live, quarters: [[…Heim], […Gast]], teams: [{ code, name, coach, totals, players: [{ no, name, start, on,
+//       min, pts, fg2, fg3, ft, oreb, dreb, reb, ast, stl, tov, blk, pf, pir, pm }] }] }   (fg2/fg3/ft: [Treffer, Versuche])
+//
 // Quelle sind die öffentlichen Schnittstellen der EuroLeague: der Spielplan der Saison (api-live.euroleague.net) und
 // pro laufendem Spiel der aktuelle Stand (live.euroleague.net). Nur öffentliche Daten, keine Anmeldung nötig.
 // Speichert und protokolliert nichts; der Spielplan bleibt 2 Minuten, ein Spielstand 20 Sekunden im Arbeitsspeicher,
@@ -20,6 +24,8 @@ const ALLOWED_ORIGINS = ['https://ccodel9876.github.io'];
 const TIMEOUT_MS = 10000;
 const SCHEDULE_MS = 2 * 60 * 1000;
 const LIVE_MS = 20 * 1000;
+const BOX_LIVE_MS = 20 * 1000;
+const BOX_FINAL_MS = 60 * 60 * 1000;
 // Stand abfragen ab 5 Minuten vor dem angesetzten Beginn bis 4 Stunden danach (solange nicht „played“)
 const EARLY_MS = 5 * 60 * 1000;
 const LATE_MS = 4 * 3600 * 1000;
@@ -63,6 +69,51 @@ export async function buildPayload(schedule, now, liveOf) {
     return out;
   }));
   return { updated: now.toISOString(), season: '', teams, games };
+}
+
+// „LUWAWU-CABARROT, TIMOTHE“ → „T. Luwawu-Cabarrot“
+function playerName(raw) {
+  const [last, first] = String(raw || '').split(',').map((x) => x.trim());
+  const nice = (w) => w.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+  return first ? `${first.charAt(0).toUpperCase()}. ${nice(last)}` : nice(last || '');
+}
+
+const statLine = (p) => ({
+  min: String(p?.Minutes || '').trim(), pts: Number(p?.Points) || 0,
+  fg2: [Number(p?.FieldGoalsMade2) || 0, Number(p?.FieldGoalsAttempted2) || 0],
+  fg3: [Number(p?.FieldGoalsMade3) || 0, Number(p?.FieldGoalsAttempted3) || 0],
+  ft: [Number(p?.FreeThrowsMade) || 0, Number(p?.FreeThrowsAttempted) || 0],
+  oreb: Number(p?.OffensiveRebounds) || 0, dreb: Number(p?.DefensiveRebounds) || 0, reb: Number(p?.TotalRebounds) || 0,
+  ast: Number(p?.Assistances) || 0, stl: Number(p?.Steals) || 0, tov: Number(p?.Turnovers) || 0,
+  blk: Number(p?.BlocksFavour) || 0, pf: Number(p?.FoulsCommited) || 0, pir: Number(p?.Valuation) || 0,
+});
+
+// Boxscore der EuroLeague → kompakter Spielbericht. Reihenfolge der Teams: Heim, Gast.
+export function buildBox(code, box) {
+  const quarter = (q) => {
+    const keys = Object.keys(q || {}).filter((k) => /^Quarter\d+$|^Extra/i.test(k));
+    return keys.map((k) => (q[k] == null ? null : Number(q[k]) || 0));
+  };
+  const teams = (box?.Stats || []).slice(0, 2).map((t) => {
+    const players = (t.PlayersStats || []).map((p) => ({
+      no: String(p.Dorsal || '').trim(), name: playerName(p.Player), start: Boolean(p.IsStarter), on: Boolean(p.IsPlaying),
+      ...statLine(p), pm: Number(p.Plusminus) || 0,
+    }));
+    const code = String((t.PlayersStats || [])[0]?.Team || t.tmr?.Team || '').trim();
+    return { code, name: String(t.Team || ''), coach: playerName(t.Coach), players, totals: statLine(t.totr) };
+  });
+  return { code, live: box?.Live === true, quarters: (box?.ByQuarter || []).slice(0, 2).map(quarter), teams };
+}
+
+const boxes = new Map();
+async function boxOf(season, code) {
+  const hit = boxes.get(code);
+  if (hit && Date.now() - hit.at < (hit.data.live ? BOX_LIVE_MS : BOX_FINAL_MS)) return hit.data;
+  const raw = await getJson(`https://live.euroleague.net/api/Boxscore?gamecode=${code}&seasoncode=${season}`);
+  const data = buildBox(code, raw);
+  // Noch ohne Spieler (Spiel nicht begonnen): nur kurz merken
+  boxes.set(code, { at: data.teams.some((t) => t.players.length) ? Date.now() : Date.now() - BOX_FINAL_MS + BOX_LIVE_MS, data });
+  return data;
 }
 
 async function getJson(url) {
@@ -109,6 +160,18 @@ async function handle(req) {
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers: { ...cors, 'Content-Type': 'application/json' } });
   const now = new Date();
   const season = seasonCode(now);
+  const game = new URL(req.url).searchParams.get('game');
+  if (game != null) {
+    const code = Number(game);
+    const headers = { ...cors, 'Content-Type': 'application/json' };
+    if (!Number.isInteger(code) || code < 1 || code > 999) return new Response(JSON.stringify({ error: 'ungültiges Spiel' }), { status: 400, headers });
+    try {
+      const box = await boxOf(season, code);
+      return new Response(JSON.stringify(box), { headers: { ...headers, 'Cache-Control': `public, max-age=${box.live ? 20 : 300}` } });
+    } catch {
+      return new Response(JSON.stringify({ error: 'Der Spielbericht ist gerade nicht erreichbar.' }), { status: 502, headers });
+    }
+  }
   let data;
   try {
     data = await loadSchedule(season);

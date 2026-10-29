@@ -8,6 +8,7 @@ Läuft auf GitHub Pages, ohne Build-Schritt (reines HTML/CSS/JavaScript).
 | Teil | Quelle | Aktualisierung |
 |---|---|---|
 | Resultate, Spielplan, Tabelle, Live-Stände | Supabase-Funktion `euroleague` (holt sie von den öffentlichen Schnittstellen der EuroLeague) | bei jedem Öffnen; während eines Spiels jede Minute |
+| Spielbericht (Antippen eines Spiels: Viertel, Teamvergleich, Spielerstatistik) | Supabase-Funktion `euroleague` mit `?game=…` (Boxscore der EuroLeague) | beim Öffnen; während eines Spiels alle 30 Sekunden |
 | News (16 Meldungen) | `news.json` in diesem Repository | täglich um 07:15 durch eine Claude-Aufgabe |
 
 Die Tabelle, die Form der Teams und die Kurve werden auf der Seite aus allen Resultaten der Saison berechnet.

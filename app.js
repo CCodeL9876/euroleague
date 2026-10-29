@@ -113,6 +113,14 @@ function liveLabel(g) {
   return [part, clock].filter(Boolean).join(' · ');
 }
 
+// Antippen öffnet den Spielbericht (openBox)
+function boxTarget(node, m, g) {
+  node.dataset.act = 'box'; node.dataset.code = g.code;
+  node.setAttribute('role', 'button'); node.tabIndex = 0;
+  node.setAttribute('aria-label', `Spielbericht ${name(m, g.home)} gegen ${name(m, g.away)}`);
+}
+const boxAttrs = (m, g) => `data-act="box" data-code="${g.code}" role="button" tabindex="0" aria-label="Spielbericht ${esc(name(m, g.home))} gegen ${esc(name(m, g.away))}"`;
+
 // Eine Spielzeile: Heim | Resultat, Live-Stand oder Anspielzeit | Gast
 function gameRow(m, g, hl) {
   const done = g.status === 'final';
@@ -123,7 +131,9 @@ function gameRow(m, g, hl) {
   const mid = g.status === 'final' ? `<span class="result num${hl ? ' hl' : ''}">${g.hs} : ${g.as}</span>`
     : g.status === 'live' ? `<span class="result live num"><small><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')}</small>${g.hs} : ${g.as}</span>`
     : `<span class="result open num"><small>${esc(rel(g.date))}</small>${esc(g.time)}</span>`;
-  return el('div', `game${g.status === 'live' ? ' is-live' : ''}`, side(g.home, g.hs > g.as, false) + mid + side(g.away, g.as > g.hs, true));
+  const row = el('div', `game${g.status === 'live' ? ' is-live' : ''}`, side(g.home, g.hs > g.as, false) + mid + side(g.away, g.as > g.hs, true));
+  boxTarget(row, m, g);
+  return row;
 }
 
 // ---------- Linke Spalte: deine Teams ----------
@@ -209,7 +219,7 @@ function renderCenter(m) {
     const mid = g.status === 'final' ? `${g.hs}:${g.as}` : g.status === 'live' ? `${g.hs}:${g.as}` : g.time;
     const sub = g.status === 'live' ? `<small><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')}</small>` : '';
     const fav = FAV.includes(g.home) || FAV.includes(g.away);
-    return `<div class="day-game${g.status === 'final' ? ' done' : ''}${g.status === 'live' ? ' live' : ''}${fav ? ' fav' : ''}" title="${esc(fullName(m, g.home))} – ${esc(fullName(m, g.away))}">
+    return `<div class="day-game${g.status === 'final' ? ' done' : ''}${g.status === 'live' ? ' live' : ''}${fav ? ' fav' : ''}" ${boxAttrs(m, g)} title="${esc(fullName(m, g.home))} – ${esc(fullName(m, g.away))}">
       <span class="t">${logo(m, g.home, 'xs')}<b>${esc(short(g.home))}</b></span><span class="mid num">${sub}${esc(mid)}</span><span class="t away"><b>${esc(short(g.away))}</b>${logo(m, g.away, 'xs')}</span></div>`;
   }).join('');
   const liveNow = dayGames.some((g) => g.status === 'live');
@@ -227,7 +237,7 @@ function renderCenter(m) {
     const ci = cardFor(big);
     parts.push(`<section class="hero" aria-label="Spiel des Tages">
       <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 300 240"><path d="M70 170a95 95 0 1 1 170 -40" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.9"/><path d="M60 150a95 95 0 0 0 40 50" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.5"/><ellipse cx="150" cy="212" rx="70" ry="10" fill="#1B1C38" opacity="0.6"/><circle cx="150" cy="118" r="72" fill="#E8935F"/><circle cx="150" cy="118" r="72" fill="none" stroke="#C86F3B" stroke-width="3"/><path d="M78 118h144M150 46v144M100 66c22 26 22 78 0 104M200 66c-22 26-22 78 0 104" fill="none" stroke="#4A2210" stroke-width="5" stroke-linecap="round"/><ellipse cx="124" cy="86" rx="22" ry="12" fill="#FFFFFF" opacity="0.18" transform="rotate(-30 124 86)"/></svg></div>
-      <div class="hero-info"><h2>Spiel des Tages</h2><div class="score">
+      <div class="hero-info"><h2>Spiel des Tages</h2><div class="score" ${boxAttrs(m, big)}>
         <div class="team"><span class="pts num">${big.hs}</span><span class="tn">${logo(m, big.home, 'xs')}${esc(name(m, big.home))}</span></div>
         <span class="arrow" aria-hidden="true">»</span>
         <div class="team"><span class="pts num">${big.as}</span><span class="tn">${logo(m, big.away, 'xs')}${esc(name(m, big.away))}</span></div></div>
@@ -373,6 +383,101 @@ function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
 
+// ---------- Spielbericht ----------
+const boxState = { code: 0, data: null, error: '', team: 0, timer: null };
+const pct = (a) => (a[1] ? `${Math.round(a[0] / a[1] * 100)}%` : '–');
+const ratio = (a) => `${a[0]}/${a[1]}`;
+
+async function loadBox(code) {
+  try {
+    const url = testData ? `box-${code}.json` : `${DATA_URL}?game=${code}`;
+    const res = await fetch(url, { headers: testData ? {} : { apikey: SUPABASE_ANON_KEY }, cache: 'no-store', signal: AbortSignal.timeout(20000) });
+    const d = await res.json().catch(() => null);
+    if (!res.ok || !Array.isArray(d?.teams)) throw new Error(d?.error || `Fehler ${res.status}`);
+    if (boxState.code !== code) return;
+    boxState.data = d; boxState.error = '';
+  } catch {
+    if (boxState.code === code) boxState.error = 'Der Spielbericht ist gerade nicht erreichbar.';
+  }
+}
+
+function openBox(code) {
+  const dlg = $('#box');
+  boxState.code = code; boxState.data = null; boxState.error = ''; boxState.team = 0;
+  clearInterval(boxState.timer);
+  renderBox();
+  if (!dlg.open) dlg.showModal();
+  const g = (data?.games || []).find((x) => x.code === code);
+  if (!g || g.status === 'pre') return;
+  loadBox(code).then(renderBox);
+  if (g.status === 'live') boxState.timer = setInterval(async () => {
+    await loadBox(code); await loadData(); renderBox(); render();
+  }, 30000);
+}
+
+// Inhalt in einen inneren Rahmen: ein Klick auf den Rand des Fensters (dialog selbst) schliesst es
+const setBox = (dlg, html) => { dlg.innerHTML = `<div class="box-in">${html}</div>`; };
+
+function renderBox() {
+  const dlg = $('#box');
+  const m = model();
+  const g = m.games.find((x) => x.code === boxState.code);
+  if (!g) { dlg.textContent = ''; return; }
+  const b = boxState.data;
+  const status = g.status === 'live' ? `<span class="live-text"><i class="live-dot" aria-hidden="true"></i>Live${liveLabel(g) ? ` · ${esc(liveLabel(g))}` : ''}</span>`
+    : g.status === 'final' ? 'Endstand' : `${esc(cap(rel(g.date)))} ${esc(g.time)}`;
+  const head = `<div class="box-top"><h2 id="boxTitle">Spielbericht · Spieltag ${g.round}</h2><button type="button" class="box-close" data-act="box-close" aria-label="Schliessen">×</button></div>
+    <div class="box-score">
+      <div class="box-team">${logo(m, g.home)}<b>${esc(name(m, g.home))}</b><small>${esc(rec(m, g.home))}</small></div>
+      <div class="box-mid"><span class="num">${g.status === 'pre' ? '–:–' : `${g.hs} : ${g.as}`}</span><small>${status}</small></div>
+      <div class="box-team">${logo(m, g.away)}<b>${esc(name(m, g.away))}</b><small>${esc(rec(m, g.away))}</small></div>
+    </div>`;
+  if (g.status === 'pre') { setBox(dlg, `${head}<p class="box-note">Die Statistik erscheint, sobald das Spiel läuft.</p>`); return; }
+  if (!b) { setBox(dlg, `${head}<p class="box-note">${esc(boxState.error || 'Lade Statistik …')}</p>`); return; }
+  const [th, ta] = b.teams;
+  if (!th || !ta) { setBox(dlg, `${head}<p class="box-note">Für dieses Spiel gibt es noch keine Statistik.</p>`); return; }
+
+  // Viertel
+  const qn = Math.max(b.quarters[0]?.length || 0, b.quarters[1]?.length || 0);
+  const qLabel = (i) => (i < 4 ? `${i + 1}.` : `V${i > 4 ? i - 3 : ''}`);
+  const qRow = (code, q) => `<tr><th scope="row">${esc(short(code))}</th>${Array.from({ length: qn }, (_, i) => `<td>${q?.[i] ?? '–'}</td>`).join('')}</tr>`;
+  const quarters = qn ? `<table class="box-q num"><thead><tr><th></th>${Array.from({ length: qn }, (_, i) => `<th scope="col">${qLabel(i)}</th>`).join('')}</tr></thead>
+    <tbody>${qRow(g.home, b.quarters[0])}${qRow(g.away, b.quarters[1])}</tbody></table>` : '';
+
+  // Teamvergleich: Balken anteilig, bessere Seite hervorgehoben (bei Ballverlusten und Fouls ist weniger besser)
+  const T = (t) => t.totals;
+  const rows = [
+    ['2-Punkte-Würfe', (t) => T(t).fg2[1] ? T(t).fg2[0] / T(t).fg2[1] : 0, (t) => `${pct(T(t).fg2)} <small>${ratio(T(t).fg2)}</small>`],
+    ['3-Punkte-Würfe', (t) => T(t).fg3[1] ? T(t).fg3[0] / T(t).fg3[1] : 0, (t) => `${pct(T(t).fg3)} <small>${ratio(T(t).fg3)}</small>`],
+    ['Freiwürfe', (t) => T(t).ft[1] ? T(t).ft[0] / T(t).ft[1] : 0, (t) => `${pct(T(t).ft)} <small>${ratio(T(t).ft)}</small>`],
+    ['Rebounds', (t) => T(t).reb], ['Offensiv-Rebounds', (t) => T(t).oreb], ['Assists', (t) => T(t).ast],
+    ['Steals', (t) => T(t).stl], ['Blocks', (t) => T(t).blk], ['Ballverluste', (t) => T(t).tov, null, true], ['Fouls', (t) => T(t).pf, null, true],
+    ['Effizienz (PIR)', (t) => T(t).pir],
+  ];
+  const compare = rows.map(([label, val, show, lessBetter]) => {
+    const a = val(th), c = val(ta), sum = Math.abs(a) + Math.abs(c) || 1;
+    const better = a === c ? 0 : (a > c) !== Boolean(lessBetter) ? 1 : 2;
+    return `<div class="cmp"><span class="cmp-v${better === 1 ? ' is-best' : ''}">${show ? show(th) : a}</span><span class="cmp-l">${label}</span><span class="cmp-v away${better === 2 ? ' is-best' : ''}">${show ? show(ta) : c}</span>
+      <span class="cmp-bar" aria-hidden="true"><i style="width:${(Math.abs(a) / sum * 100).toFixed(1)}%"></i><i class="away" style="width:${(Math.abs(c) / sum * 100).toFixed(1)}%"></i></span></div>`;
+  }).join('');
+
+  // Spieler eines Teams
+  const team = b.teams[boxState.team] || th;
+  const top = Math.max(...team.players.map((p) => p.pts), 0);
+  const players = team.players.map((p) => `<tr class="${p.on && b.live ? 'on' : ''}">
+      <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${esc(p.name)}${p.start ? '<small>S5</small>' : ''}</th>
+      <td>${esc(p.min || '–')}</td><td class="${p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
+      <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`).join('');
+  setBox(dlg, `${head}${quarters}
+    <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
+    <h3>Spieler</h3>
+    <div class="seg" role="group" aria-label="Team wählen">${b.teams.map((t, i) => `<button type="button" data-act="box-team" data-i="${i}" aria-pressed="${i === boxState.team}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>
+    ${team.coach ? `<p class="box-coach">Trainer: ${esc(team.coach)}</p>` : ''}
+    <div class="pl-wrap"><table class="pl-table num"><thead><tr><th scope="col">#</th><th scope="col" class="pl">Spieler</th><th scope="col">Min</th><th scope="col">Pkt</th><th scope="col"><abbr title="Rebounds">Reb</abbr></th><th scope="col"><abbr title="Assists">Ass</abbr></th><th scope="col"><abbr title="2-Punkte-Würfe">2P</abbr></th><th scope="col"><abbr title="3-Punkte-Würfe">3P</abbr></th><th scope="col"><abbr title="Freiwürfe">FW</abbr></th><th scope="col"><abbr title="Steals">St</abbr></th><th scope="col"><abbr title="Ballverluste">BV</abbr></th><th scope="col"><abbr title="Blocks">Bl</abbr></th><th scope="col"><abbr title="Fouls">F</abbr></th><th scope="col"><abbr title="Effizienz">PIR</abbr></th><th scope="col">+/-</th></tr></thead>
+    <tbody>${players}</tbody></table></div>
+    <p class="box-note small">Quelle: EuroLeague. S5 = Startformation${b.live ? ', roter Punkt = gerade auf dem Feld. Aktualisiert sich alle 30 Sekunden' : ''}.</p>`);
+}
+
 // ---------- Daten holen ----------
 async function loadData() {
   try {
@@ -429,8 +534,19 @@ document.addEventListener('click', (e) => {
     if (feedState.expanded.has(i)) feedState.expanded.delete(i); else feedState.expanded.add(i);
     renderFeed();
   } else if (act === 'share') share(Number(t.dataset.i));
+  else if (act === 'box') openBox(Number(t.dataset.code));
+  else if (act === 'box-close') $('#box').close();
+  else if (act === 'box-team') { boxState.team = Number(t.dataset.i); renderBox(); }
+});
+// Spielzeilen auch mit der Tastatur öffnen
+document.addEventListener('keydown', (e) => {
+  const t = e.target.closest?.('[data-act="box"]');
+  if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openBox(Number(t.dataset.code)); }
 });
 $('#newsSearch').addEventListener('input', (e) => { feedState.q = e.target.value; renderFeed(); });
+$('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxState.code = 0; });
+// Klick neben das Fenster schliesst es
+$('#box').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); else clearTimeout(dataTimer); });
 
 // Ganz oben nach unten ziehen lädt die Seite neu (wie in iPhone-Apps) – vor allem für die Web-App vom
@@ -449,7 +565,7 @@ function setupPullToRefresh() {
   };
   const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
   window.addEventListener('touchstart', (e) => {
-    if (busy || e.touches.length !== 1 || window.scrollY > 0) return;
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || $('#box').open) return;
     startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {

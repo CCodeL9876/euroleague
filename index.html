@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#262746">
   <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Euroleague">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://media-cdn.incrowdsports.com https://media-cdn.cortextech.io; connect-src 'self' https://*.supabase.co; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
@@ -44,6 +45,7 @@
     <button type="button" data-tab="news"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 4z"/></svg><span>News</span><b class="badge num" id="newsBadge" hidden></b></button>
     <button type="button" data-tab="teams"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><span>Teams</span></button>
   </nav>
+  <dialog class="box" id="box" aria-labelledby="boxTitle"></dialog>
   <div class="toast" id="toast" role="status" hidden></div>
   <script type="module" src="app.js"></script>
 </body>
