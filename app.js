@@ -256,6 +256,16 @@ async function profileCreate(name, pin) {
 }
 
 // Abmelden sperrt die Seite sofort wieder – ohne Profil ist kein Weiterschauen möglich
+// Die Homebildschirm-App hat (v.a. auf iOS) einen eigenen Speicher und keine Adresszeile: dort fügt man diesen Link
+// im Fenster „Zugang nötig“ ein (gate.js). Der Schlüssel stammt aus der eigenen, bereits erfolgten Anmeldung.
+async function copyAccessLink() {
+  const key = store.get('el-gate-key', '');
+  if (!key) { toast('Link nicht gespeichert – einmal oben rechts abmelden und mit dem Zugangslink neu anmelden.'); return; }
+  const url = `${location.origin}${location.pathname}?key=${encodeURIComponent(key)}`;
+  try { await navigator.clipboard.writeText(url); toast('Link kopiert – in der Home-App bei «Zugang nötig» einfügen.'); }
+  catch { window.prompt('Link kopieren:', url); }
+}
+
 function profileLogout() {
   profile = null; profileError = ''; favEdit = false; onboarding = false; introStage = false;
   store.set('el-profile-name', ''); store.set('el-profile-pin', '');
@@ -280,6 +290,7 @@ function profileHtml() {
   return `<div class="profile-bar">
     <span class="profile-who">${icon('star', 'icon')}${esc(profile.name)}</span>
     <button type="button" class="profile-link" data-act="fav-edit">${favEdit ? 'Fertig' : 'Teams bearbeiten'}</button>
+    <button type="button" class="profile-link" data-act="copy-link">Link für Home-App</button>
     <button type="button" class="profile-link" data-act="profile-logout">Profil abmelden</button>
   </div>${favEdit ? favEditHtml() : ''}`;
 }
@@ -928,6 +939,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'logout') logout();
   else if (act === 'fav-edit') { favEdit = !favEdit; profileError = ''; render(); }
   else if (act === 'profile-logout') profileLogout();
+  else if (act === 'copy-link') copyAccessLink();
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
   else if (act === 'onboarding-done') { if (!FAV.length) return; onboarding = false; introStage = true; refreshProfileUI(); }
   else if (act === 'intro-done') { introStage = false; enterApp(); }

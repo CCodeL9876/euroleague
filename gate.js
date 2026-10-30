@@ -66,31 +66,43 @@ const LOGO_PATHS = `<path d="M271.64,232.27h0.26c0,0,96.95,47.56,164.99,62.77c3.
   l3.02-2.23l-3.71-2.64c-18.16-6.44-44.09-16.92-66.07-27.5c-39.71-20.72-70.97-46.13-70.92-74.77c0.02-2.52-2.43-2.9-3.61-2.9
   l-3.37,3.35c-12.72,32.18-19.73,67.26-19.82,103.98c-0.07,36.7,6.8,71.8,19.37,104.05L159.67,404.32z"/>`;
 
+// Ohne key (Homebildschirm-App ohne Adresszeile): zusätzliches Feld, in das man den Zugangslink einfügt
+function keyFromLink(text) {
+  const t = String(text || '').trim();
+  try { return new URL(t).searchParams.get('key') || ''; } catch { return t; }
+}
+
 function showPrompt(key) {
+  const needLink = !key;
   const gate = document.createElement('div');
   gate.className = 'gate';
   gate.innerHTML = `
     <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
     <form class="gate-card" id="gateForm">
       <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
-      <h1>Zugangscode</h1>
-      <p>Diese Seite ist nur für einen eingeladenen Kreis zugänglich.</p>
+      <h1>${needLink ? 'Zugang nötig' : 'Zugangscode'}</h1>
+      <p>${needLink
+        ? 'Die Homebildschirm-App hat einen eigenen Speicher. Füge deinen Zugangslink ein (in der App im Browser: «Link für Home-App») und gib den Code ein.'
+        : 'Diese Seite ist nur für einen eingeladenen Kreis zugänglich.'}</p>
+      ${needLink ? '<input id="gateLink" type="url" inputmode="url" autocomplete="off" placeholder="Zugangslink einfügen" aria-label="Zugangslink">' : ''}
       <input id="gateCode" type="password" inputmode="text" autocomplete="off" placeholder="Code eingeben" aria-label="Zugangscode">
       <button type="submit" id="gateGo" class="onboarding-go">Weiter</button>
-      <p class="gate-err" id="gateErr" hidden>Falscher Code. Nochmal versuchen.</p>
+      <p class="gate-err" id="gateErr" hidden>${needLink ? 'Link oder Code stimmt nicht.' : 'Falscher Code. Nochmal versuchen.'}</p>
     </form>`;
   document.body.appendChild(gate);
 
   const form = gate.querySelector('#gateForm');
   const input = gate.querySelector('#gateCode');
+  const linkInput = gate.querySelector('#gateLink');
   const btn = gate.querySelector('#gateGo');
   const err = gate.querySelector('#gateErr');
-  input.focus();
+  (linkInput || input).focus();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const code = input.value.trim();
-    if (!code) return;
+    if (linkInput) key = keyFromLink(linkInput.value);
+    if (!code || !key) return;
     btn.disabled = true;
     btn.textContent = 'Prüfe …';
     const ok = await verify(key, code);
@@ -98,7 +110,7 @@ function showPrompt(key) {
       remember(key);
       cleanUrl();
       gate.remove();
-      showSaveLink(key);
+      boot();
       return;
     }
     btn.disabled = false;
@@ -109,46 +121,6 @@ function showPrompt(key) {
     form.classList.remove('has-error');
     void form.offsetWidth; // Reflow erzwingen, damit die Animation bei wiederholtem Fehler erneut abspielt
     form.classList.add('has-error');
-  });
-}
-
-// Manche Homebildschirm-Apps teilen sich den Speicher nicht zuverlässig mit dem Browser (iOS-Eigenheit) – darum
-// hier einmalig den vollständigen Link zeigen, den man sich merken/kopieren kann, falls die App die Freischaltung
-// einmal "vergisst". Der Link steht nirgends sonst – nur hier, einmalig, nach erfolgreicher Anmeldung.
-function showSaveLink(key) {
-  const url = `${location.origin}${location.pathname}?key=${encodeURIComponent(key)}`;
-  const gate = document.createElement('div');
-  gate.className = 'gate';
-  gate.innerHTML = `
-    <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
-    <div class="gate-card gate-card-wide">
-      <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
-      <h1>Diesen Link aufbewahren</h1>
-      <p>Für den Fall, dass die Homebildschirm-App die Anmeldung einmal vergisst: Mit diesem Link kommst du direkt wieder rein, ohne den Code erneut einzugeben.</p>
-      <input id="saveLinkInput" type="text" readonly value="${url.replace(/"/g, '&quot;')}" aria-label="Zugangslink">
-      <div class="profile-form-acts">
-        <button type="button" id="saveLinkGo">Weiter</button>
-        <button type="button" id="saveLinkCopy">Link kopieren</button>
-      </div>
-      <p class="profile-hint" id="saveLinkMsg">Tipp: Als Lesezeichen oder in den Notizen speichern.</p>
-    </div>`;
-  document.body.appendChild(gate);
-
-  const input = gate.querySelector('#saveLinkInput');
-  const msg = gate.querySelector('#saveLinkMsg');
-  gate.querySelector('#saveLinkCopy').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      msg.textContent = 'Link kopiert.';
-    } catch {
-      input.focus();
-      input.select();
-      msg.textContent = 'Konnte nicht automatisch kopieren – Link oben ist markiert, manuell kopieren.';
-    }
-  });
-  gate.querySelector('#saveLinkGo').addEventListener('click', () => {
-    gate.remove();
-    boot();
   });
 }
 
@@ -176,7 +148,7 @@ if (unlocked()) {
   const key = new URLSearchParams(location.search).get('key');
   if (key) showPrompt(key);
   else if (sessionStorage.getItem('el-gate-relogin') === '1') { sessionStorage.removeItem('el-gate-relogin'); showRelinkNotice('Abgemeldet'); }
-  // Als Homebildschirm-App gespeichert, aber (noch) nicht angemeldet: nie eine leere Seite zeigen, hier ist man
-  // sicher keine zufällige Besucherin ohne Link. Sonst (fremder Besuch im Browser ohne Link): Seite bleibt leer.
-  else if (standalone()) showRelinkNotice('Zugang nötig');
+  // Als Homebildschirm-App gespeichert, aber (noch) nicht angemeldet: Link + Code direkt hier eingeben lassen –
+  // hier ist man sicher keine zufällige Besucherin. Sonst (fremder Besuch im Browser ohne Link): Seite bleibt leer.
+  else if (standalone()) showPrompt(null);
 }
