@@ -491,6 +491,8 @@ function cardFor(g) {
   });
 }
 
+const HERO_ART = '<svg viewBox="0 0 300 240"><path d="M70 170a95 95 0 1 1 170 -40" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.9"/><path d="M60 150a95 95 0 0 0 40 50" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.5"/><ellipse cx="150" cy="212" rx="70" ry="10" fill="#1B1C38" opacity="0.6"/><circle cx="150" cy="118" r="72" fill="#E8935F"/><circle cx="150" cy="118" r="72" fill="none" stroke="#C86F3B" stroke-width="3"/><path d="M78 118h144M150 46v144M100 66c22 26 22 78 0 104M200 66c-22 26-22 78 0 104" fill="none" stroke="#4A2210" stroke-width="5" stroke-linecap="round"/><ellipse cx="124" cy="86" rx="22" ry="12" fill="#FFFFFF" opacity="0.18" transform="rotate(-30 124 86)"/></svg>';
+
 function renderCenter(m) {
   const center = $('#center');
   const now = Date.now();
@@ -517,13 +519,27 @@ function renderCenter(m) {
 
   if (dataError) parts.push(`<p class="notice">${esc(dataError)}</p>`);
 
-  // Spiel des Tages: höchster Sieg im letzten Spieltag mit Resultaten
+  // Laufen gerade Spiele, ersetzen sie das „Spiel des Tages“: gleiche Box, eine pro Spiel, seitlich wischbar
   const finals = m.lastPlayed ? m.rounds[m.lastPlayed].filter((g) => g.status === 'final') : [];
-  const big = [...finals].sort((a, b) => Math.abs(b.hs - b.as) - Math.abs(a.hs - a.as) || b.at - a.at)[0];
+  const lives = m.games.filter((g) => g.status === 'live');
+  if (lives.length) {
+    const cards = lives.map((g) => `<section class="hero live-hero" aria-label="Live: ${esc(fullName(m, g.home))} gegen ${esc(fullName(m, g.away))}">
+      <div class="hero-art" aria-hidden="true">${HERO_ART}</div>
+      <div class="hero-info"><h2><i class="live-dot" aria-hidden="true"></i>Live</h2><div class="score" ${boxAttrs(m, g)}>
+        <div class="team"><span class="pts num">${g.hs}</span><span class="tn">${logo(m, g.home, 'xs')}${esc(name(m, g.home))}</span></div>
+        <span class="arrow" aria-hidden="true">:</span>
+        <div class="team"><span class="pts num">${g.as}</span><span class="tn">${logo(m, g.away, 'xs')}${esc(name(m, g.away))}</span></div></div>
+        <div class="hero-actions"><span class="pill-dark">${esc(liveLabel(g) || 'Live')} <span class="dim">· Spieltag ${g.round}</span></span>
+        <button type="button" class="btn-accent" data-act="box" data-code="${g.code}">Spielbericht</button></div></div></section>`).join('');
+    parts.push(`<div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="live" aria-label="Live-Spiele">${cards}</div>`);
+  }
+
+  // Spiel des Tages: höchster Sieg im letzten Spieltag mit Resultaten
+  const big = lives.length ? null : [...finals].sort((a, b) => Math.abs(b.hs - b.as) - Math.abs(a.hs - a.as) || b.at - a.at)[0];
   if (big) {
     const ci = cardFor(big);
     parts.push(`<section class="hero" aria-label="Spiel des Tages">
-      <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 300 240"><path d="M70 170a95 95 0 1 1 170 -40" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.9"/><path d="M60 150a95 95 0 0 0 40 50" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.5"/><ellipse cx="150" cy="212" rx="70" ry="10" fill="#1B1C38" opacity="0.6"/><circle cx="150" cy="118" r="72" fill="#E8935F"/><circle cx="150" cy="118" r="72" fill="none" stroke="#C86F3B" stroke-width="3"/><path d="M78 118h144M150 46v144M100 66c22 26 22 78 0 104M200 66c-22 26-22 78 0 104" fill="none" stroke="#4A2210" stroke-width="5" stroke-linecap="round"/><ellipse cx="124" cy="86" rx="22" ry="12" fill="#FFFFFF" opacity="0.18" transform="rotate(-30 124 86)"/></svg></div>
+      <div class="hero-art" aria-hidden="true">${HERO_ART}</div>
       <div class="hero-info"><h2>Spiel des Tages</h2><div class="score" ${boxAttrs(m, big)}>
         <div class="team"><span class="pts num">${big.hs}</span><span class="tn">${logo(m, big.home, 'xs')}${esc(name(m, big.home))}</span></div>
         <span class="arrow" aria-hidden="true">»</span>

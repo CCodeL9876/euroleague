@@ -147,6 +147,13 @@
   .score .tn{display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--dim);font-weight:500;margin-top:8px;}
   .score .arrow{color:var(--blue-hi);font-size:1.6rem;font-weight:600;line-height:1.6;}
   .hero-actions{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;}
+  /* Live-Spiele statt „Spiel des Tages“: gleiche Box, eine pro Spiel, seitlich wischbar */
+  .hero-scroll{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;}
+  .hero-scroll::-webkit-scrollbar{display:none;}
+  .hero-scroll > .hero{flex:0 0 100%;scroll-snap-align:start;}
+  .hero-scroll.multi > .hero{flex-basis:92%;}
+  .live-hero .hero-info h2{display:flex;align-items:center;gap:8px;color:var(--green);}
+  .live-hero .arrow{color:var(--dim);}
   .pill-dark{min-height:48px;display:inline-flex;align-items:center;gap:8px;padding:0 18px;border-radius:14px;background:var(--card);font-weight:600;}
   .pill-dark .dim{color:var(--dim);font-weight:400;}
   .btn-accent{min-height:48px;display:inline-flex;align-items:center;gap:10px;padding:0 20px;border-radius:14px;border:2px solid var(--blue);
