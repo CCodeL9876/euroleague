@@ -165,6 +165,10 @@ function renderIntro() {
   let host = document.getElementById('profileGate');
   if (!host) { host = document.createElement('div'); host.id = 'profileGate'; document.body.appendChild(host); }
   host.className = 'gate';
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const installHint = ios
+    ? 'Tipp: In Safari oben auf Teilen und dann «Zum Home-Bildschirm» – danach öffnet sich die Seite wie eine App.'
+    : 'Tipp: Im Browser-Menü «App installieren» bzw. «Zum Startbildschirm hinzufügen» wählen – danach öffnet sich die Seite wie eine App.';
   host.innerHTML = `
     <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
     <div class="gate-card gate-card-wide">
@@ -177,6 +181,7 @@ function renderIntro() {
         <li>${icon('trend')}Teamseiten mit Kader, Form und Saisonverlauf</li>
         <li>${icon('chat')}Tägliche News aus den wichtigsten Basketball-Portalen</li>
       </ul>
+      <p class="profile-hint">${esc(installHint)}</p>
       <button type="button" class="onboarding-go" data-act="intro-done">Let's Go</button>
     </div>`;
 }
