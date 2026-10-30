@@ -39,7 +39,25 @@ Die Funktion braucht keine Anmeldung: Sie liefert nur öffentliche EuroLeague-Da
 Seite (`ALLOWED_ORIGINS` oben in der Datei). Sie speichert nichts und hält Spielplan (2 Minuten) und Spielstände
 (20 Sekunden) kurz im Arbeitsspeicher, damit viele Aufrufe die EuroLeague nicht mehrfach abfragen.
 
-### 3. News-Aufgabe
+### 3. Zugriffsschutz (`gate.js`)
+
+Die Seite ist für einen eingeladenen Kreis gedacht, kein öffentliches Angebot: Ohne einen geheimen Link-Parameter
+bleibt sie leer; mit dem Parameter erscheint ein Eingabefeld für einen gemeinsamen Code. Beide Werte liegen als
+**Secrets derselben Supabase-Funktion** (nicht im Repository, nicht im Quelltext):
+
+1. Supabase-Dashboard → Edge Functions → `euroleague` → **Secrets** → zwei Werte setzen:
+   - `GATE_KEY` – der geheime Teil der Link-URL
+   - `GATE_CODE` – der Code, den alle berechtigten Personen eingeben
+2. Der Zugangslink lautet dann `https://ccodel9876.github.io/euroleague/?key=<GATE_KEY>` – den Link **und** den
+   Code getrennt weitergeben (z. B. Link per Nachricht, Code mündlich).
+3. Nach richtigem Code merkt sich das Gerät den Zugang (`localStorage`), der `?key=…`-Teil wird aus der
+   Adressleiste entfernt.
+
+Das ist bewusst **keine echte Benutzerverwaltung** – nur eine Hürde gegen zufällige Besucher:innen. Lieblingsteam
+und andere Einstellungen bleiben wie bisher rein lokal auf dem Gerät (`localStorage`), nicht an einen Account
+gebunden.
+
+### 4. News-Aufgabe
 
 Eine geplante Claude-Aufgabe sucht täglich neue Meldungen (Sportando, Eurohoops, BasketNews, RealGM), fasst sie auf
 Deutsch zusammen und schreibt sie in `news.json`:

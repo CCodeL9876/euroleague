@@ -17,6 +17,10 @@
 //   GET ?players=1 → Saisonwerte aller Spieler (pro Spiel) für Bestenlisten, Kader und Vorschau:
 //   → { updated, players: [{ id, name, team, img, gp, gs, min, pts, reb, oreb, ast, stl, blk, tov, pir, fg2p, fg3p, ftp, fg3m }] }
 //
+//   POST { key, code } → Zugriffsschutz der Seite (gate.js): prüft gegen die Secrets GATE_KEY/GATE_CODE dieser
+//   Funktion (Supabase-Dashboard → Edge Functions → euroleague → Secrets), damit die Werte nicht im Repo/Quelltext
+//   stehen. → { ok: true|false }. Ohne gesetzte Secrets immer { ok: false }.
+//
 // Quelle sind die öffentlichen Schnittstellen der EuroLeague: der Spielplan der Saison (api-live.euroleague.net) und
 // pro laufendem Spiel der aktuelle Stand (live.euroleague.net). Nur öffentliche Daten, keine Anmeldung nötig.
 // Speichert und protokolliert nichts; der Spielplan bleibt 2 Minuten, ein Spielstand 20 Sekunden im Arbeitsspeicher,
@@ -193,13 +197,34 @@ async function liveOf(season, code) {
 function corsFor(req) {
   const origin = req.headers.get('origin') || '';
   const ok = ALLOWED_ORIGINS.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  return ok ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'apikey, authorization, content-type', 'Access-Control-Allow-Methods': 'GET, OPTIONS', Vary: 'Origin' } : { Vary: 'Origin' };
+  return ok ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'apikey, authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', Vary: 'Origin' } : { Vary: 'Origin' };
+}
+
+// Gleich lang vergleichen (kein Rückschluss aus der Antwortzeit auf richtige/falsche Zeichen)
+function sameString(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function handleGate(req, cors) {
+  const headers = { ...cors, 'Content-Type': 'application/json' };
+  const gateKey = Deno.env.get('GATE_KEY') || '';
+  const gateCode = Deno.env.get('GATE_CODE') || '';
+  let body;
+  try { body = await req.json(); } catch { return new Response(JSON.stringify({ ok: false }), { status: 400, headers }); }
+  const key = String(body?.key ?? '');
+  const code = String(body?.code ?? '');
+  const ok = Boolean(gateKey) && Boolean(gateCode) && sameString(key, gateKey) && sameString(code, gateCode);
+  return new Response(JSON.stringify({ ok }), { status: ok ? 200 : 401, headers });
 }
 
 async function handle(req) {
   const cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (req.method === 'POST') return handleGate(req, cors);
+  if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET oder POST' }), { status: 405, headers: { ...cors, 'Content-Type': 'application/json' } });
   const now = new Date();
   const season = seasonCode(now);
   const params = new URL(req.url).searchParams;
