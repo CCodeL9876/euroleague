@@ -1077,6 +1077,8 @@ function renderPlayer() {
       <p class="box-note small">Daten: EuroLeague</p>
     </div></div>`;
 }
+// ---------- Daten holen ----------
+let playersError = '', playersLoading = null;
 function loadPlayers() {
   if (players) return Promise.resolve();
   if (playersLoading) return playersLoading;
