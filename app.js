@@ -527,14 +527,14 @@ function renderCenter(m) {
   const finals = m.lastPlayed ? m.rounds[m.lastPlayed].filter((g) => g.status === 'final') : [];
   const lives = m.games.filter((g) => g.status === 'live');
   if (lives.length) {
-    const cards = lives.map((g) => `<section class="hero live-hero" aria-label="Live: ${esc(fullName(m, g.home))} gegen ${esc(fullName(m, g.away))}">
-      <div class="hero-art" aria-hidden="true">${HERO_ART}</div>
-      <div class="hero-info"><h2><i class="live-dot" aria-hidden="true"></i>Live</h2><div class="score" ${boxAttrs(m, g)}>
-        <div class="team"><span class="pts num">${g.hs}</span><span class="tn">${logo(m, g.home, 'xs')}${esc(name(m, g.home))}</span></div>
-        <span class="arrow" aria-hidden="true">:</span>
-        <div class="team"><span class="pts num">${g.as}</span><span class="tn">${logo(m, g.away, 'xs')}${esc(name(m, g.away))}</span></div></div>
-        <div class="hero-actions"><span class="pill-dark">${esc(liveLabel(g) || 'Live')} <span class="dim">· Spieltag ${g.round}</span></span>
-        <button type="button" class="btn-accent" data-act="box" data-code="${g.code}">Spielbericht</button></div></div></section>`).join('');
+    // Ganze Box antippbar (öffnet den Spielbericht); grosse Logos statt Basketball-Grafik
+    const cards = lives.map((g) => `<section class="live-hero" ${boxAttrs(m, g)}>
+      <div class="lh-head"><span class="lh-state"><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')} <span class="dim">· Spieltag ${g.round}</span></span>
+        <span class="lh-more" aria-hidden="true">Spielbericht ›</span></div>
+      <div class="lh-score">
+        <div class="lh-team">${logo(m, g.home, 'lg')}<span class="tn">${esc(name(m, g.home))}</span></div>
+        <div class="lh-pts num">${g.hs}<span aria-hidden="true">:</span>${g.as}</div>
+        <div class="lh-team">${logo(m, g.away, 'lg')}<span class="tn">${esc(name(m, g.away))}</span></div></div></section>`).join('');
     parts.push(`<div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="live" aria-label="Live-Spiele">${cards}</div>`);
   }
 
