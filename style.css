@@ -593,6 +593,20 @@ button.box-team:hover{background:var(--card-2);}
 @keyframes ins-in{from{opacity:0;transform:translateY(16px);}}
 @media (prefers-reduced-motion: reduce){ .install{animation:none;} .install.is-gone{transition:none;} }
 
-/* Zugriffsschutz: App-Inhalt bleibt verborgen, bis gate.js body.unlocked setzt (Code-Abfrage per window.prompt) */
+/* Zugriffsschutz: App-Inhalt bleibt verborgen, bis gate.js body.unlocked setzt */
 body:not(.unlocked) .app,
 body:not(.unlocked) .mtabs{display:none;}
+
+.gate{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:var(--bg);}
+.gate-card{width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px;
+  padding:28px 22px;border-radius:20px;background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line), 0 18px 40px rgba(0,0,0,0.35);}
+.gate-card h1{margin:0;font-size:1.1rem;font-weight:700;color:var(--text);}
+.gate-card p{margin:0;font-size:0.9rem;line-height:1.45;color:var(--dim);}
+.gate-card input{min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);
+  background:var(--panel, var(--bg));color:var(--text);font-size:1rem;}
+.gate-card input:focus{outline:2px solid var(--blue);outline-offset:1px;}
+.gate-card button{min-height:46px;border:0;border-radius:12px;background:var(--blue);
+  color:var(--on-color, #fff);font-weight:600;font-size:0.95rem;cursor:pointer;}
+.gate-err{color:var(--coral, #D23C47);font-size:0.85rem;}
