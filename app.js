@@ -540,9 +540,9 @@ function renderCenter(m) {
       const before = lastFlaps.get(g.code) || [];
       lastFlaps.set(g.code, chars);
       let i = 0;
-      const tiles = (str) => `<span class="tiles">${[...str].map((ch) => {
+      const tiles = (str) => `<span class="flaps">${[...str].map((ch) => {
         const flip = before.length && before[i] !== ch; i += 1;
-        return `<span class="tile${ch === ':' ? ' sep' : ''}${flip ? ' flip' : ''}">${ch === ' ' ? '' : esc(ch)}</span>`;
+        return `<span class="flap${ch === ':' ? ' sep' : ''}${flip ? ' flip' : ''}">${ch === ' ' ? '' : esc(ch)}</span>`;
       }).join('')}</span>`;
       return `<section class="live-hero" ${boxAttrs(m, g)}>
       <div class="flap-row">${logo(m, g.home, 'sm')}<span class="flap-name">${esc(name(m, g.home))}</span>${tiles(String(g.hs).padStart(3, ' '))}</div>
