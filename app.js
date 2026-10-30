@@ -370,6 +370,9 @@ function liveLabel(g) {
   const part = n >= 1 && n <= 4 ? `${n}. Viertel` : n > 4 ? 'Verlängerung' : '';
   const clock = /^\d{1,2}:\d\d$/.test(g.clock || '') && g.clock !== '00:00' ? g.clock.replace(/^0(?=\d:)/, '') : '';
   if (part && g.clock === '00:00') return n === 2 ? 'Halbzeit' : `Ende ${n}. Viertel`;
+  // In Pausen und vor dem Sprungball liefert die EuroLeague kein Viertel
+  if (!part && g.clock === '00:00') return 'Pause';
+  if (!part && !g.hs && !g.as) return 'Gleich Sprungball';
   return [part, clock].filter(Boolean).join(' · ');
 }
 
