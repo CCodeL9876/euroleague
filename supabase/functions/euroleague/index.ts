@@ -21,6 +21,16 @@
 //   Funktion (Supabase-Dashboard → Edge Functions → euroleague → Secrets), damit die Werte nicht im Repo/Quelltext
 //   stehen. → { ok: true|false }. Ohne gesetzte Secrets immer { ok: false }.
 //
+//   POST { kind: 'profile-create', name, pin, favorites? } → legt ein Profil an (Name frei wählbar, einmalig;
+//   PIN 4–8 Ziffern). → { ok, name, favorites } oder { ok:false, error:'vergeben' }.
+//   POST { kind: 'profile-login', name, pin } → meldet an einem Profil an (auch auf einem anderen Gerät).
+//   → { ok, name, favorites } oder { ok:false, error:'unbekannt'|'pin' }.
+//   POST { kind: 'profile-save', name, pin, favorites } → speichert die Lieblingsteams des Profils.
+//   → { ok, favorites } oder { ok:false, error:'unbekannt'|'pin' }.
+//   Profile liegen in der Tabelle „el_profiles“ (PIN nur als Hash); Zugriff ausschliesslich über diese Funktion
+//   mit dem Secret SUPABASE_SERVICE_ROLE_KEY (Tabelle selbst bleibt per RLS für alle anderen gesperrt).
+//   Einrichtung: README.md.
+//
 // Quelle sind die öffentlichen Schnittstellen der EuroLeague: der Spielplan der Saison (api-live.euroleague.net) und
 // pro laufendem Spiel der aktuelle Stand (live.euroleague.net). Nur öffentliche Daten, keine Anmeldung nötig.
 // Speichert und protokolliert nichts; der Spielplan bleibt 2 Minuten, ein Spielstand 20 Sekunden im Arbeitsspeicher,
@@ -208,22 +218,92 @@ function sameString(a, b) {
   return diff === 0;
 }
 
-async function handleGate(req, cors) {
+function handleGate(body, cors) {
   const headers = { ...cors, 'Content-Type': 'application/json' };
   const gateKey = Deno.env.get('GATE_KEY') || '';
   const gateCode = Deno.env.get('GATE_CODE') || '';
-  let body;
-  try { body = await req.json(); } catch { return new Response(JSON.stringify({ ok: false }), { status: 400, headers }); }
   const key = String(body?.key ?? '');
   const code = String(body?.code ?? '');
   const ok = Boolean(gateKey) && Boolean(gateCode) && sameString(key, gateKey) && sameString(code, gateCode);
   return new Response(JSON.stringify({ ok }), { status: ok ? 200 : 401, headers });
 }
 
+// ---------- Profile (Name + PIN, geräteübergreifende Lieblingsteams) ----------
+const SUPABASE_URL = 'https://vbipkljatgandplwould.supabase.co';
+const PROFILES_URL = `${SUPABASE_URL}/rest/v1/el_profiles`;
+const TEAM_CODE_RE = /^[A-Z]{2,4}$/;
+
+async function sha256Hex(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function serviceHeaders() {
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+}
+
+function cleanFavorites(favorites) {
+  if (!Array.isArray(favorites)) return [];
+  return [...new Set(favorites.map((f) => String(f || '').trim().toUpperCase()).filter((f) => TEAM_CODE_RE.test(f)))].slice(0, 14);
+}
+
+async function findProfile(key) {
+  const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}&select=key,name,pin_hash,favorites`, { headers: serviceHeaders() });
+  if (!res.ok) throw new Error(`profiles ${res.status}`);
+  const rows = await res.json();
+  return rows[0] || null;
+}
+
+async function handleProfile(body, cors) {
+  const headers = { ...cors, 'Content-Type': 'application/json' };
+  if (!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) return new Response(JSON.stringify({ ok: false, error: 'nicht eingerichtet' }), { status: 500, headers });
+  const name = String(body?.name ?? '').trim().slice(0, 40);
+  const pin = String(body?.pin ?? '').trim();
+  const key = name.toLowerCase();
+  if (!key || !/^\d{4,8}$/.test(pin)) return new Response(JSON.stringify({ ok: false, error: 'ungültig' }), { status: 400, headers });
+  try {
+    if (body.kind === 'profile-create') {
+      const existing = await findProfile(key);
+      if (existing) return new Response(JSON.stringify({ ok: false, error: 'vergeben' }), { status: 409, headers });
+      const pin_hash = await sha256Hex(`${pin}:${key}`);
+      const favorites = cleanFavorites(body.favorites);
+      const res = await fetch(PROFILES_URL, { method: 'POST', headers: { ...serviceHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify([{ key, name, pin_hash, favorites }]) });
+      if (!res.ok) throw new Error(`create ${res.status}`);
+      return new Response(JSON.stringify({ ok: true, name, favorites }), { headers });
+    }
+    if (body.kind === 'profile-login') {
+      const row = await findProfile(key);
+      if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
+      const pin_hash = await sha256Hex(`${pin}:${key}`);
+      if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
+      return new Response(JSON.stringify({ ok: true, name: row.name, favorites: row.favorites || [] }), { headers });
+    }
+    if (body.kind === 'profile-save') {
+      const row = await findProfile(key);
+      if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
+      const pin_hash = await sha256Hex(`${pin}:${key}`);
+      if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
+      const favorites = cleanFavorites(body.favorites);
+      const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}`, { method: 'PATCH', headers: { ...serviceHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify({ favorites, updated_at: new Date().toISOString() }) });
+      if (!res.ok) throw new Error(`save ${res.status}`);
+      return new Response(JSON.stringify({ ok: true, favorites }), { headers });
+    }
+  } catch {
+    return new Response(JSON.stringify({ ok: false, error: 'serverfehler' }), { status: 502, headers });
+  }
+  return new Response(JSON.stringify({ ok: false, error: 'unbekannte Aktion' }), { status: 400, headers });
+}
+
 async function handle(req) {
   const cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  if (req.method === 'POST') return handleGate(req, cors);
+  if (req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return new Response(JSON.stringify({ ok: false }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }); }
+    if (body && typeof body.kind === 'string' && body.kind.startsWith('profile-')) return handleProfile(body, cors);
+    return handleGate(body, cors);
+  }
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET oder POST' }), { status: 405, headers: { ...cors, 'Content-Type': 'application/json' } });
   const now = new Date();
   const season = seasonCode(now);

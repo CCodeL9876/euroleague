@@ -4,8 +4,13 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY, KI_NEWS_URL, RUBRIKEN } from './config.js';
 
-const FAV = ['PAN', 'OLY', 'PAM', 'ULK']; // deine Teams
 const FAV_COLOR = { PAN: '#4CC38A', OLY: '#EE5F68', PAM: '#E8935F', ULK: '#5B7CFA' };
+const FAV_PALETTE = ['#4CC38A', '#EE5F68', '#E8935F', '#5B7CFA', '#C86DD7', '#2EC4C6', '#D4A72C', '#8E8CFF'];
+function favColor(c) {
+  if (FAV_COLOR[c]) return FAV_COLOR[c];
+  let h = 0; for (const ch of c) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return FAV_PALETTE[h % FAV_PALETTE.length];
+}
 const SHORT = { PAM: 'VAL', ULK: 'FEN', IST: 'EFS', MAD: 'RMB', TEL: 'MTA', RED: 'CZV', BAS: 'BKN', BES: 'BJK', MUN: 'FCB' };
 const SHORTNAME = { PAN: 'Panathinaikos', OLY: 'Olympiacos', PAR: 'Partizan', ASV: 'ASVEL', ULK: 'Fenerbahce', BAR: 'Barcelona', ZAL: 'Zalgiris',
   MUN: 'Bayern', PAM: 'Valencia', DUB: 'Dubai', MAD: 'Real Madrid', BES: 'Besiktas', HTA: 'Hapoel TA', RED: 'Zvezda', IST: 'Efes', TEL: 'Maccabi',
@@ -13,6 +18,14 @@ const SHORTNAME = { PAN: 'Panathinaikos', OLY: 'Olympiacos', PAR: 'Partizan', AS
 const KEYS = { HTA: ['hapoel'], IST: ['efes'], PAN: ['panathinaikos'], OLY: ['olympiacos'], PAM: ['valencia'], ULK: ['fenerbah'],
   MAD: ['real madrid', 'real '], BAR: ['barcelona', 'barça'], RED: ['zvezda'], PAR: ['partizan'], ZAL: ['zalgiris'], VIR: ['virtus', 'bologna'],
   MIL: ['milano', 'milan', 'olimpia'], BAS: ['baskonia'], ASV: ['asvel'], MUN: ['bayern'], DUB: ['dubai'], BES: ['besiktas'], TEL: ['maccabi'], PRS: ['paris'] };
+// Lieblingsteams: lokal zwischengespeichert, mit Profil (Name+PIN) geräteübergreifend synchronisiert (siehe „Profil“ unten)
+let FAV = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem('el-fav-teams') || 'null');
+    if (Array.isArray(v) && v.length) return v.filter((c) => SHORTNAME[c]);
+  } catch { /* privates Fenster */ }
+  return ['PAN', 'OLY', 'PAM', 'ULK'];
+})();
 const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const LIVE_POLL_MS = 60 * 1000;
 const IDLE_POLL_MS = 10 * 60 * 1000;
@@ -74,6 +87,123 @@ const open = { table: false, next: false, leaders: false };
 let players = null;     // Saisonwerte aller Spieler (?players=1), erst bei Bedarf geladen
 const leaderState = { cat: 'pts', fav: false };
 const feedState = { q: '', src: '', expanded: new Set() };
+
+// ---------- Profil ----------
+// Ganz bewusst kein echtes Login: Name + 4- bis 8-stellige PIN. Die Supabase-Funktion „euroleague“ prüft die PIN
+// serverseitig (gehasht, siehe supabase/functions/euroleague/index.ts) und liefert/speichert die Lieblingsteams.
+// Auf diesem Gerät merkt sich die Seite Name+PIN (wie der Zugangscode), damit man sich nicht bei jedem Besuch neu
+// anmelden muss; auf einem zweiten Gerät meldet man sich mit demselben Name+PIN an, um dieselben Teams zu sehen.
+let profile = null; // { name } sobald angemeldet
+let profileBusy = false;
+let profileError = '';
+let favEdit = false;
+
+function saveLocalFav(list) { try { localStorage.setItem('el-fav-teams', JSON.stringify(list)); } catch { /* privates Fenster */ } }
+
+async function profileCall(body) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/euroleague`, {
+      method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(10000),
+    });
+    const json = await res.json().catch(() => null);
+    return json || { ok: false, error: 'antwort' };
+  } catch {
+    return { ok: false, error: 'netzwerk' };
+  }
+}
+
+async function autoLoginProfile() {
+  const name = store.get('el-profile-name', ''), pin = store.get('el-profile-pin', '');
+  if (!name || !pin) return;
+  const res = await profileCall({ kind: 'profile-login', name, pin });
+  if (res.ok) {
+    profile = { name: res.name || name };
+    if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); }
+  } else if (res.error === 'pin' || res.error === 'unbekannt') {
+    store.set('el-profile-name', ''); store.set('el-profile-pin', '');
+  }
+}
+
+async function profileLogin(name, pin) {
+  profileBusy = true; profileError = ''; render();
+  const res = await profileCall({ kind: 'profile-login', name, pin });
+  profileBusy = false;
+  if (res.ok) {
+    profile = { name: res.name || name };
+    store.set('el-profile-name', name); store.set('el-profile-pin', pin);
+    if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); }
+    favEdit = false;
+  } else {
+    profileError = res.error === 'pin' ? 'Falsche PIN.' : res.error === 'unbekannt' ? 'Unbekannter Name – «Neu anlegen» verwenden.' : 'Das hat gerade nicht geklappt.';
+  }
+  render();
+}
+
+async function profileCreate(name, pin) {
+  profileBusy = true; profileError = ''; render();
+  const res = await profileCall({ kind: 'profile-create', name, pin, favorites: FAV });
+  profileBusy = false;
+  if (res.ok) {
+    profile = { name: res.name || name };
+    store.set('el-profile-name', name); store.set('el-profile-pin', pin);
+    favEdit = false;
+  } else {
+    profileError = res.error === 'vergeben' ? 'Dieser Name ist schon vergeben – stattdessen anmelden?' : 'Das hat gerade nicht geklappt.';
+  }
+  render();
+}
+
+function profileLogout() {
+  profile = null; profileError = '';
+  store.set('el-profile-name', ''); store.set('el-profile-pin', '');
+  render();
+}
+
+async function toggleFav(code) {
+  const i = FAV.indexOf(code);
+  if (i >= 0) { if (FAV.length <= 1) return; FAV.splice(i, 1); } else FAV.push(code);
+  if (!FAV.includes(sel)) sel = FAV[0];
+  saveLocalFav(FAV);
+  render();
+  if (profile) {
+    const pin = store.get('el-profile-pin', '');
+    if (pin) await profileCall({ kind: 'profile-save', name: profile.name, pin, favorites: FAV });
+  }
+}
+
+function profileHtml() {
+  if (profile) {
+    return `<div class="profile-bar">
+      <span class="profile-who">${icon('star', 'icon')}${esc(profile.name)}</span>
+      <button type="button" class="profile-link" data-act="fav-edit">${favEdit ? 'Fertig' : 'Teams bearbeiten'}</button>
+      <button type="button" class="profile-link" data-act="profile-logout">Profil abmelden</button>
+    </div>${favEdit ? favEditHtml() : ''}`;
+  }
+  return `<div class="profile-bar guest">
+    <span class="profile-who">Ohne Profil – Teams nur auf diesem Gerät</span>
+    <button type="button" class="profile-link" data-act="profile-open">${favEdit ? 'Schliessen' : 'Profil anlegen / anmelden'}</button>
+  </div>${favEdit ? profileFormHtml() : ''}`;
+}
+
+function profileFormHtml() {
+  return `<form class="profile-form" id="profileForm">
+    <input id="profName" type="text" maxlength="40" autocomplete="off" placeholder="Dein Name" aria-label="Name" value="${esc(store.get('el-profile-name', ''))}">
+    <input id="profPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="PIN (4–8 Ziffern)" aria-label="PIN">
+    <div class="profile-form-acts">
+      <button type="button" data-act="profile-login-go"${profileBusy ? ' disabled' : ''}>${profileBusy ? '…' : 'Anmelden'}</button>
+      <button type="button" data-act="profile-create-go"${profileBusy ? ' disabled' : ''}>${profileBusy ? '…' : 'Neu anlegen'}</button>
+    </div>
+    ${profileError ? `<p class="profile-err">${esc(profileError)}</p>` : '<p class="profile-hint">Name + PIN merken: Auf jedem Gerät damit anmelden, um dieselben Lieblingsteams zu sehen.</p>'}
+  </form>`;
+}
+
+function favEditHtml() {
+  const teams = Object.keys(SHORTNAME).sort((a, b) => SHORTNAME[a].localeCompare(SHORTNAME[b], 'de'));
+  return `<div class="fav-edit" role="group" aria-label="Lieblingsteams wählen">
+    ${teams.map((c) => `<button type="button" class="fav-pick" style="--c:${favColor(c)}" data-act="fav-toggle" data-c="${c}" aria-pressed="${FAV.includes(c)}">${esc(SHORTNAME[c])}</button>`).join('')}
+  </div>${profileError ? `<p class="profile-err">${esc(profileError)}</p>` : ''}`;
+}
 
 // ---------- Ableitungen aus den Spielen ----------
 function model() {
@@ -191,7 +321,7 @@ function nextHtml(m, c) {
 
 function renderLeft(m) {
   const left = $('#left');
-  const chips = FAV.map((c) => `<button type="button" class="chip" style="--c:${FAV_COLOR[c]}" data-team="${c}" aria-pressed="${c === sel}" aria-label="${esc(fullName(m, c))}, ${esc(rec(m, c))}"><b>${esc(short(c))}</b><span>${esc(rec(m, c))}</span></button>`).join('');
+  const chips = FAV.map((c) => `<button type="button" class="chip" style="--c:${favColor(c)}" data-team="${c}" aria-pressed="${c === sel}" aria-label="${esc(fullName(m, c))}, ${esc(rec(m, c))}"><b>${esc(short(c))}</b><span>${esc(rec(m, c))}</span></button>`).join('');
   const star = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3 6.5 7 .8-5.2 4.8 1.4 7L12 17.6 5.8 21l1.4-7L2 9.3l7-.8z"/></svg>';
   const cards = [...FAV].sort((a, b) => (m.st[a]?.rank || 99) - (m.st[b]?.rank || 99)).filter((c) => m.st[c]).map((c) => {
     const t = m.st[c], form = (m.hist[c] || []).slice(-5);
@@ -199,7 +329,8 @@ function renderLeft(m) {
       <span class="rec num">${esc(rec(m, c))}</span>
       <span class="form" role="img" aria-label="Form: ${form.map((f) => (f.w ? 'Sieg' : 'Niederlage')).join(', ')}">${form.map((f) => `<i${f.w ? '' : ' class="l"'}></i>`).join('')}</span></article>`;
   }).join('');
-  left.innerHTML = `<section class="panel chart" aria-label="${esc(fullName(m, sel))}, Korbdifferenz über die Saison">${chartHtml(m, sel)}</section>
+  left.innerHTML = `${profileHtml()}
+    <section class="panel chart" aria-label="${esc(fullName(m, sel))}, Korbdifferenz über die Saison">${chartHtml(m, sel)}</section>
     <div class="chips" role="group" aria-label="Team wählen">${chips}</div>
     <section class="panel next" aria-label="Nächstes Spiel">${nextHtml(m, sel)}</section>
     <div class="sec-head"><h2>Deine Teams</h2><span class="label">Form · letzte 5</span></div>
@@ -697,6 +828,15 @@ document.addEventListener('click', (e) => {
   else if (act === 'leader-fav') { leaderState.fav = t.checked; render(); }
   else if (act === 'theme') toggleTheme();
   else if (act === 'logout') logout();
+  else if (act === 'profile-open' || act === 'fav-edit') { favEdit = !favEdit; profileError = ''; render(); }
+  else if (act === 'profile-logout') profileLogout();
+  else if (act === 'fav-toggle') toggleFav(t.dataset.c);
+  else if (act === 'profile-login-go' || act === 'profile-create-go') {
+    const name = $('#profName')?.value.trim() || '';
+    const pin = $('#profPin')?.value.trim() || '';
+    if (!name || !/^\d{4,8}$/.test(pin)) { profileError = 'Name und eine PIN aus 4–8 Ziffern eingeben.'; render(); return; }
+    if (act === 'profile-login-go') profileLogin(name, pin); else profileCreate(name, pin);
+  }
 });
 
 // ---------- Abmelden ----------
@@ -724,6 +864,7 @@ $('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxSt
 $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
 $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 document.addEventListener('change', (e) => { if (e.target.id === 'shotPlayer') { boxState.shooter = e.target.value; renderBox(); $('#shotPlayer')?.focus(); } });
+document.addEventListener('submit', (e) => { if (e.target.id === 'profileForm') e.preventDefault(); });
 
 // ---------- Hell / Dunkel ----------
 // Ohne eigene Wahl folgt die Seite dem iPhone; theme-boot.js setzt eine gespeicherte Wahl schon vor dem ersten Zeichnen
@@ -793,6 +934,7 @@ $('#siteLink').href = KI_NEWS_URL;
 setTab(tab, false);
 setupPullToRefresh();
 refresh({ withNews: true }).then(() => loadPlayers()).then(render);
+autoLoginProfile().then(render);
 
 // ---------- Hinweis „App auf Homebildschirm speichern“ ----------
 // Nur im Browser (nicht in der Web-App vom Home-Bildschirm) und nur auf Handy/Tablet. „Später“ oder × blendet ihn für

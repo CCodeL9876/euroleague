@@ -595,6 +595,24 @@ button.box-team:hover{background:var(--card-2);}
 @keyframes ins-in{from{opacity:0;transform:translateY(16px);}}
 @media (prefers-reduced-motion: reduce){ .install{animation:none;} .install.is-gone{transition:none;} }
 
+/* Profil: Name+PIN, Lieblingsteams geräteübergreifend */
+.profile-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 12px;border-radius:14px;background:var(--card);margin-bottom:4px;}
+.profile-bar.guest{background:transparent;border:1px dashed var(--line);}
+.profile-who{display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600;color:var(--text);}
+.profile-who .icon{width:15px;height:15px;fill:var(--blue);stroke:none;}
+.profile-link{margin-left:auto;border:0;background:transparent;color:var(--blue-hi, var(--blue));font-size:0.82rem;font-weight:600;cursor:pointer;padding:4px 2px;}
+.profile-link + .profile-link{margin-left:0;}
+.profile-form{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:var(--card);margin-bottom:4px;}
+.profile-form input{min-height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel, var(--bg));color:var(--text);font-size:0.95rem;}
+.profile-form-acts{display:flex;gap:8px;}
+.profile-form-acts button{flex:1;min-height:42px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);font-weight:600;cursor:pointer;}
+.profile-form-acts button:first-child{background:var(--blue);border-color:var(--blue);color:var(--on-color);}
+.profile-err{margin:0;font-size:0.8rem;color:var(--coral);}
+.profile-hint{margin:0;font-size:0.78rem;color:var(--dim);}
+.fav-edit{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-radius:14px;background:var(--card);margin-bottom:4px;}
+.fav-pick{flex:none;min-height:40px;padding:0 14px;border-radius:999px;border:2px solid var(--c);background:transparent;color:var(--text);font-size:0.85rem;font-weight:500;cursor:pointer;}
+.fav-pick[aria-pressed="true"]{background:color-mix(in srgb, var(--c) 22%, transparent);font-weight:700;}
+
 /* Zugriffsschutz: App-Inhalt bleibt verborgen, bis gate.js body.unlocked setzt */
 body:not(.unlocked) .app,
 body:not(.unlocked) .mtabs{display:none;}

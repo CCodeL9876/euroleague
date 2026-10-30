@@ -12,6 +12,7 @@ Läuft auf GitHub Pages, ohne Build-Schritt (reines HTML/CSS/JavaScript).
 | Wurfkarte (im Spielbericht) | Supabase-Funktion `euroleague` mit `?game=…` (Würfe mit Koordinaten) | wie der Spielbericht |
 | Bestenlisten, Kader, Top-Spieler der Vorschau | Supabase-Funktion `euroleague` mit `?players=1` (Saisonwerte pro Spiel aller Spieler) | höchstens alle 30 Minuten neu |
 | News (16 Meldungen) | `news.json` in diesem Repository | täglich um 07:15 durch eine Claude-Aufgabe |
+| Lieblingsteams | ohne Profil: nur lokal auf dem Gerät (`localStorage`); mit Profil (Name+PIN): Tabelle `el_profiles`, über die Funktion `euroleague` | bei jeder Änderung |
 
 Die Tabelle, die Form der Teams und die Kurve werden auf der Seite aus allen Resultaten der Saison berechnet.
 Ebenso Heim-/Auswärtsbilanz, Serie und die Vorschau vor einem Spiel (Form, Tabellenplatz, Duelle dieser Saison).
@@ -53,11 +54,37 @@ bleibt sie leer; mit dem Parameter erscheint ein Eingabefeld für einen gemeinsa
 3. Nach richtigem Code merkt sich das Gerät den Zugang (`localStorage`), der `?key=…`-Teil wird aus der
    Adressleiste entfernt.
 
-Das ist bewusst **keine echte Benutzerverwaltung** – nur eine Hürde gegen zufällige Besucher:innen. Lieblingsteam
-und andere Einstellungen bleiben wie bisher rein lokal auf dem Gerät (`localStorage`), nicht an einen Account
-gebunden.
+Das ist bewusst **keine echte Benutzerverwaltung** – nur eine Hürde gegen zufällige Besucher:innen.
 
-### 4. News-Aufgabe
+### 4. Profile (Name + PIN) für geräteübergreifende Lieblingsteams
+
+Jede Person kann sich ein eigenes, leichtes Profil anlegen (Name + 4- bis 8-stellige PIN, keine E-Mail) und damit
+ihre Lieblingsteams auf mehreren Geräten gleich sehen. Die PIN wird nur gehasht gespeichert, die Prüfung läuft in
+der Funktion `euroleague` – die Tabelle selbst ist für alle anderen gesperrt. Einmalig einrichten:
+
+1. **Tabelle anlegen** – Supabase-Dashboard → **SQL Editor** → Neue Abfrage → diesen SQL-Code ausführen:
+   ```sql
+   create table if not exists el_profiles (
+     key text primary key,          -- Name klein geschrieben, zum Nachschlagen
+     name text not null,            -- Name wie eingegeben, zur Anzeige
+     pin_hash text not null,
+     favorites text[] not null default '{}',
+     updated_at timestamptz not null default now()
+   );
+   alter table el_profiles enable row level security;
+   ```
+   Die Tabelle bleibt ohne eigene RLS-Regeln für `anon`/`authenticated` komplett gesperrt; nur die Funktion kommt
+   mit dem Service-Role-Key daran vorbei.
+2. **Service-Role-Key als Secret setzen** – Supabase-Dashboard → **Project Settings** → **API** → **service_role**
+   Key kopieren (⚠️ nicht mit dem `anon`-Key verwechseln – dieser Key umgeht alle Zugriffsregeln). Dann unter
+   **Edge Functions** → **Secrets** einen neuen Eintrag `SUPABASE_SERVICE_ROLE_KEY` mit diesem Wert anlegen.
+3. Die Funktion `euroleague` wie gewohnt mit dem aktuellen Code neu deployen (sie enthält jetzt auch die
+   Profil-Routen).
+
+Ohne diese Einrichtung funktioniert die Seite weiterhin normal – Lieblingsteams bleiben dann einfach rein lokal
+auf dem jeweiligen Gerät, wie zuvor.
+
+### 5. News-Aufgabe
 
 Eine geplante Claude-Aufgabe sucht täglich neue Meldungen (Sportando, Eurohoops, BasketNews, RealGM), fasst sie auf
 Deutsch zusammen und schreibt sie in `news.json`:
