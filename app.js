@@ -497,6 +497,43 @@ function cardFor(g) {
 // Letzte Zeichen jeder Fallblatt-Anzeige, damit nur geänderte Blätter umklappen
 const lastFlaps = new Map();
 
+// Neben dem „Spiel des Tages“: bester Spieler jedes Teams (nach PIR) und die Viertel – aus dem Spielbericht.
+// Solange der lädt (oder falls er fehlt), steht dort die Basketball-Grafik.
+let heroBox = { code: 0, data: null };
+function heroDuel(m, g) {
+  if (heroBox.code !== g.code) {
+    heroBox = { code: g.code, data: null };
+    const url = testData ? `box-${g.code}.json` : `${DATA_URL}?game=${g.code}`;
+    fetch(url, { headers: testData ? {} : { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) })
+      .then((res) => res.json()).then((d) => {
+        if (heroBox.code !== g.code || !Array.isArray(d?.teams) || !d.teams.some((t) => t.players?.length)) return;
+        heroBox.data = d;
+        if (!document.body.classList.contains('needs-profile')) render();
+      }).catch(() => {});
+    if (!players) loadPlayers().then(() => { if (heroBox.data && !document.body.classList.contains('needs-profile')) render(); });
+  }
+  const b = heroBox.data;
+  if (!b) return `<div class="hero-art" aria-hidden="true">${HERO_ART}</div>`;
+  const codes = [g.home, g.away], win = g.hs > g.as ? 0 : 1;
+  const card = (t, i) => {
+    const p = [...(t.players || [])].sort((x, y) => y.pir - x.pir || y.pts - x.pts)[0];
+    if (!p) return '';
+    const img = (players?.players || []).find((x) => x.id && x.id === p.id)?.img || '';
+    const photo = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//.test(img) ? `<img class="duel-photo" src="${esc(img)}" alt="" loading="lazy">` : '';
+    return `<div class="duel-pl${i === win ? ' win' : ''}" style="--team:${TEAM_COLOR[codes[i]] || favColor(codes[i])}">${photo}
+      <span class="duel-pir num">${p.pir}<small>PIR</small></span><span class="duel-who">${playerBtn(p, codes[i])}</span>
+      <small>${p.pts} Pkt · ${p.reb} Reb · ${p.ast} Ass</small></div>`;
+  };
+  const qs = b.quarters || [];
+  const n = Math.max(...qs.map((q) => q.filter((v) => v != null).length), 0);
+  const qhead = Array.from({ length: n }, (_, k) => `<span class="h">${k < 4 ? `${k + 1}.` : `V${k - 3}`}</span>`).join('');
+  const qrow = (i) => `<span class="t">${logo(m, codes[i], 'xxs')}${esc(short(codes[i]))}</span>${Array.from({ length: n }, (_, k) => {
+    const a = qs[i]?.[k] ?? 0, o = qs[1 - i]?.[k] ?? 0;
+    return `<span class="c${a > o ? ' w' : ''}">${a}</span>`; }).join('')}<b class="c">${i ? g.as : g.hs}</b>`;
+  return `<div class="hero-duel"><div class="duel">${b.teams.slice(0, 2).map(card).join('')}</div>
+    ${n ? `<div class="qline num" style="--n:${n}" role="table" aria-label="Punkte pro Viertel"><span></span>${qhead}<span></span>${qrow(0)}${qrow(1)}</div>` : ''}</div>`;
+}
+
 const HERO_ART ='<svg viewBox="0 0 300 240"><path d="M70 170a95 95 0 1 1 170 -40" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.9"/><path d="M60 150a95 95 0 0 0 40 50" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.5"/><ellipse cx="150" cy="212" rx="70" ry="10" fill="#1B1C38" opacity="0.6"/><circle cx="150" cy="118" r="72" fill="#E8935F"/><circle cx="150" cy="118" r="72" fill="none" stroke="#C86F3B" stroke-width="3"/><path d="M78 118h144M150 46v144M100 66c22 26 22 78 0 104M200 66c-22 26-22 78 0 104" fill="none" stroke="#4A2210" stroke-width="5" stroke-linecap="round"/><ellipse cx="124" cy="86" rx="22" ry="12" fill="#FFFFFF" opacity="0.18" transform="rotate(-30 124 86)"/></svg>';
 
 function renderCenter(m) {
@@ -558,7 +595,7 @@ function renderCenter(m) {
   if (big) {
     const ci = cardFor(big);
     parts.push(`<section class="hero" aria-label="Spiel des Tages">
-      <div class="hero-art" aria-hidden="true">${HERO_ART}</div>
+      ${heroDuel(m, big)}
       <div class="hero-info"><h2>Spiel des Tages</h2><div class="score" ${boxAttrs(m, big)}>
         <div class="team"><span class="pts num">${big.hs}</span><span class="tn">${logo(m, big.home, 'xs')}${esc(name(m, big.home))}</span></div>
         <span class="arrow" aria-hidden="true">»</span>

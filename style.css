@@ -848,3 +848,29 @@ body.needs-profile .mtabs{display:none;}
 .nf-row.is-flash, .nf-lead.is-flash, .nf-quote.is-flash, .nf-tile.is-flash{animation:flash 1.6s ease-out;}
 @media (max-width:820px){ .nf-chips{margin-inline:-16px;padding-inline:16px;} }
 @media (max-width:380px){ .nf-duo{grid-template-columns:minmax(0,1fr);} }
+
+/* ---------- Spiel des Tages: Duell der besten Spieler + Viertel (statt Basketball-Grafik) ---------- */
+.hero-duel{display:flex;flex-direction:column;gap:10px;min-width:0;}
+.duel{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:10px;}
+.duel-pl{position:relative;overflow:hidden;min-height:150px;padding:12px;border-radius:18px;background:var(--card);display:flex;flex-direction:column;justify-content:flex-end;gap:2px;}
+.duel-pl.win{background:linear-gradient(160deg, color-mix(in srgb, var(--team) 45%, var(--card)), var(--card) 75%);}
+.duel-pl > *:not(.duel-photo){position:relative;z-index:1;}
+.duel-photo{position:absolute;right:-14px;bottom:0;height:88%;width:auto;max-width:70%;object-fit:contain;object-position:bottom right;}
+.duel-pir{font-size:1.6rem;font-weight:600;line-height:1;}
+.duel-pir small{font-family:var(--font);font-size:0.7rem;font-weight:500;color:var(--dim);margin-left:4px;}
+.duel-who{font-weight:600;font-size:0.95rem;line-height:1.15;max-width:72%;}
+.duel-pl small{font-size:0.75rem;color:var(--dim);max-width:72%;}
+.qline{display:grid;grid-template-columns:auto repeat(var(--n), minmax(0,1fr)) auto;gap:4px 6px;align-items:center;background:var(--card);border-radius:14px;padding:8px 12px;font-size:0.82rem;}
+.qline .h{font-size:0.65rem;color:var(--faint);text-align:center;}
+.qline .c{text-align:center;color:var(--dim);}
+.qline .c.w{color:var(--text);font-weight:700;}
+.qline b.c{color:var(--text);padding-left:6px;}
+.qline .t{display:flex;align-items:center;font-family:var(--font);font-weight:600;font-size:0.8rem;}
+.qline .t .logo.xxs{margin-right:6px;}
+@media (max-width:1180px){ .hero .hero-duel{order:2;margin-top:14px;} }
+@media (max-width:820px){
+  .hero .hero-duel{margin-top:12px;}
+  .hero .duel-pl, .hero .qline{background:var(--card-2);}
+  .hero .duel-pl.win{background:linear-gradient(160deg, color-mix(in srgb, var(--team) 45%, var(--card-2)), var(--card-2) 75%);}
+  .duel-pl{min-height:130px;}
+}
