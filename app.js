@@ -17,7 +17,7 @@ const SHORTNAME = { PAN: 'Panathinaikos', OLY: 'Olympiacos', PAR: 'Partizan', AS
   VIR: 'Virtus', MIL: 'Milano', BAS: 'Baskonia', PRS: 'Paris' };
 const KEYS = { HTA: ['hapoel'], IST: ['efes'], PAN: ['panathinaikos'], OLY: ['olympiacos'], PAM: ['valencia'], ULK: ['fenerbah'],
   MAD: ['real madrid', 'real '], BAR: ['barcelona', 'barça'], RED: ['zvezda'], PAR: ['partizan'], ZAL: ['zalgiris'], VIR: ['virtus', 'bologna'],
-  MIL: ['milano', 'milan', 'olimpia'], BAS: ['baskonia'], ASV: ['asvel'], MUN: ['bayern'], DUB: ['dubai'], BES: ['besiktas'], TEL: ['maccabi'], PRS: ['paris'] };
+  MIL: ['milano', 'milan', 'olimpia', 'mailand'], BAS: ['baskonia'], ASV: ['asvel'], MUN: ['bayern'], DUB: ['dubai'], BES: ['besiktas'], TEL: ['maccabi'], PRS: ['paris'] };
 // Lieblingsteams: lokal zwischengespeichert, mit Profil (Name+PIN) geräteübergreifend synchronisiert (siehe „Profil“ unten)
 let FAV = (() => {
   try {
@@ -86,7 +86,7 @@ let tab = ['spiel', 'news', 'teams'].includes(store.get('el-tab')) ? store.get('
 const open = { table: false, next: false, leaders: false };
 let players = null;     // Saisonwerte aller Spieler (?players=1), erst bei Bedarf geladen
 const leaderState = { cat: 'pts', fav: false };
-const feedState = { q: '', src: '', expanded: new Set() };
+const feedState = { q: '', src: '', cat: '', expanded: new Set() };
 
 // ---------- Profil ----------
 // Ganz bewusst kein echtes Login: Name + 4- bis 8-stellige PIN. Die Supabase-Funktion „euroleague“ prüft die PIN
@@ -630,7 +630,32 @@ function renderCenter(m) {
 
 // ---------- Rechts: News ----------
 function dkey(s) { const p = String(s || '').split('.'); return p.length === 3 ? p[2] + p[1] + p[0] : ''; }
-const SRC_COLOR = ['#5B7CFA', '#EE5F68', '#4CC38A', '#E8935F', '#6E3CF0'];
+// News als Titelseite: Aufmacher, Zitat, zwei Top-Kacheln, Rest als „Kurz gemeldet“.
+// Thema (Farbe + Symbol) und Team (Logo) kommen aus dem Tag der Meldung, z. B. „Verletzung · Real Madrid“.
+const NEWS_ICON = {
+  inj: '<path d="M12 5v14M5 12h14"/>', tr: '<path d="M7 7h11l-3-3M17 17H6l3 3"/>', q: '<path d="M7 11h4v6H5v-4a6 6 0 0 1 2-4M15 11h4v6h-6v-4a6 6 0 0 1 2-4"/>',
+  res: '<path d="M4 6h16v12H4zM12 6v12"/>', ser: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>', cal: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+};
+const NEWS_CAT = { Verletzung: ['coral', 'inj'], Transfer: ['blue-hi', 'tr'], Zitat: ['violet-hi', 'q'], Resultat: ['green', 'res'], Spielbericht: ['green', 'res'],
+  Serie: ['gold', 'ser'], Rekord: ['gold', 'ser'], Spielplan: ['orange', 'cal'], Vorschau: ['blue-hi', 'eye'] };
+const NEWS_FILTERS = [['', 'Alle'], ['fav', '★ Meine Teams'], ['Verletzung', 'Verletzungen'], ['Transfer', 'Transfers'], ['Zitat', 'Stimmen']];
+const LEAD_ORDER = ['Serie', 'Rekord', 'Resultat', 'Spielbericht', 'Transfer'];
+
+function newsInfo(it) {
+  const [cat = '', teamTxt = ''] = String(it.tag || '').split(' · ');
+  const hay = teamTxt.toLowerCase();
+  const team = Object.keys(KEYS).find((c) => KEYS[c].some((k) => hay.includes(k.trim()))) || '';
+  const [color, ic] = NEWS_CAT[cat] || ['faint', 'globe'];
+  const quote = /«([^»]+)»/.exec(it.title || '');
+  return { cat, teamTxt, team, color, ic, quote: quote ? quote[1] : '', who: quote ? String(it.title).split(/\s(?:nach|vor|über)\s|:/)[0] : '' };
+}
+const newsCat = (n) => `<span class="nf-cat" style="--c:var(--${n.color})"><svg viewBox="0 0 24 24" aria-hidden="true">${NEWS_ICON[n.ic]}</svg>${esc(n.cat)}${n.teamTxt ? ` · ${esc(n.teamTxt)}` : ''}</span>`;
+const newsLogo = (n) => (n.team && teamLogo(n.team) ? `<span class="logo nf-logo">${teamLogo(n.team).replace('class="fav-pick-logo" ', '')}</span>` : '<span class="logo nf-logo none" aria-hidden="true"></span>');
+const newsWhen = (it, todayCH) => { const [d, t] = String(it.time || '').split(' · '); return d === todayCH ? `Heute ${t || ''}` : d ? `${d.slice(0, 6)} ${t || ''}` : ''; };
+const newsMeta = (it, todayCH) => `<span class="nf-meta"><b>${esc(it.source)}</b><i aria-hidden="true"></i><span class="num">${esc(newsWhen(it, todayCH))}</span></span>`;
+const newsActs = (it, i) => `<span class="nf-acts"><button type="button" class="share-btn" data-act="share" data-i="${i}" aria-label="Meldung teilen: ${esc(it.title)}">${icon('share', '')}Teilen</button>
+  <a href="${esc(/^https:\/\//.test(it.url) ? it.url : '#')}" target="_blank" rel="noopener">${esc(it.source)} ↗</a></span>`;
 
 function renderFeed() {
   const items = news?.items || [];
@@ -641,24 +666,60 @@ function renderFeed() {
   $('#feedHead').innerHTML = `<span><span class="live" aria-hidden="true"></span>${newest === todayCH ? 'Neu heute' : `Neu am ${esc(newest)}`} · ${nNew}</span><span class="num">${icon('chat')}${items.length} Meldungen</span>`;
   $('#src').innerHTML = ['', ...srcs].map((s) => `<button type="button" data-src="${esc(s)}" aria-pressed="${feedState.src === s}">${esc(s || 'Alle')}</button>`).join('');
   const q = feedState.q.trim().toLowerCase();
-  let shown = 0, divided = false;
-  const html = items.map((it, i) => {
-    const ok = (!feedState.src || it.source === feedState.src) && (!q || `${it.tag} ${it.title} ${it.text}`.toLowerCase().includes(q));
-    if (!ok) return '';
-    shown++;
-    const divider = !divided && !q && !feedState.src && it.firstShown !== newest ? (divided = true, '<h3 class="feed-divider">Frühere Meldungen</h3>') : '';
-    const color = SRC_COLOR[srcs.indexOf(it.source) % SRC_COLOR.length] || SRC_COLOR[0];
+  const all = items.map((it, i) => ({ it, i, n: newsInfo(it) }));
+  const counts = { fav: all.filter((x) => FAV.includes(x.n.team)).length };
+  for (const [k] of NEWS_FILTERS) if (k && k !== 'fav') counts[k] = all.filter((x) => x.n.cat === k).length;
+  const chips = `<div class="nf-chips" role="group" aria-label="Thema">${NEWS_FILTERS.map(([k, l]) => `<button type="button" data-act="news-cat" data-cat="${k}" aria-pressed="${feedState.cat === k}">${l}${k ? ` <i class="num">${counts[k]}</i>` : ` <i class="num">${items.length}</i>`}</button>`).join('')}</div>`;
+  const list = all.filter(({ it, n }) => (!feedState.src || it.source === feedState.src)
+    && (!feedState.cat || (feedState.cat === 'fav' ? FAV.includes(n.team) : n.cat === feedState.cat))
+    && (!q || `${it.tag} ${it.title} ${it.text}`.toLowerCase().includes(q)));
+
+  const row = ({ it, i, n }) => {
     const openTxt = feedState.expanded.has(i);
-    return `${divider}<article class="card${openTxt ? ' is-open' : ''}" id="news-${i}">
-      <span class="src-avatar" style="--ac:${color}" aria-hidden="true">${esc((it.source || '?').charAt(0))}</span>
-      <div class="card-top"><span class="tag">${esc(it.tag)}</span></div>
-      <h2>${esc(it.title)}</h2><p>${esc(it.text)}</p>
-      <button type="button" class="more" data-act="more" data-i="${i}" aria-expanded="${openTxt}">${openTxt ? 'Weniger' : 'Weiterlesen'}</button>
-      <div class="card-foot"><span>${esc(it.time)}</span><div class="foot-actions">
-        <button type="button" class="share-btn" data-act="share" data-i="${i}" aria-label="Meldung teilen: ${esc(it.title)}">${icon('share', '')}Teilen</button>
-        <a href="${esc(/^https:\/\//.test(it.url) ? it.url : '#')}" target="_blank" rel="noopener">${esc(it.source)} ↗</a></div></div></article>`;
-  }).join('');
-  $('#feed').innerHTML = html + (shown ? '' : '<p class="feed-empty">Keine Meldung passt zur Suche.</p>');
+    return `<article class="nf-row${openTxt ? ' is-open' : ''}" id="news-${i}">${newsLogo(n)}
+      <div class="nf-row-main">${newsCat(n)}<h3>${esc(it.title)}</h3>${openTxt ? `<p>${esc(it.text)}</p>` : ''}
+        <div class="nf-row-foot">${newsMeta(it, todayCH)}<button type="button" class="more" data-act="more" data-i="${i}" aria-expanded="${openTxt}">${openTxt ? 'Weniger' : 'Lesen'}</button></div>
+        ${openTxt ? newsActs(it, i) : ''}</div></article>`;
+  };
+
+  let html = '';
+  if (!list.length) html = '<p class="feed-empty">Keine Meldung passt zur Suche.</p>';
+  else if (q || feedState.src || feedState.cat) html = `<div class="nf-list">${list.map(row).join('')}</div>`;
+  else {
+    // Titelseite aus den neuesten Meldungen; bevorzugt Meldungen zu den eigenen Teams als Aufmacher
+    const fresh = list.filter(({ it }) => it.firstShown === newest);
+    // Eigene Teams zuerst, dann Reihenfolge der Themen, dann die neueste
+    const pick = (cats, not = []) => fresh.filter((x) => cats.includes(x.n.cat) && !x.n.quote && !not.includes(x))
+      .sort((a, b) => (FAV.includes(b.n.team) - FAV.includes(a.n.team)) || cats.indexOf(a.n.cat) - cats.indexOf(b.n.cat))[0];
+    const lead = pick(LEAD_ORDER) || fresh.find((x) => !x.n.quote) || fresh[0];
+    const quote = fresh.find((x) => x.n.quote && x !== lead);
+    const tops = [];
+    for (const cats of [['Resultat', 'Spielbericht'], ['Transfer'], ['Serie', 'Rekord', 'Spielplan', 'Vorschau']]) {
+      if (tops.length === 2) break;
+      const x = pick(cats, [lead, ...tops]); if (x) tops.push(x);
+    }
+    const used = new Set([lead, quote, ...tops].filter(Boolean));
+    const rest = list.filter((x) => !used.has(x));
+    const crest = lead && lead.n.team ? data?.teams?.[lead.n.team]?.crest : '';
+    const leadOpen = lead && feedState.expanded.has(lead.i);
+    html += lead ? `<article class="nf-lead" id="news-${lead.i}" style="--c:var(--${lead.n.color})">
+      ${/^https:\/\/media-cdn\./.test(crest || '') ? `<span class="nf-lead-crest" aria-hidden="true"><img src="${esc(crest)}" alt=""></span>` : ''}
+      ${newsCat(lead.n)}<h2>${esc(lead.it.title)}</h2><p>${esc(lead.it.text)}</p>
+      <div class="nf-row-foot">${newsMeta(lead.it, todayCH)}</div>${newsActs(lead.it, lead.i)}</article>` : '';
+    html += quote ? `<article class="nf-quote" id="news-${quote.i}">${newsCat(quote.n)}<blockquote>${esc(quote.n.quote)}</blockquote>
+      <div class="nf-row-foot"><span class="nf-meta">${quote.n.team ? newsLogo(quote.n) : ''}<b>${esc(quote.n.who)}</b><i aria-hidden="true"></i><span>${esc(quote.it.source)}</span></span>
+        <button type="button" class="more" data-act="more" data-i="${quote.i}" aria-expanded="${feedState.expanded.has(quote.i)}">${feedState.expanded.has(quote.i) ? 'Weniger' : 'Lesen'}</button></div>
+      ${feedState.expanded.has(quote.i) ? `<p>${esc(quote.it.text)}</p>${newsActs(quote.it, quote.i)}` : ''}</article>` : '';
+    html += tops.length ? `<div class="nf-duo">${tops.map(({ it, i, n }) => `<article class="nf-tile" id="news-${i}" style="--c:var(--${n.color})">${newsCat(n)}<h3>${esc(it.title)}</h3>
+      ${feedState.expanded.has(i) ? `<p>${esc(it.text)}</p>${newsActs(it, i)}` : ''}
+      <div class="nf-row-foot">${newsMeta(it, todayCH)}<button type="button" class="more" data-act="more" data-i="${i}" aria-expanded="${feedState.expanded.has(i)}">${feedState.expanded.has(i) ? 'Weniger' : 'Lesen'}</button></div></article>`).join('')}</div>` : '';
+    let divided = false;
+    html += rest.length ? `<h3 class="feed-divider">Kurz gemeldet</h3><div class="nf-list">${rest.map((x) => {
+      const div = !divided && x.it.firstShown !== newest ? (divided = true, '</div><h3 class="feed-divider">Frühere Meldungen</h3><div class="nf-list">') : '';
+      return div + row(x);
+    }).join('')}</div>` : '';
+  }
+  $('#feed').innerHTML = chips + html;
   const badge = $('#newsBadge');
   if (badge) { badge.textContent = nNew; badge.hidden = !nNew; badge.setAttribute('aria-label', `${nNew} neue Meldungen`); }
 }
@@ -682,7 +743,7 @@ function setTab(t, scroll = true) {
 }
 
 function showNews(i) {
-  feedState.q = ''; feedState.src = ''; $('#newsSearch').value = '';
+  feedState.q = ''; feedState.src = ''; feedState.cat = ''; $('#newsSearch').value = '';
   renderFeed();
   setTab('news', false);
   const card = document.getElementById(`news-${i}`);
@@ -1142,6 +1203,7 @@ document.addEventListener('click', (e) => {
     open.next = true; setTab('spiel', false); render();
     $('#nextBox')?.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
   } else if (act === 'show-news') showNews(Number(t.dataset.i));
+  else if (act === 'news-cat') { feedState.cat = t.dataset.cat; renderFeed(); }
   else if (act === 'more') {
     const i = Number(t.dataset.i);
     if (feedState.expanded.has(i)) feedState.expanded.delete(i); else feedState.expanded.add(i);
