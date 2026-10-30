@@ -43,6 +43,7 @@ const ICON = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
 };
 const icon = (name, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
@@ -695,7 +696,23 @@ document.addEventListener('click', (e) => {
   } else if (act === 'leader-cat') { leaderState.cat = t.dataset.cat; render(); }
   else if (act === 'leader-fav') { leaderState.fav = t.checked; render(); }
   else if (act === 'theme') toggleTheme();
+  else if (act === 'logout') logout();
 });
+
+// ---------- Abmelden ----------
+// Hebt die gemerkte Freischaltung (gate.js) wieder auf und lädt die Seite mit demselben Zugangs-Link neu,
+// damit sofort wieder die Codeabfrage erscheint.
+function logout() {
+  let key = '';
+  try {
+    key = localStorage.getItem('el-gate-key') || '';
+    localStorage.removeItem('el-gate-ok');
+    localStorage.removeItem('el-gate-key');
+  } catch { /* privates Fenster */ }
+  const url = new URL(location.href);
+  url.search = key ? `?key=${encodeURIComponent(key)}` : '';
+  location.href = url.toString();
+}
 // Spielzeilen auch mit der Tastatur öffnen
 document.addEventListener('keydown', (e) => {
   const t = e.target.closest?.('[data-act="box"], article[data-act="team"]');
