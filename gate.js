@@ -98,7 +98,7 @@ function showPrompt(key) {
       remember(key);
       cleanUrl();
       gate.remove();
-      boot();
+      showSaveLink(key);
       return;
     }
     btn.disabled = false;
@@ -109,6 +109,46 @@ function showPrompt(key) {
     form.classList.remove('has-error');
     void form.offsetWidth; // Reflow erzwingen, damit die Animation bei wiederholtem Fehler erneut abspielt
     form.classList.add('has-error');
+  });
+}
+
+// Manche Homebildschirm-Apps teilen sich den Speicher nicht zuverlässig mit dem Browser (iOS-Eigenheit) – darum
+// hier einmalig den vollständigen Link zeigen, den man sich merken/kopieren kann, falls die App die Freischaltung
+// einmal "vergisst". Der Link steht nirgends sonst – nur hier, einmalig, nach erfolgreicher Anmeldung.
+function showSaveLink(key) {
+  const url = `${location.origin}${location.pathname}?key=${encodeURIComponent(key)}`;
+  const gate = document.createElement('div');
+  gate.className = 'gate';
+  gate.innerHTML = `
+    <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
+    <div class="gate-card gate-card-wide">
+      <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
+      <h1>Diesen Link aufbewahren</h1>
+      <p>Für den Fall, dass die Homebildschirm-App die Anmeldung einmal vergisst: Mit diesem Link kommst du direkt wieder rein, ohne den Code erneut einzugeben.</p>
+      <input id="saveLinkInput" type="text" readonly value="${url.replace(/"/g, '&quot;')}" aria-label="Zugangslink">
+      <div class="profile-form-acts">
+        <button type="button" id="saveLinkGo">Weiter</button>
+        <button type="button" id="saveLinkCopy">Link kopieren</button>
+      </div>
+      <p class="profile-hint" id="saveLinkMsg">Tipp: Als Lesezeichen oder in den Notizen speichern.</p>
+    </div>`;
+  document.body.appendChild(gate);
+
+  const input = gate.querySelector('#saveLinkInput');
+  const msg = gate.querySelector('#saveLinkMsg');
+  gate.querySelector('#saveLinkCopy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      msg.textContent = 'Link kopiert.';
+    } catch {
+      input.focus();
+      input.select();
+      msg.textContent = 'Konnte nicht automatisch kopieren – Link oben ist markiert, manuell kopieren.';
+    }
+  });
+  gate.querySelector('#saveLinkGo').addEventListener('click', () => {
+    gate.remove();
+    boot();
   });
 }
 
