@@ -97,6 +97,8 @@ let profile = null; // { name } sobald angemeldet
 let profileBusy = false;
 let profileError = '';
 let favEdit = false;
+// Merkt die Eingabe im Formular, damit ein Zwischen-render() (z.B. „Prüfe …“ oder nach einem Fehler) sie nicht löscht
+let profileDraft = { name: store.get('el-profile-name', ''), pin: '' };
 
 function saveLocalFav(list) { try { localStorage.setItem('el-fav-teams', JSON.stringify(list)); } catch { /* privates Fenster */ } }
 
@@ -134,6 +136,7 @@ async function profileLogin(name, pin) {
     store.set('el-profile-name', name); store.set('el-profile-pin', pin);
     if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); }
     favEdit = false;
+    profileDraft = { name: '', pin: '' };
   } else {
     profileError = res.error === 'pin' ? 'Falsche PIN.' : res.error === 'unbekannt' ? 'Unbekannter Name – «Neu anlegen» verwenden.' : 'Das hat gerade nicht geklappt.';
   }
@@ -148,6 +151,7 @@ async function profileCreate(name, pin) {
     profile = { name: res.name || name };
     store.set('el-profile-name', name); store.set('el-profile-pin', pin);
     favEdit = false;
+    profileDraft = { name: '', pin: '' };
   } else {
     profileError = res.error === 'vergeben' ? 'Dieser Name ist schon vergeben – stattdessen anmelden?' : 'Das hat gerade nicht geklappt.';
   }
@@ -188,8 +192,8 @@ function profileHtml() {
 
 function profileFormHtml() {
   return `<form class="profile-form" id="profileForm">
-    <input id="profName" type="text" maxlength="40" autocomplete="off" placeholder="Dein Name" aria-label="Name" value="${esc(store.get('el-profile-name', ''))}">
-    <input id="profPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="PIN (4–8 Ziffern)" aria-label="PIN">
+    <input id="profName" type="text" maxlength="40" autocomplete="off" placeholder="Dein Name" aria-label="Name" value="${esc(profileDraft.name)}">
+    <input id="profPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="PIN (4–8 Ziffern)" aria-label="PIN" value="${esc(profileDraft.pin)}">
     <div class="profile-form-acts">
       <button type="button" data-act="profile-login-go"${profileBusy ? ' disabled' : ''}>${profileBusy ? '…' : 'Anmelden'}</button>
       <button type="button" data-act="profile-create-go"${profileBusy ? ' disabled' : ''}>${profileBusy ? '…' : 'Neu anlegen'}</button>
@@ -832,8 +836,8 @@ document.addEventListener('click', (e) => {
   else if (act === 'profile-logout') profileLogout();
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
   else if (act === 'profile-login-go' || act === 'profile-create-go') {
-    const name = $('#profName')?.value.trim() || '';
-    const pin = $('#profPin')?.value.trim() || '';
+    const name = profileDraft.name.trim();
+    const pin = profileDraft.pin.trim();
     if (!name || !/^\d{4,8}$/.test(pin)) { profileError = 'Name und eine PIN aus 4–8 Ziffern eingeben.'; render(); return; }
     if (act === 'profile-login-go') profileLogin(name, pin); else profileCreate(name, pin);
   }
@@ -865,6 +869,10 @@ $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
 $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 document.addEventListener('change', (e) => { if (e.target.id === 'shotPlayer') { boxState.shooter = e.target.value; renderBox(); $('#shotPlayer')?.focus(); } });
 document.addEventListener('submit', (e) => { if (e.target.id === 'profileForm') e.preventDefault(); });
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'profName') profileDraft.name = e.target.value;
+  else if (e.target.id === 'profPin') profileDraft.pin = e.target.value;
+});
 
 // ---------- Hell / Dunkel ----------
 // Ohne eigene Wahl folgt die Seite dem iPhone; theme-boot.js setzt eine gespeicherte Wahl schon vor dem ersten Zeichnen
