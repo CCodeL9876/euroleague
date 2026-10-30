@@ -17,6 +17,13 @@
 //   GET ?players=1 → Saisonwerte aller Spieler (pro Spiel) für Bestenlisten, Kader und Vorschau:
 //   → { updated, players: [{ id, name, team, img, gp, gs, min, pts, reb, oreb, ast, stl, blk, tov, pir, fg2p, fg3p, ftp, fg3m }] }
 //
+//   GET ?player=003112&team=IST → Spielerseite: Steckbrief, Saison Spiel für Spiel, Karriere (alle Wettbewerbe)
+//   → { id, first, last, no, pos, team, img, country, height, weight, birth, lastTeam, since,
+//       avg: { gp, gs, min, pts, reb, oreb, ast, stl, tov, blk, fd, pir, pm, fg2, fg3, ft, fga, fta, fg2p, fg3p, ftp },
+//       games: [{ r, utc, home, away, hs, as, team, start, min, pts, reb, ast, stl, tov, pir, pm }],
+//       career: [{ comp, season, year, team, teamName, logo, gp, min, pts, reb, ast, pir }] }
+//     (career: Summen pro Saison; min in Minuten; team darf fehlen – dann aus den Spielen)
+//
 //   POST { key, code } → Zugriffsschutz der Seite (gate.js): prüft gegen die Secrets GATE_KEY/GATE_CODE dieser
 //   Funktion (Supabase-Dashboard → Edge Functions → euroleague → Secrets), damit die Werte nicht im Repo/Quelltext
 //   stehen. → { ok: true|false }. Ohne gesetzte Secrets immer { ok: false }.
@@ -46,6 +53,8 @@ const LIVE_MS = 20 * 1000;
 const BOX_LIVE_MS = 20 * 1000;
 const BOX_FINAL_MS = 60 * 60 * 1000;
 const PLAYERS_MS = 30 * 60 * 1000;
+const PLAYER_MS = 10 * 60 * 1000;
+const ROSTER_MS = 6 * 3600 * 1000;
 // Stand abfragen ab 5 Minuten vor dem angesetzten Beginn bis 4 Stunden danach (solange nicht „played“)
 const EARLY_MS = 5 * 60 * 1000;
 const LATE_MS = 4 * 3600 * 1000;
@@ -116,7 +125,7 @@ export function buildBox(code, box) {
   };
   const teams = (box?.Stats || []).slice(0, 2).map((t) => {
     const players = (t.PlayersStats || []).map((p) => ({
-      no: String(p.Dorsal || '').trim(), name: playerName(p.Player), start: Boolean(p.IsStarter), on: Boolean(p.IsPlaying),
+      id: String(p.Player_ID || '').trim().replace(/^P/, ''), no: String(p.Dorsal || '').trim(), name: playerName(p.Player), start: Boolean(p.IsStarter), on: Boolean(p.IsPlaying),
       ...statLine(p), pm: Number(p.Plusminus) || 0,
     }));
     const code = String((t.PlayersStats || [])[0]?.Team || t.tmr?.Team || '').trim();
@@ -155,6 +164,96 @@ async function playersOf(season) {
   const raw = await getJson(`https://api-live.euroleague.net/v3/competitions/E/statistics/players/traditional?seasonMode=Single&seasonCode=${season}&statisticMode=PerGame&limit=500`);
   const data = { updated: new Date().toISOString(), players: buildPlayers(raw) };
   players = { at: Date.now(), season, data };
+  return data;
+}
+
+// ---------- Spielerseite ----------
+const nice = (w) => String(w || '').toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+const rosters = new Map(), clubNames = new Map(), playerPages = new Map();
+
+// Kader eines Teams (Rückennummer, Position, letzter Verein, Fotos) – ändert sich selten
+async function rosterOf(season, team) {
+  const hit = rosters.get(team);
+  if (hit && Date.now() - hit.at < ROSTER_MS) return hit.data;
+  const data = await getJson(`https://api-live.euroleague.net/v2/competitions/E/seasons/${season}/clubs/${team}/people`);
+  rosters.set(team, { at: Date.now(), data });
+  return data;
+}
+// Name eines (auch früheren) Vereins, z. B. „ZAG“ → „KK Zagreb“
+// Die Karriere nennt Vereine teils mit TV-Kürzel („EFS“ statt „IST“): dann über die Vereine der Saison suchen
+let seasonClubs = { at: 0, season: '', data: [] };
+async function clubName(code, season) {
+  if (!code) return '';
+  if (clubNames.has(code)) return clubNames.get(code);
+  let name = await getJson(`https://api-live.euroleague.net/v2/clubs/${code}`).then((c) => String(c?.name || '')).catch(() => '');
+  if (!name) {
+    if (seasonClubs.season !== season || Date.now() - seasonClubs.at > ROSTER_MS) {
+      const list = await getJson(`https://api-live.euroleague.net/v2/competitions/E/seasons/${season}/clubs`).catch(() => null);
+      seasonClubs = { at: Date.now(), season, data: Array.isArray(list?.data) ? list.data : [] };
+    }
+    name = String(seasonClubs.data.find((c) => c.tvCode === code || c.code === code)?.name || '');
+  }
+  if (name) clubNames.set(code, name);
+  return name;
+}
+
+export function buildPlayerPage(id, season, bio, entry, seasonStats, careerRaw) {
+  const a = seasonStats?.averagePerGame || {};
+  const pr = (v) => pctNum(v);
+  const avg = { gp: Number(a.gamesPlayed) || 0, gs: Number(a.totalGamesStarted) || 0, min: r1((Number(a.timePlayed) || 0) / 60),
+    pts: r1(a.points), reb: r1(a.totalRebounds), oreb: r1(a.offensiveRebounds), ast: r1(a.assistances), stl: r1(a.steals), tov: r1(a.turnovers),
+    blk: r1(a.blocksFavour), fd: r1(a.foulsReceived), pir: r1(a.valuation), pm: r1(a.plusMinus),
+    fg2: [r1(a.fieldGoalsMade2), r1(a.fieldGoalsAttempted2)], fg3: [r1(a.fieldGoalsMade3), r1(a.fieldGoalsAttempted3)], ft: [r1(a.freeThrowsMade), r1(a.freeThrowsAttempted)],
+    fga: r1(a.fieldGoalsAttemptedTotal), fta: r1(a.freeThrowsAttempted),
+    fg2p: pr(a.twoPointShootingPercentage), fg3p: pr(a.threePointShootingPercentage), ftp: pr(a.freeThrowShootingPercentage) };
+  const games = (seasonStats?.games || []).map((x) => {
+    const g = x.game || {}, st = x.stats || {};
+    return { r: Number(g.round) || 0, utc: String(g.utcDate || ''), home: String(g.local?.club?.code || ''), away: String(g.road?.club?.code || ''),
+      hs: Number(g.local?.score) || 0, as: Number(g.road?.score) || 0, team: String(x.playerClubCode || ''), start: Boolean(st.startFive),
+      min: Math.round((Number(st.timePlayed) || 0) / 60), pts: Number(st.points) || 0, reb: Number(st.totalRebounds) || 0, ast: Number(st.assistances) || 0,
+      stl: Number(st.steals) || 0, tov: Number(st.turnovers) || 0, pir: Number(st.valuation) || 0, pm: Number(st.plusMinus) || 0 };
+  }).filter((g) => g.r).sort((x, y) => x.utc.localeCompare(y.utc));
+  const career = [];
+  for (const comp of Array.isArray(careerRaw) ? careerRaw : []) {
+    for (const s of comp.seasons || []) {
+      const st = s.stats || {};
+      career.push({ comp: String(comp.competitionAlias || comp.competitionCode || ''), season: String(s.seasonAlias || ''),
+        year: Number((/\d{4}/.exec(String(s.seasonAlias || '')) || [])[0]) || 0, team: s.teamCode ? String(s.teamCode) : '', teamName: '',
+        logo: String(s.teamLogo || ''), gp: Number(st.gamesPlayed) || 0, min: Math.round((Number(st.timePlayed) || 0) / 60),
+        pts: Number(st.points) || 0, reb: Number(st.totalRebounds) || 0, ast: Number(st.assistances) || 0, pir: Number(st.valuation) || 0 });
+    }
+  }
+  // Ohne Teamcode (z. B. Nachwuchsturnier): über das gleiche Logo einem bekannten Verein zuordnen
+  for (const c of career) if (!c.team && c.logo) c.team = career.find((x) => x.team && x.logo === c.logo)?.team || '';
+  career.sort((x, y) => x.year - y.year || x.comp.localeCompare(y.comp));
+  const person = bio || entry?.person || {};
+  const [last, first] = String(person.name || '').split(',').map((x) => x.trim());
+  const img = entry?.images?.headshot || entry?.images?.action || '';
+  return { id, first: nice(first), last: nice(last), no: String(entry?.dorsal || '').trim(), pos: String(entry?.positionName || ''),
+    team: String(entry?.club?.code || games.at(-1)?.team || ''), img: /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//.test(img) ? img : '',
+    country: String(person.country?.name || ''), countryCode: String(person.country?.code || ''), height: Number(person.height) || 0,
+    weight: Number(person.weight) || 0, birth: String(person.birthDate || '').slice(0, 10), lastTeam: nice(entry?.lastTeam || ''),
+    since: String(entry?.startDate || '').slice(0, 10), avg, games, career };
+}
+
+async function playerOf(season, id, team) {
+  const key = `${id}:${team}`;
+  const hit = playerPages.get(key);
+  if (hit && Date.now() - hit.at < PLAYER_MS) return hit.data;
+  const base = 'https://api-live.euroleague.net/v2';
+  const [bio, seasonStats, careerRaw] = await Promise.all([
+    getJson(`${base}/people/${id}`).catch(() => null),
+    getJson(`${base}/competitions/E/seasons/${season}/people/${id}/stats`).catch(() => null),
+    getJson(`${base}/people/${id}/stats`).catch(() => []),
+  ]);
+  if (!bio && !seasonStats) throw new Error('unbekannt');
+  const club = team || String(seasonStats?.games?.at?.(-1)?.playerClubCode || '');
+  const roster = club ? await rosterOf(season, club).catch(() => []) : [];
+  const entry = (Array.isArray(roster) ? roster : []).find((p) => p?.person?.code === id) || null;
+  const data = buildPlayerPage(id, season, bio, entry, seasonStats, careerRaw);
+  await Promise.all(data.career.map(async (c) => { c.teamName = await clubName(c.team, season); }));
+  playerPages.set(key, { at: Date.now(), data });
+  if (playerPages.size > 300) playerPages.delete(playerPages.keys().next().value);
   return data;
 }
 
@@ -314,6 +413,17 @@ async function handle(req) {
       return new Response(JSON.stringify(await playersOf(season)), { headers: { ...headers, 'Cache-Control': 'public, max-age=600' } });
     } catch {
       return new Response(JSON.stringify({ error: 'Die Spielerstatistik ist gerade nicht erreichbar.' }), { status: 502, headers });
+    }
+  }
+  const player = params.get('player');
+  if (player != null) {
+    const headers = { ...cors, 'Content-Type': 'application/json' };
+    const team = String(params.get('team') || '').toUpperCase();
+    if (!/^\d{3,8}$/.test(player) || (team && !TEAM_CODE_RE.test(team))) return new Response(JSON.stringify({ error: 'ungültiger Spieler' }), { status: 400, headers });
+    try {
+      return new Response(JSON.stringify(await playerOf(season, player, team)), { headers: { ...headers, 'Cache-Control': 'public, max-age=600' } });
+    } catch {
+      return new Response(JSON.stringify({ error: 'Die Spielerdaten sind gerade nicht erreichbar.' }), { status: 502, headers });
     }
   }
   const game = params.get('game');

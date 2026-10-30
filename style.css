@@ -694,3 +694,107 @@ body.needs-profile .mtabs{display:none;}
   .flap-round{display:none;}
   .flap{width:28px;height:40px;font-size:1.7rem;}
 }
+
+/* ---------- Spielerseite (Tipp auf einen Spielernamen) ---------- */
+.player-link{border:0;background:none;padding:0;margin:0;color:inherit;font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:color-mix(in srgb, currentColor 30%, transparent);text-underline-offset:3px;}
+.player-link:hover{color:var(--blue-hi);text-decoration-color:currentColor;}
+.pc-loading{display:flex;flex-direction:column;gap:6px;padding:24px 0;}
+.pc-loading b{font-size:1.4rem;}
+.pc-hero{position:relative;border-radius:22px;padding:22px 20px 0;min-height:230px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;overflow:hidden;color:#fff;
+  background:linear-gradient(160deg, color-mix(in srgb, var(--team) 70%, #000) 0%, var(--team) 50%, color-mix(in srgb, var(--team) 55%, #12132A) 100%);}
+.pc-no{position:absolute;right:-8px;top:-34px;font-family:var(--mono);font-weight:700;font-size:14rem;line-height:1;color:rgba(255,255,255,0.08);letter-spacing:-0.06em;pointer-events:none;}
+.pc-crest{position:absolute;left:-40px;bottom:-50px;width:210px;height:210px;opacity:0.09;pointer-events:none;}
+.pc-crest img{width:100%;height:100%;object-fit:contain;}
+.pc-txt{position:relative;z-index:1;display:flex;flex-direction:column;gap:6px;padding-bottom:22px;min-width:0;}
+.pc-kicker{font-family:var(--mono);font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.78);}
+.box h3.pc-name{margin:0;color:#fff;font-size:clamp(2rem, 7vw, 2.8rem);line-height:1;letter-spacing:-0.03em;font-weight:700;overflow-wrap:anywhere;}
+.pc-name span{display:block;font-weight:500;font-size:0.55em;letter-spacing:-0.01em;opacity:0.85;margin-bottom:4px;}
+.pc-team{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;margin-top:6px;border:0;background:rgba(255,255,255,0.12);color:#fff;font:inherit;font-weight:500;font-size:0.9rem;border-radius:999px;padding:4px 12px 4px 4px;cursor:pointer;}
+.pc-team:hover{background:rgba(255,255,255,0.2);}
+.pc-photo{position:relative;z-index:1;width:clamp(140px, 32vw, 210px);margin-right:-8px;display:block;}
+.pc-body{display:flex;flex-direction:column;gap:22px;}
+.pc-body section{display:flex;flex-direction:column;gap:10px;}
+.pc-body h3{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:var(--text);margin:0;}
+.pc-body h3 small{font-size:0.78rem;font-weight:500;color:var(--dim);}
+.pc-facts{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:0;}
+.pc-facts div{background:var(--card);padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0;}
+.pc-facts dt{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);}
+.pc-facts dd{margin:0;font-size:0.98rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pc-facts dd small{font-weight:500;color:var(--dim);font-size:0.78rem;}
+.pc-path{display:flex;overflow-x:auto;scrollbar-width:none;list-style:none;margin:0 -2px;padding:2px 2px 4px;}
+.pc-path::-webkit-scrollbar{display:none;}
+.pc-stop{position:relative;flex:1 0 112px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;padding:0 4px;}
+.pc-stop::before{content:"";position:absolute;top:27px;left:-50%;right:50%;height:2px;background:var(--line);}
+.pc-stop:first-child::before{display:none;}
+.pc-stop .logo{width:56px;height:56px;position:relative;z-index:1;box-shadow:0 0 0 4px var(--panel);}
+.pc-stop .logo.other{background:var(--card-2);color:var(--dim);font-weight:700;letter-spacing:0.1em;}
+.pc-stop.now .logo{box-shadow:0 0 0 4px var(--panel), 0 0 0 6px var(--blue);}
+.pc-stop .yrs{font-size:0.72rem;color:var(--dim);margin-top:4px;}
+.pc-stop.now .yrs{color:var(--blue-hi);}
+.pc-stop b{font-size:0.88rem;font-weight:600;line-height:1.2;}
+.pc-stop small{font-size:0.72rem;color:var(--dim);line-height:1.3;}
+.pc-stats{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:8px;}
+.pc-stat{background:var(--card);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:2px;}
+.pc-stat b{font-size:1.7rem;font-weight:600;letter-spacing:-0.03em;line-height:1.1;}
+.pc-stat span{font-size:0.75rem;color:var(--dim);}
+.pc-stat.key{background:color-mix(in srgb, var(--blue) 22%, var(--card));}
+.pc-sub{display:flex;gap:16px;flex-wrap:wrap;font-size:0.82rem;color:var(--dim);}
+.pc-sub b{color:var(--text);font-weight:600;}
+.pc-shots{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:8px 14px;}
+.pc-shot{display:flex;flex-direction:column;gap:6px;font-size:0.78rem;color:var(--dim);min-width:0;}
+.pc-shot > div:first-child{display:flex;justify-content:space-between;gap:6px;}
+.pc-shot b{color:var(--text);font-size:0.95rem;}
+.pc-meter{height:6px;border-radius:99px;background:var(--card-2);overflow:hidden;}
+.pc-meter i{display:block;height:100%;border-radius:99px;background:var(--blue);}
+.box .pc-body h3 .seg{display:inline-flex;gap:2px;background:var(--card);border-radius:12px;padding:3px;}
+.box .pc-body h3 .seg button{flex:none;min-height:34px;padding:0 12px;border:0;border-radius:9px;font-size:0.8rem;font-weight:500;}
+.box .pc-body h3 .seg button[aria-pressed="true"]{background:var(--card-2);color:var(--text);}
+.pc-chart{background:var(--card);border-radius:16px;padding:14px 10px 10px;}
+.pc-chart svg{display:block;width:100%;height:auto;overflow:visible;}
+.pc-chart .grid line{stroke:var(--line);stroke-width:1;}
+.pc-chart .zero{stroke:var(--faint);stroke-width:1;}
+.pc-chart .avg{stroke:var(--euroleague);stroke-width:1.5;stroke-dasharray:4 4;}
+.pc-chart .avg-label{fill:var(--euroleague);font-family:var(--mono);font-size:11px;}
+.pc-chart .bar{fill:var(--blue);}
+.pc-chart .bar.neg{fill:var(--coral);}
+.pc-chart .bar.on{fill:var(--blue-hi);}
+.pc-chart .hit{fill:transparent;cursor:pointer;}
+.pc-chart .val{fill:var(--text);font-family:var(--mono);font-size:11px;text-anchor:middle;}
+.pc-chart .tick{fill:var(--dim);font-family:var(--mono);font-size:10px;text-anchor:middle;}
+.pc-info{margin:8px 4px 0;font-size:0.8rem;color:var(--dim);line-height:1.4;min-height:2.8em;}
+.pc-info b{color:var(--text);font-weight:600;}
+.pc-games{display:flex;flex-direction:column;gap:6px;}
+.pc-game, .pc-games-head{display:grid;grid-template-columns:26px auto minmax(0,1fr) auto repeat(4, 34px);gap:8px;align-items:center;}
+.pc-game{background:var(--card);border-radius:14px;padding:8px 12px;font-size:0.85rem;}
+.pc-games-head{padding:0 12px;font-family:var(--mono);font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);}
+.pc-games-head span:nth-child(n+5){text-align:right;}
+.pc-game .rd{font-size:0.72rem;color:var(--dim);}
+.pc-game .logo.xxs{margin-right:0;}
+.pc-game .opp{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pc-game .opp small{color:var(--dim);}
+.pc-game .res{font-size:0.75rem;padding:3px 7px;border-radius:8px;white-space:nowrap;}
+.pc-game .res.w{background:color-mix(in srgb, var(--green) 20%, transparent);color:var(--green);}
+.pc-game .res.l{background:color-mix(in srgb, var(--coral) 18%, transparent);color:var(--coral);}
+.pc-game .c{text-align:right;}
+.pc-game .c.hl{font-weight:700;}
+.pc-career-wrap{background:var(--card);border-radius:16px;padding:4px 12px;overflow-x:auto;}
+.pc-career{width:100%;border-collapse:collapse;font-size:0.85rem;}
+.pc-career abbr{text-decoration:none;}
+.pc-career th{font-family:var(--mono);font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);font-weight:500;text-align:right;padding:8px 6px;}
+.pc-career th:nth-child(-n+2){text-align:left;}
+.pc-career td{padding:8px 6px;border-top:1px solid var(--line);text-align:right;font-family:var(--mono);white-space:nowrap;}
+.pc-career td:first-child{text-align:left;color:var(--dim);}
+.pc-career td.pc-tm{text-align:left;font-family:var(--font);}
+.pc-career tr.now td{color:var(--text);font-weight:600;}
+.pc-career tr.now td:first-child{color:var(--blue-hi);}
+.pc-career tr.gap td{font-family:var(--font);color:var(--dim);font-style:italic;text-align:center;font-size:0.8rem;}
+.pc-total{margin:0;font-size:0.82rem;color:var(--dim);}
+.pc-total b{color:var(--text);}
+@media (max-width:560px){
+  .pc-hero{padding:18px 16px 0;min-height:210px;}
+  .pc-no{font-size:10rem;}
+  .pc-facts{grid-template-columns:repeat(2, minmax(0,1fr));}
+  .pc-stats, .pc-shots{grid-template-columns:repeat(2, minmax(0,1fr));}
+  .pc-game, .pc-games-head{grid-template-columns:20px auto minmax(0,1fr) repeat(3, 28px);gap:6px;padding-inline:10px;}
+  .pc-game .res, .pc-games-head .h-res, .pc-game .ast, .pc-games-head .h-ast{display:none;}
+}

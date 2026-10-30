@@ -11,6 +11,7 @@ Läuft auf GitHub Pages, ohne Build-Schritt (reines HTML/CSS/JavaScript).
 | Spielbericht (Antippen eines Spiels: Viertel, Teamvergleich, Spielerstatistik) | Supabase-Funktion `euroleague` mit `?game=…` (Boxscore der EuroLeague) | beim Öffnen; während eines Spiels alle 30 Sekunden |
 | Wurfkarte (im Spielbericht) | Supabase-Funktion `euroleague` mit `?game=…` (Würfe mit Koordinaten) | wie der Spielbericht |
 | Bestenlisten, Kader, Top-Spieler der Vorschau | Supabase-Funktion `euroleague` mit `?players=1` (Saisonwerte pro Spiel aller Spieler) | höchstens alle 30 Minuten neu |
+| Spielerseite (Antippen eines Spielernamens: Steckbrief, Stationen, Formkurve, Spiel für Spiel, Karriere) | Supabase-Funktion `euroleague` mit `?player=…&team=…` (Personen-, Kader- und Statistikdaten der EuroLeague) | beim Öffnen, höchstens alle 10 Minuten neu |
 | News (16 Meldungen) | `news.json` in diesem Repository | täglich um 07:15 durch eine Claude-Aufgabe |
 | Lieblingsteams | ohne Profil: nur lokal auf dem Gerät (`localStorage`); mit Profil (Name+PIN): Tabelle `el_profiles`, über die Funktion `euroleague` | bei jeder Änderung |
 

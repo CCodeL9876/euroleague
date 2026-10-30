@@ -481,7 +481,7 @@ function leadersHtml(m) {
   const list = qualified().filter((p) => !leaderState.fav || FAV.includes(p.team)).sort((a, b) => b[cat] - a[cat] || b.gp - a.gp).slice(0, 10);
   return `<div class="cats" role="group" aria-label="Kategorie">${CATS.map(([k, l]) => `<button type="button" data-act="leader-cat" data-cat="${k}" aria-pressed="${k === cat}">${l}</button>`).join('')}</div>
     <label class="fav-only"><input type="checkbox" data-act="leader-fav" ${leaderState.fav ? 'checked' : ''}> Nur deine Teams</label>
-    <ol class="leaders">${list.map((p, i) => `<li><span class="rk num">${i + 1}</span>${playerImg(p)}<span class="who"><b>${esc(p.name)}</b><small><button type="button" class="team-link" data-act="team" data-c="${esc(p.team)}">${esc(name(m, p.team))}</button> · ${p.gp} Spiele</small></span><span class="val num">${num1(p[cat])}<small>${cat === 'fg3m' ? 'pro Spiel' : 'pro Spiel'}</small></span></li>`).join('') || '<li class="label">Keine Spieler.</li>'}</ol>
+    <ol class="leaders">${list.map((p, i) => `<li><span class="rk num">${i + 1}</span>${playerImg(p)}<span class="who"><b>${playerBtn(p)}</b><small><button type="button" class="team-link" data-act="team" data-c="${esc(p.team)}">${esc(name(m, p.team))}</button> · ${p.gp} Spiele</small></span><span class="val num">${num1(p[cat])}<small>${cat === 'fg3m' ? 'pro Spiel' : 'pro Spiel'}</small></span></li>`).join('') || '<li class="label">Keine Spieler.</li>'}</ol>
     <p class="standings-note">${label} pro Spiel, nur Spieler mit mindestens der Hälfte der Spiele. <a href="https://www.euroleaguebasketball.net/en/euroleague/stats/" target="_blank" rel="noopener">Alle Statistiken der EuroLeague ↗</a></p>`;
 }
 
@@ -794,7 +794,7 @@ function renderBox() {
   const team = b.teams[boxState.team] || th;
   const top = Math.max(...team.players.map((p) => p.pts), 0);
   const players = team.players.map((p) => `<tr class="${p.on && b.live ? 'on' : ''}">
-      <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${esc(p.name)}${p.start ? '<small>S5</small>' : ''}</th>
+      <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
       <td>${esc(p.min || '–')}</td><td class="${p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`).join('');
   setBox(dlg, `${head}${quarters}
@@ -819,7 +819,7 @@ function previewHtml(m, g) {
   const cmpNum = (x, y, less) => (x === y ? 0 : (x > y) !== Boolean(less) ? 1 : 2);
   const duels = m.games.filter((x) => x.status === 'final' && ((x.home === g.home && x.away === g.away) || (x.home === g.away && x.away === g.home)));
   const tops = (c) => (players?.players || []).filter((p) => p.team === c && p.gp > 0).sort((x, y) => y.pir - x.pir).slice(0, 3);
-  const topList = (c) => `<div class="tops"><h4>${esc(name(m, c))}</h4>${players ? (tops(c).map((p) => `<div class="top">${playerImg(p)}<span><b>${esc(p.name)}</b><small>${num1(p.pts)} Pkt · ${num1(p.reb)} Reb · ${num1(p.ast)} Ass · PIR ${num1(p.pir)}</small></span></div>`).join('') || '<p class="label">Noch keine Werte.</p>') : `<p class="label">${esc(playersError || 'Lade …')}</p>`}</div>`;
+  const topList = (c) => `<div class="tops"><h4>${esc(name(m, c))}</h4>${players ? (tops(c).map((p) => `<div class="top">${playerImg(p)}<span><b>${playerBtn(p, c)}</b><small>${num1(p.pts)} Pkt · ${num1(p.reb)} Reb · ${num1(p.ast)} Ass · PIR ${num1(p.pir)}</small></span></div>`).join('') || '<p class="label">Noch keine Werte.</p>') : `<p class="label">${esc(playersError || 'Lade …')}</p>`}</div>`;
   return `<h3>Vorschau</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">
       ${row('Tabellenplatz', a.rank ? `${a.rank}.` : '–', b.rank ? `${b.rank}.` : '–', cmpNum(a.rank || 99, b.rank || 99, true))}
       ${row('Bilanz', esc(rec(m, g.home)), esc(rec(m, g.away)), cmpNum((a.s || 0) - (a.n || 0), (b.s || 0) - (b.n || 0)))}
@@ -887,15 +887,196 @@ function renderTeamPage() {
     <h3>Resultate</h3>${results.length ? '<div class="games" id="teamResults"></div>' : '<p class="label">Noch keine Spiele.</p>'}
     <h3>Kader · Saisonwerte pro Spiel</h3>
     ${players ? (roster.length ? `<div class="pl-wrap"><table class="pl-table num"><thead><tr><th scope="col" class="pl">Spieler</th><th scope="col"><abbr title="Spiele">Sp</abbr></th><th scope="col">Min</th><th scope="col">Pkt</th><th scope="col"><abbr title="Rebounds">Reb</abbr></th><th scope="col"><abbr title="Assists">Ass</abbr></th><th scope="col"><abbr title="Steals">St</abbr></th><th scope="col"><abbr title="Blocks">Bl</abbr></th><th scope="col"><abbr title="3-Punkte-Quote">3P%</abbr></th><th scope="col"><abbr title="Effizienz">PIR</abbr></th></tr></thead>
-      <tbody>${roster.map((p) => `<tr><th scope="row" class="pl">${playerImg(p, 'pimg sm')}${esc(p.name)}</th><td>${p.gp}</td><td>${num1(p.min)}</td><td><b>${num1(p.pts)}</b></td><td>${num1(p.reb)}</td><td>${num1(p.ast)}</td><td>${num1(p.stl)}</td><td>${num1(p.blk)}</td><td>${num1(p.fg3p)}</td><td><b>${num1(p.pir)}</b></td></tr>`).join('')}</tbody></table></div>`
+      <tbody>${roster.map((p) => `<tr><th scope="row" class="pl">${playerImg(p, 'pimg sm')}${playerBtn(p, c)}</th><td>${p.gp}</td><td>${num1(p.min)}</td><td><b>${num1(p.pts)}</b></td><td>${num1(p.reb)}</td><td>${num1(p.ast)}</td><td>${num1(p.stl)}</td><td>${num1(p.blk)}</td><td>${num1(p.fg3p)}</td><td><b>${num1(p.pir)}</b></td></tr>`).join('')}</tbody></table></div>`
       : '<p class="label">Noch keine Spielerwerte.</p>') : `<p class="label">${esc(playersError || 'Lade Kader …')}</p>`}
     <p class="box-note small">Spiel antippen öffnet den Spielbericht.</p></div>`;
   const nx = $('#teamNext', dlg); if (nx) next.forEach((g) => nx.appendChild(gameRow(m, g, false)));
   const rs = $('#teamResults', dlg); if (rs) results.forEach((g) => rs.appendChild(gameRow(m, g, false)));
 }
 
-// ---------- Daten holen ----------
-let playersError = '', playersLoading = null;
+// ---------- Spielerseite ----------
+// Öffnet sich mit einem Tipp auf einen Spielernamen (Bestenlisten, Kader, Spielbericht, Vorschau)
+const TEAM_COLOR = { IST: '#1B3D8C', PAN: '#0B6B3A', OLY: '#B5121B', BAR: '#8E1838', MAD: '#4B3A8C', ZAL: '#0F7A3D', PAR: '#2A2A2E', RED: '#B5121B',
+  MUN: '#C4122E', ULK: '#0A2A66', PAM: '#D4570E', MIL: '#B5121B', VIR: '#2A2A2E', BAS: '#1D3E8F', ASV: '#0E6B4F', TEL: '#1E4FA8', HTA: '#B5121B',
+  DUB: '#2A2A2E', BES: '#2A2A2E', PRS: '#14284B' };
+// Nationen der EuroLeague (IOC-Kürzel) → Ländercode, für deutsche Namen über Intl
+const IOC = { USA: 'US', CRO: 'HR', SRB: 'RS', GRE: 'GR', ESP: 'ES', FRA: 'FR', TUR: 'TR', ITA: 'IT', GER: 'DE', LTU: 'LT', ISR: 'IL', SLO: 'SI',
+  MNE: 'ME', BIH: 'BA', MKD: 'MK', LAT: 'LV', EST: 'EE', POL: 'PL', CZE: 'CZ', SVK: 'SK', HUN: 'HU', ROU: 'RO', BUL: 'BG', UKR: 'UA', GEO: 'GE',
+  RUS: 'RU', BLR: 'BY', FIN: 'FI', SWE: 'SE', NOR: 'NO', DEN: 'DK', NED: 'NL', BEL: 'BE', SUI: 'CH', AUT: 'AT', POR: 'PT', GBR: 'GB', IRL: 'IE',
+  CAN: 'CA', MEX: 'MX', PUR: 'PR', DOM: 'DO', BRA: 'BR', ARG: 'AR', URU: 'UY', VEN: 'VE', COL: 'CO', CHI: 'CL', AUS: 'AU', NZL: 'NZ', NGR: 'NG',
+  SEN: 'SN', CMR: 'CM', ANG: 'AO', COD: 'CD', MLI: 'ML', CIV: 'CI', EGY: 'EG', TUN: 'TN', MAR: 'MA', BAH: 'BS', JAM: 'JM', JPN: 'JP', CHN: 'CN',
+  KOR: 'KR', PHI: 'PH', LBN: 'LB', JOR: 'JO', IRI: 'IR', KAZ: 'KZ', ARM: 'AM', AZE: 'AZ', ISL: 'IS', CYP: 'CY', ALB: 'AL', KOS: 'XK', CPV: 'CV',
+  GUI: 'GN', SSD: 'SS', RSA: 'ZA', GAB: 'GA', CAF: 'CF', BEN: 'BJ', TOG: 'TG', GHA: 'GH', SUD: 'SD', ISV: 'VI', TTO: 'TT', PAN: 'PA', CUB: 'CU' };
+const COMP = { Euroleague: 'EuroLeague', Eurocup: 'EuroCup', 'U18 Tournament': 'Nachwuchsturnier' };
+const playerCache = new Map();
+const playerState = { id: '', team: '', data: null, error: '', metric: 'pts', sel: -1 };
+
+function countryName(code, fallback) {
+  try { if (IOC[code]) return new Intl.DisplayNames(['de'], { type: 'region' }).of(IOC[code]); } catch { /* alter Browser */ }
+  return fallback || code || '–';
+}
+const de1 = (v) => (Math.round((Number(v) || 0) * 10) / 10).toFixed(1).replace('.', ',');
+// Frühere Vereine mit dem kurzen Namen der Seite, wenn sie heute in der EuroLeague spielen
+function clubLabel(c) {
+  const m = model();
+  const code = Object.keys(m.teams).find((k) => m.teams[k].name === c.teamName);
+  return code ? name(m, code) : (c.teamName || c.team || 'Verein');
+}
+const playerBtn = (p, team, label) => p.id ? `<button type="button" class="player-link" data-act="player" data-id="${esc(p.id)}" data-pteam="${esc(team || p.team || '')}">${label ?? esc(p.name)}</button>` : (label ?? esc(p.name));
+const crestImg = (url) => /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//.test(url || '') ? `<img src="${esc(url)}" alt="" loading="lazy">` : '';
+
+async function openPlayer(id, team) {
+  const dlg = $('#playerDlg');
+  Object.assign(playerState, { id, team, data: playerCache.get(id) || null, error: '', metric: 'pts', sel: -1 });
+  renderPlayer();
+  if (!dlg.open) dlg.showModal();
+  dlg.scrollTop = 0;
+  if (playerState.data) return;
+  try {
+    const url = testData ? `player-${id}.json` : `${DATA_URL}?player=${encodeURIComponent(id)}${team ? `&team=${encodeURIComponent(team)}` : ''}`;
+    const res = await fetch(url, { headers: testData ? {} : { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) });
+    const d = await res.json();
+    if (!res.ok || !d?.id) throw new Error(d?.error || '');
+    playerCache.set(id, d);
+    if (playerState.id === id) { playerState.data = d; renderPlayer(); }
+  } catch (err) {
+    if (playerState.id === id) { playerState.error = err?.message || 'Die Spielerdaten sind gerade nicht erreichbar.'; renderPlayer(); }
+  }
+}
+
+// Bisherige Teams: aufeinanderfolgende Saisons beim selben Verein zusammengefasst; Lücken = andere Ligen
+function playerStations(d) {
+  const st = [];
+  for (const c of d.career) {
+    const key = c.team || c.logo;
+    const last = st.at(-1);
+    if (last && last.key === key && c.year <= last.to) { last.to = Math.max(last.to, c.year + 1); last.comps.add(COMP[c.comp] || c.comp); continue; }
+    st.push({ key, name: clubLabel(c), logo: c.logo, from: c.year, to: c.year + 1, comps: new Set([COMP[c.comp] || c.comp]) });
+  }
+  const out = [];
+  st.forEach((s, i) => {
+    const prev = st[i - 1];
+    if (prev && s.from > prev.to) {
+      const lastGap = !st.slice(i + 1).some((n, j) => n.from > st[i + j].to);
+      out.push({ gap: true, name: 'Andere Ligen', from: prev.to, to: s.from, sub: lastGap && d.lastTeam ? `zuletzt ${d.lastTeam}` : '' });
+    }
+    out.push(s);
+  });
+  const now = out.at(-1);
+  if (now && !now.gap && now.to >= new Date().getFullYear()) now.now = true;
+  return out;
+}
+
+function playerChart(d) {
+  const k = playerState.metric, games = d.games;
+  if (!games.length) return '<p class="label">Noch keine Spiele in dieser Saison.</p>';
+  const W = 640, H = 210, top = 18, bottom = 44, side = 8;
+  const vals = games.map((g) => g[k]);
+  const max = Math.max(...vals, 1), min = Math.min(0, ...vals), span = max - min;
+  const y = (v) => top + (max - v) / span * (H - top - bottom);
+  const step = (W - side * 2) / games.length, bw = Math.min(30, step * 0.5);
+  const avg = d.avg[k], best = Math.max(...vals), y0 = y(0), m = model();
+  const grid = [0.25, 0.5, 0.75, 1].map((f) => `<line x1="${side}" x2="${W - side}" y1="${y(max * f)}" y2="${y(max * f)}"/>`).join('');
+  const bars = games.map((g, i) => {
+    const v = g[k], cx = side + step * i + step / 2, hgt = Math.max(Math.abs(y0 - y(v)), 2), yy = v >= 0 ? y0 - hgt : y0;
+    const r = Math.min(4, hgt / 2), x0 = cx - bw / 2, x1 = cx + bw / 2, end = v >= 0 ? yy : y0 + hgt, dir = v >= 0 ? 1 : -1;
+    // 4px runde Kante nur am Datenende, am Nullpunkt gerade
+    const path = `M${x0},${y0}V${end + r * dir}Q${x0},${end} ${x0 + r},${end}H${x1 - r}Q${x1},${end} ${x1},${end + r * dir}V${y0}Z`;
+    const opp = g.home === g.team ? g.away : g.home;
+    const lbl = v === best || v < 0 ? `<text class="val" x="${cx}" y="${v >= 0 ? yy - 5 : y0 + hgt + 13}">${v}</text>` : '';
+    const crest = m.teams[opp]?.crest;
+    return `<g><path class="bar${v < 0 ? ' neg' : ''}${i === playerState.sel ? ' on' : ''}" d="${path}"/>${lbl}
+      ${crest && /^https:\/\/media-cdn\./.test(crest) ? `<image href="${esc(crest)}" x="${cx - 9}" y="${H - bottom + 10}" width="18" height="18"/>` : `<text class="tick" x="${cx}" y="${H - bottom + 24}">${esc(short(opp))}</text>`}
+      <text class="tick" x="${cx}" y="${H - 4}">${g.r}</text>
+      <rect class="hit" data-act="player-bar" data-i="${i}" x="${cx - step / 2}" y="0" width="${step}" height="${H}"><title>Spieltag ${g.r}: ${v}</title></rect></g>`;
+  }).join('');
+  const ya = y(avg);
+  const g = games[playerState.sel];
+  const info = g ? (() => {
+    const home = g.home === g.team, opp = home ? g.away : g.home, us = home ? g.hs : g.as, them = home ? g.as : g.hs;
+    return `<b>Spieltag ${g.r} · ${home ? 'gegen' : 'bei'} ${esc(name(m, opp))}</b> · ${g.hs}:${g.as} ${us > them ? 'Sieg' : 'Niederlage'}<br>${g.pts} Pkt · ${g.reb} Reb · ${g.ast} Ass · PIR ${g.pir} · ${g.min} Min`;
+  })() : 'Balken antippen für Details zum Spiel.';
+  const label = { pts: 'Punkte', reb: 'Rebounds', pir: 'PIR' }[k];
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${label} pro Spiel, Schnitt ${de1(avg)}"><g class="grid">${grid}</g>
+    <line class="zero" x1="${side}" x2="${W - side}" y1="${y0}" y2="${y0}"/>${bars}
+    <line class="avg" x1="${side}" x2="${W - side}" y1="${ya}" y2="${ya}"/><text class="avg-label" x="${W - side}" y="${ya - 6}" text-anchor="end">Schnitt ${de1(avg)}</text></svg>
+    <p class="pc-info" aria-live="polite">${info}</p>`;
+}
+
+function renderPlayer() {
+  const dlg = $('#playerDlg');
+  const d = playerState.data, m = model();
+  const top = `<div class="box-top"><h2 id="playerTitle">Spielerseite</h2><button type="button" class="box-close" data-act="player-close" aria-label="Schliessen">×</button></div>`;
+  if (!d) {
+    const p = (players?.players || []).find((x) => x.id === playerState.id);
+    dlg.innerHTML = `<div class="box-in">${top}<div class="pc-loading">${p ? `<b>${esc(p.name)}</b>` : ''}<p class="label">${esc(playerState.error || 'Lade Spielerdaten …')}</p></div></div>`;
+    return;
+  }
+  const team = d.team, color = TEAM_COLOR[team] || favColor(team || 'X'), a = d.avg;
+  const age = d.birth ? Math.floor((Date.now() - new Date(`${d.birth}T00:00:00`)) / (365.2425 * 864e5)) : 0;
+  const [by, bm, bd] = d.birth.split('-');
+  const [sy, sm] = d.since.split('-');
+  const MONTHS = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'];
+  const fact = (dt, dd) => (dd ? `<div><dt>${dt}</dt><dd>${dd}</dd></div>` : '');
+  const ts = a.fga + 0.44 * a.fta > 0 ? a.pts / (2 * (a.fga + 0.44 * a.fta)) * 100 : 0;
+  const shot = (l, made, pct) => `<div class="pc-shot"><div><span>${l}${made ? ` <span class="num">${made}</span>` : ''}</span><b class="num">${de1(pct)} %</b></div><div class="pc-meter"><i style="width:${Math.min(100, pct)}%"></i></div></div>`;
+  const stations = playerStations(d);
+  const el = d.career.filter((c) => c.comp === 'Euroleague');
+  const rows = [];
+  el.forEach((c, i) => {
+    const prev = el[i - 1];
+    if (prev && c.year > prev.year + 1) {
+      const later = el.slice(i + 1).some((n, j) => n.year > el[i + j].year + 1);
+      rows.push(`<tr class="gap"><td colspan="7">${prev.year + 1} bis ${c.year}: nicht in der EuroLeague${!later && d.lastTeam ? `, zuletzt ${esc(d.lastTeam)}` : ''}</td></tr>`);
+    }
+    const per = (v) => (c.gp ? de1(v / c.gp) : '–');
+    rows.push(`<tr${i === el.length - 1 && c.year >= new Date().getFullYear() - 1 && c.team && (c.team === team || c.teamName === fullName(m, team)) ? ' class="now"' : ''}><td>${esc(c.season.replace('-', '/'))}</td><td class="pc-tm"><span class="logo xxs">${crestImg(c.logo)}</span>${esc(clubLabel(c))}</td><td>${c.gp}</td><td>${per(c.pts)}</td><td>${per(c.reb)}</td><td>${per(c.ast)}</td><td>${per(c.pir)}</td></tr>`);
+  });
+  const tot = el.reduce((s, c) => ({ gp: s.gp + c.gp, pts: s.pts + c.pts }), { gp: 0, pts: 0 });
+  const games = [...d.games].reverse();
+  const bestPts = Math.max(0, ...d.games.map((g) => g.pts));
+
+  dlg.innerHTML = `<div class="box-in pc">${top}
+    <header class="pc-hero" style="--team:${color}">
+      <span class="pc-no" aria-hidden="true">${esc(d.no)}</span>
+      ${m.teams[team]?.crest ? `<span class="pc-crest" aria-hidden="true">${crestImg(m.teams[team].crest)}</span>` : ''}
+      <div class="pc-txt"><span class="pc-kicker">${d.no ? `#${esc(d.no)} · ` : ''}${esc(d.pos || 'Spieler')}</span>
+        <h3 class="pc-name"><span>${esc(d.first)}</span>${esc(d.last)}</h3>
+        ${team ? `<button type="button" class="pc-team" data-act="team" data-c="${esc(team)}">${logo(m, team, 'xs')}${esc(name(m, team))}</button>` : ''}</div>
+      ${d.img ? `<img class="pc-photo" src="${esc(d.img)}" alt="">` : ''}
+    </header>
+    <div class="pc-body">
+      <section aria-label="Steckbrief"><h3>Steckbrief</h3><dl class="pc-facts">
+        ${fact('Alter', age ? `${age} <small>· ${Number(bd)}.${Number(bm)}.${by}</small>` : '')}
+        ${fact('Grösse', d.height ? `${(d.height / 100).toFixed(2).replace('.', ',')} m` : '')}
+        ${fact('Gewicht', d.weight ? `${d.weight} kg` : '')}
+        ${fact('Nation', esc(countryName(d.countryCode, d.country)))}
+        ${fact('Position', esc(d.pos))}
+        ${fact('Nummer', esc(d.no))}
+        ${fact('Zuvor', esc(d.lastTeam))}
+        ${fact('Im Team seit', sy ? `${MONTHS[Number(sm) - 1]} ${sy}` : '')}</dl></section>
+      ${stations.length ? `<section aria-label="Stationen"><h3>Stationen <small>bisherige Teams</small></h3><ol class="pc-path">${stations.map((s) => `<li class="pc-stop${s.now ? ' now' : ''}">
+        <span class="logo${s.gap ? ' other' : ''}">${s.gap ? '···' : crestImg(s.logo)}</span><span class="yrs num">${s.now ? `seit ${s.from}` : `${s.from}–${s.to}`}</span>
+        <b>${esc(s.name)}</b><small>${esc(s.gap ? s.sub : [...s.comps].join(', '))}</small></li>`).join('')}</ol></section>` : ''}
+      <section aria-label="Saisonwerte"><h3>Saison ${(() => { const y = Number((/\d{4}/.exec(data?.season || '') || [])[0]); return y ? `${y}/${String(y + 1).slice(2)}` : ''; })()} <small>pro Spiel · ${a.gp} ${a.gp === 1 ? 'Spiel' : 'Spiele'}</small></h3>
+        ${a.gp ? `<div class="pc-stats">${[['pts', 'Punkte'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['pir', 'PIR (Bewertung)']].map(([k, l], i) => `<div class="pc-stat${i ? '' : ' key'}"><b class="num">${de1(a[k])}</b><span>${l}</span></div>`).join('')}</div>
+        <div class="pc-sub"><span><b class="num">${de1(a.min)}</b> Minuten</span><span><b class="num">${a.gs} von ${a.gp}</b> in der Startformation</span><span><b class="num">${de1(a.fd)}</b> gezogene Fouls</span></div>
+        <div class="pc-shots">${shot('Zweier', `${de1(a.fg2[0])}/${de1(a.fg2[1])}`, a.fg2p)}${shot('Dreier', `${de1(a.fg3[0])}/${de1(a.fg3[1])}`, a.fg3p)}${shot('Freiwürfe', `${de1(a.ft[0])}/${de1(a.ft[1])}`, a.ftp)}${shot('True Shooting', '', ts)}</div>` : '<p class="label">Noch keine Einsätze in dieser Saison.</p>'}</section>
+      ${d.games.length ? `<section aria-label="Formkurve"><h3>Formkurve <span class="seg" role="group" aria-label="Wert">${[['pts', 'Punkte'], ['reb', 'Rebounds'], ['pir', 'PIR']].map(([k, l]) => `<button type="button" data-act="player-metric" data-k="${k}" aria-pressed="${k === playerState.metric}">${l}</button>`).join('')}</span></h3>
+        <div class="pc-chart" id="pcChart">${playerChart(d)}</div></section>
+      <section aria-label="Spiel für Spiel"><h3>Spiel für Spiel <small>neuestes zuerst</small></h3>
+        <div class="pc-games-head" aria-hidden="true"><span>Sp</span><span></span><span>Gegner</span><span class="h-res">Resultat</span><span>Pkt</span><span>Reb</span><span class="h-ast">Ass</span><span>PIR</span></div>
+        <div class="pc-games">${games.map((g) => {
+          const home = g.home === g.team, opp = home ? g.away : g.home, us = home ? g.hs : g.as, them = home ? g.as : g.hs;
+          return `<div class="pc-game"><span class="rd num">${g.r}</span>${logo(m, opp, 'xxs')}<span class="opp">${home ? '' : '<small>bei </small>'}${esc(name(m, opp))}</span>
+            <span class="res ${us > them ? 'w' : 'l'} num">${us > them ? 'S' : 'N'} ${g.hs}:${g.as}</span><span class="c num${g.pts === bestPts ? ' hl' : ''}">${g.pts}</span><span class="c num">${g.reb}</span><span class="c num ast">${g.ast}</span><span class="c num">${g.pir}</span></div>`;
+        }).join('')}</div></section>` : ''}
+      ${el.length ? `<section aria-label="Karriere"><h3>Karriere in der EuroLeague <small>pro Spiel</small></h3>
+        <div class="pc-career-wrap"><table class="pc-career"><thead><tr><th scope="col">Saison</th><th scope="col">Team</th><th scope="col"><abbr title="Spiele">Sp</abbr></th><th scope="col">Pkt</th><th scope="col"><abbr title="Rebounds">Reb</abbr></th><th scope="col"><abbr title="Assists">Ass</abbr></th><th scope="col">PIR</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+        <p class="pc-total">EuroLeague total <b class="num">${tot.gp}</b> Spiele · <b class="num">${tot.pts}</b> Punkte</p></section>` : ''}
+      <p class="box-note small">Daten: EuroLeague</p>
+    </div></div>`;
+}
 function loadPlayers() {
   if (players) return Promise.resolve();
   if (playersLoading) return playersLoading;
@@ -969,6 +1150,10 @@ document.addEventListener('click', (e) => {
   else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; renderBox(); }
   else if (act === 'team') openTeam(t.dataset.c);
   else if (act === 'team-close') $('#teamDlg').close();
+  else if (act === 'player') openPlayer(t.dataset.id, t.dataset.pteam);
+  else if (act === 'player-close') $('#playerDlg').close();
+  else if (act === 'player-metric') { playerState.metric = t.dataset.k; renderPlayer(); }
+  else if (act === 'player-bar') { playerState.sel = Number(t.dataset.i); const c = $('#pcChart'); if (c && playerState.data) c.innerHTML = playerChart(playerState.data); }
   else if (act === 'toggle-leaders') {
     open.leaders = !open.leaders; render();
     if (open.leaders && !players) loadPlayers().then(render);
@@ -1013,6 +1198,8 @@ document.addEventListener('keydown', (e) => {
 $('#newsSearch').addEventListener('input', (e) => { feedState.q = e.target.value; renderFeed(); });
 $('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxState.code = 0; });
 $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
+$('#playerDlg').addEventListener('close', () => { playerState.id = ''; });
+$('#playerDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 document.addEventListener('change', (e) => { if (e.target.id === 'shotPlayer') { boxState.shooter = e.target.value; renderBox(); $('#shotPlayer')?.focus(); } });
 document.addEventListener('submit', (e) => { if (e.target.id === 'profileForm') e.preventDefault(); });
@@ -1063,7 +1250,7 @@ function setupPullToRefresh() {
   };
   const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
   window.addEventListener('touchstart', (e) => {
-    if (busy || e.touches.length !== 1 || window.scrollY > 0 || $('#box').open || $('#teamDlg').open) return;
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || $('#box').open || $('#teamDlg').open || $('#playerDlg').open) return;
     startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
@@ -1127,7 +1314,7 @@ function setupInstallHint() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const shareIcon = '<svg class="ins-ico" viewBox="0 0 24 24" aria-label="Teilen"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
   setTimeout(() => {
-    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open) return;
+    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open) return;
     const howto = ios
       ? `Tippe in Safari auf ${shareIcon} <b>Teilen</b> (bei neueren iPhones im Menü <b>«…»</b>) und dann auf <b>«Zum Home-Bildschirm»</b>. Danach öffnet sich die Seite wie eine App – ohne Adresszeile.`
       : installEvent ? 'Mit einem Tipp auf «Installieren» liegt die Seite wie eine App auf deinem Startbildschirm.'
