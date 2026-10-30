@@ -106,6 +106,9 @@ function showPrompt(key) {
     err.hidden = false;
     input.value = '';
     input.focus();
+    form.classList.remove('has-error');
+    void form.offsetWidth; // Reflow erzwingen, damit die Animation bei wiederholtem Fehler erneut abspielt
+    form.classList.add('has-error');
   });
 }
 
