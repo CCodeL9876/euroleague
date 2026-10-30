@@ -112,17 +112,21 @@ function showPrompt(key) {
   });
 }
 
-function showRelinkNotice() {
+function showRelinkNotice(heading) {
   const gate = document.createElement('div');
   gate.className = 'gate';
   gate.innerHTML = `
     <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
     <div class="gate-card">
       <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
-      <h1>Abgemeldet</h1>
-      <p>Zum erneuten Anmelden bitte den ursprünglichen Zugangslink nochmal öffnen.</p>
+      <h1>${heading}</h1>
+      <p>Zum Anmelden bitte den ursprünglichen Zugangslink (mit <code>?key=…</code>) nochmal öffnen, am besten in Safari/Chrome statt in der gespeicherten App.</p>
     </div>`;
   document.body.appendChild(gate);
+}
+
+function standalone() {
+  return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 }
 
 if (unlocked()) {
@@ -131,6 +135,8 @@ if (unlocked()) {
 } else {
   const key = new URLSearchParams(location.search).get('key');
   if (key) showPrompt(key);
-  else if (sessionStorage.getItem('el-gate-relogin') === '1') { sessionStorage.removeItem('el-gate-relogin'); showRelinkNotice(); }
-  // Sonst (fremder Besuch ohne Link): Seite bleibt leer – keine Fehlermeldung, kein Hinweis.
+  else if (sessionStorage.getItem('el-gate-relogin') === '1') { sessionStorage.removeItem('el-gate-relogin'); showRelinkNotice('Abgemeldet'); }
+  // Als Homebildschirm-App gespeichert, aber (noch) nicht angemeldet: nie eine leere Seite zeigen, hier ist man
+  // sicher keine zufällige Besucherin ohne Link. Sonst (fremder Besuch im Browser ohne Link): Seite bleibt leer.
+  else if (standalone()) showRelinkNotice('Zugang nötig');
 }
