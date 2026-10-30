@@ -658,30 +658,33 @@ body.needs-profile .mtabs{display:none;}
 @media (prefers-reduced-motion: reduce){ .gate-card.has-error{animation:none;} }
 
 /* Live-Spiele als Fallblatt-Anzeige (wie früher am Bahnhof): pro Team eine Zeile mit Logo, Namen und Punkten,
-   Viertel und Uhr unten. Die Tafel ist ein „Gegenstand“ und bleibt darum auch im hellen Modus dunkel (feste Farben). */
-.live-hero{min-width:0;cursor:pointer;display:flex;flex-direction:column;gap:10px;border-radius:16px;padding:12px;
-  background:#0E0E11;border:1px solid #222228;color:#F2EFE6;box-shadow:0 10px 24px rgba(0,0,0,0.3);}
-.live-hero:hover{border-color:#3A3A44;}
+   Viertel und Uhr unten. Farben „Indigo“: Blätter immer in den dunklen Kartenfarben, die Tafel selbst folgt dem Modus. */
+.live-hero{--flap-board:#1E1F3B;--flap-top:#3B3E69;--flap-bot:#33355C;--flap-text:#ECEDFA;--flap-hinge:#1A1B33;
+  min-width:0;cursor:pointer;display:flex;flex-direction:column;gap:10px;border-radius:16px;padding:12px;
+  background:var(--flap-board);border:1px solid var(--line);color:var(--flap-text);}
+.live-hero:hover{border-color:var(--faint);}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]) .live-hero{--flap-board:var(--panel);} }
+:root[data-theme="light"] .live-hero{--flap-board:var(--panel);}
 .live-hero:focus-visible{outline:2px solid var(--green);outline-offset:3px;}
 .hero-scroll{padding:5px;margin:-5px;scroll-padding-inline:5px;}
 .flap-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;}
 .flap-row .logo.sm{width:40px;height:40px;}
-.flap-name{position:relative;font-family:var(--mono);font-weight:600;font-size:0.92rem;letter-spacing:0.06em;text-transform:uppercase;color:#F2EFE6;
-  background:linear-gradient(180deg, #232326 0 50%, #151517 50% 100%);border-radius:5px;padding:9px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.flap-name::after, .flap::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#000;box-shadow:0 1px 0 rgba(255,255,255,0.06);}
+.flap-name{position:relative;font-family:var(--mono);font-weight:600;font-size:0.92rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--flap-text);
+  background:linear-gradient(180deg, var(--flap-top) 0 50%, var(--flap-bot) 50% 100%);border-radius:5px;padding:9px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.flap-name::after, .flap::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--flap-hinge);box-shadow:0 1px 0 rgba(255,255,255,0.05);}
 .flaps{display:flex;gap:3px;}
-.flap{position:relative;width:32px;height:46px;border-radius:5px;background:linear-gradient(180deg, #232326 0 50%, #151517 50% 100%);
-  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:2rem;line-height:1;color:#F2EFE6;font-variant-numeric:tabular-nums;}
+.flap{position:relative;width:32px;height:46px;border-radius:5px;background:linear-gradient(180deg, var(--flap-top) 0 50%, var(--flap-bot) 50% 100%);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:2rem;line-height:1;color:var(--flap-text);font-variant-numeric:tabular-nums;}
 .flap.flip{animation:flap-flip 0.36s ease-in;}
 @keyframes flap-flip{0%{transform:perspective(200px) rotateX(0);}50%{transform:perspective(200px) rotateX(-90deg);}100%{transform:perspective(200px) rotateX(0);}}
 .flap-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;}
-.flap-q{display:flex;align-items:center;min-width:0;font-family:var(--mono);font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:#9A9AA6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.flap-q{display:flex;align-items:center;min-width:0;font-family:var(--mono);font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .flap-clock{display:flex;align-items:center;gap:8px;flex:none;}
 .flap-clock .flap{width:21px;height:30px;font-size:1.15rem;}
 .flap-clock .flap.sep{width:8px;background:none;}
 .flap-clock .flap.sep::after{display:none;}
-.flap-more{font-size:1.2rem;color:#6E6E7A;}
-.live-hero:hover .flap-more{color:#F2EFE6;}
+.flap-more{font-size:1.2rem;color:var(--dim);}
+.live-hero:hover .flap-more{color:var(--text);}
 @media (prefers-reduced-motion: reduce){ .flap.flip{animation:none;} }
 @media (max-width:820px){
   .live-hero{padding:10px;gap:8px;}
