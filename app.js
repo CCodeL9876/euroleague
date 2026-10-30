@@ -289,9 +289,13 @@ async function toggleFav(code) {
 function profileHtml() {
   return `<div class="profile-bar">
     <span class="profile-who">${icon('star', 'icon')}${esc(profile.name)}</span>
-    <button type="button" class="profile-link" data-act="fav-edit">${favEdit ? 'Fertig' : 'Teams bearbeiten'}</button>
-    <button type="button" class="profile-link" data-act="copy-link">Link für Home-App</button>
-    <button type="button" class="profile-link" data-act="profile-logout">Profil abmelden</button>
+    <div class="profile-acts">
+      ${favEdit
+        ? '<button type="button" class="profile-link" data-act="fav-edit">Fertig</button>'
+        : `<button type="button" class="profile-icon" data-act="fav-edit" aria-label="Lieblingsteams bearbeiten" title="Lieblingsteams bearbeiten">${icon('star')}</button>`}
+      <button type="button" class="profile-icon" data-act="copy-link" aria-label="Link für Home-App kopieren" title="Link für Home-App kopieren">${icon('share')}</button>
+      <button type="button" class="profile-icon" data-act="profile-logout" aria-label="Profil abmelden" title="Profil abmelden">${icon('logout')}</button>
+    </div>
   </div>${favEdit ? favEditHtml() : ''}`;
 }
 

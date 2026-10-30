@@ -593,8 +593,13 @@ button.box-team:hover{background:var(--card-2);}
 @media (prefers-reduced-motion: reduce){ .install{animation:none;} .install.is-gone{transition:none;} }
 
 /* Profil: Name+PIN, Lieblingsteams geräteübergreifend */
-.profile-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 12px;border-radius:14px;background:var(--card);margin-bottom:4px;}
-.profile-who{display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600;color:var(--text);}
+.profile-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 2px 12px;border-radius:12px;background:var(--card);margin-bottom:4px;}
+.profile-who{display:flex;align-items:center;gap:6px;min-width:0;font-size:0.85rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.profile-acts{display:flex;align-items:center;flex:none;}
+.profile-icon{width:40px;height:40px;display:grid;place-items:center;border:0;border-radius:10px;background:transparent;color:var(--dim);cursor:pointer;}
+.profile-icon:hover{color:var(--text);background:var(--card-2);}
+.profile-icon .icon{width:18px;height:18px;}
+.profile-acts .profile-link{min-height:40px;padding:0 10px;}
 .profile-who .icon{width:15px;height:15px;fill:var(--blue);stroke:none;}
 .profile-link{margin-left:auto;border:0;background:transparent;color:var(--blue-hi, var(--blue));font-size:0.82rem;font-weight:600;cursor:pointer;padding:4px 2px;}
 .profile-link + .profile-link{margin-left:0;}
