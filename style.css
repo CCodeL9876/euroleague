@@ -119,10 +119,11 @@
   .today-head h2 span{color:var(--dim);font-weight:500;font-size:0.95rem;}
   .day-games{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity;padding:2px 0 4px;}
   .day-games::-webkit-scrollbar{display:none;}
-  .day-game{flex:none;scroll-snap-align:start;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid transparent;border-radius:16px;padding:10px 12px;}
-  .day-game .t{display:flex;align-items:center;gap:7px;font-size:0.85rem;}
+  .day-game{flex:none;scroll-snap-align:start;display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid transparent;border-radius:18px;padding:14px 16px;min-height:64px;}
+  .day-game .logo.xs{width:32px;height:32px;}
+  .day-game .t{display:flex;align-items:center;gap:8px;font-size:0.95rem;}
   .day-game .t b{font-weight:600;}
-  .day-game .mid{min-width:52px;text-align:center;font-family:var(--mono);font-weight:600;font-size:0.92rem;color:var(--blue-hi);}
+  .day-game .mid{min-width:60px;text-align:center;font-family:var(--mono);font-weight:600;font-size:1.05rem;color:var(--blue-hi);}
   .day-game.done .mid{color:var(--text);}
   .day-game.live .mid{color:var(--green);font-family:var(--font);}
   .day-game.fav{border-color:color-mix(in srgb, var(--gold) 60%, transparent);}
@@ -137,15 +138,15 @@
   .rubrik-btn.disabled{opacity:0.4;pointer-events:none;}
 
   .hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;align-items:center;}
-  .hero-art{display:grid;place-items:center;min-height:200px;}
-  .hero-art svg{width:min(100%, 280px);height:auto;}
+  .hero-art{display:grid;place-items:center;min-height:130px;}
+  .hero-art svg{width:min(100%, 170px);height:auto;}
   .hero-info h2{margin:0 0 12px;font-size:1.1rem;font-weight:600;color:var(--dim);}
   .score{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;}
   .score .team{display:flex;flex-direction:column;min-width:0;}
-  .score .pts{font-size:2.8rem;font-weight:600;line-height:1;letter-spacing:-0.04em;}
+  .score .pts{font-size:2.3rem;font-weight:600;line-height:1;letter-spacing:-0.04em;}
   .score .tn{display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--dim);font-weight:500;margin-top:8px;}
   .score .arrow{color:var(--blue-hi);font-size:1.6rem;font-weight:600;line-height:1.6;}
-  .hero-actions{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;}
+  .hero-actions{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;}
   .pill-dark{min-height:48px;display:inline-flex;align-items:center;gap:8px;padding:0 18px;border-radius:14px;background:var(--card);font-weight:600;}
   .pill-dark .dim{color:var(--dim);font-weight:400;}
   .btn-accent{min-height:48px;display:inline-flex;align-items:center;gap:10px;padding:0 20px;border-radius:14px;border:2px solid var(--blue);
@@ -300,16 +301,16 @@
     .refresh-btn{min-height:40px;padding:0 16px;font-size:0.88rem;white-space:nowrap;}
     .refresh-hint{font-size:0.75rem;}
 
-    .hero{grid-template-columns:minmax(0,1fr);background:var(--card);border-radius:24px;padding:18px;gap:0;}
+    .hero{grid-template-columns:minmax(0,1fr);background:var(--card);border-radius:20px;padding:12px 14px;gap:0;}
     .hero-art{display:none;}
-    .hero-info h2{font-size:0.85rem;margin-bottom:10px;}
+    .hero-info h2{font-size:0.8rem;margin-bottom:6px;}
     .score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:start;}
     .score .team:last-child{text-align:right;align-items:flex-end;}
     .score .team:last-child .tn{flex-direction:row-reverse;}
-    .score .pts{font-size:2.3rem;}
+    .score .pts{font-size:1.8rem;}
     .score .tn{font-size:0.8rem;}
-    .hero-actions{margin-top:14px;gap:8px;}
-    .pill-dark, .btn-accent{min-height:44px;padding:0 14px;font-size:0.88rem;}
+    .hero-actions{margin-top:10px;gap:8px;}
+    .pill-dark, .btn-accent{min-height:44px;padding:0 12px;font-size:0.85rem;}
     .pill-dark{background:var(--card-2);}
 
     .tiles{grid-template-columns:repeat(3, minmax(0,1fr));gap:10px;padding-top:0;}
