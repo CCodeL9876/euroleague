@@ -58,9 +58,10 @@ Das ist bewusst **keine echte Benutzerverwaltung** – nur eine Hürde gegen zuf
 
 ### 4. Profile (Name + PIN) für geräteübergreifende Lieblingsteams
 
-Jede Person kann sich ein eigenes, leichtes Profil anlegen (Name + 4- bis 8-stellige PIN, keine E-Mail) und damit
-ihre Lieblingsteams auf mehreren Geräten gleich sehen. Die PIN wird nur gehasht gespeichert, die Prüfung läuft in
-der Funktion `euroleague` – die Tabelle selbst ist für alle anderen gesperrt. Einmalig einrichten:
+Nach dem Zugriffsschutz (Abschnitt 3) verlangt die Seite zusätzlich ein eigenes, leichtes Profil (Name + 4- bis
+8-stellige PIN, keine E-Mail) – ohne Profil bleibt das Dashboard verborgen. Damit sehen alle ihre Lieblingsteams
+auf mehreren Geräten gleich. Die PIN wird nur gehasht gespeichert, die Prüfung läuft in der Funktion `euroleague`
+– die Tabelle selbst ist für alle anderen gesperrt. Einmalig einrichten:
 
 1. **Tabelle anlegen** – Supabase-Dashboard → **SQL Editor** → Neue Abfrage → diesen SQL-Code ausführen:
    ```sql
@@ -81,8 +82,8 @@ der Funktion `euroleague` – die Tabelle selbst ist für alle anderen gesperrt.
 3. Die Funktion `euroleague` wie gewohnt mit dem aktuellen Code neu deployen (sie enthält jetzt auch die
    Profil-Routen).
 
-Ohne diese Einrichtung funktioniert die Seite weiterhin normal – Lieblingsteams bleiben dann einfach rein lokal
-auf dem jeweiligen Gerät, wie zuvor.
+**Wichtig:** Ohne diese Einrichtung (Tabelle fehlt) kann niemand ein Profil anlegen – und damit auch niemand die
+Seite öffnen, da das Profil jetzt Pflicht ist. Schritt 1 ist also nicht optional.
 
 ### 5. News-Aufgabe
 

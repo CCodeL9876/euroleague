@@ -115,20 +115,60 @@ async function profileCall(body) {
   }
 }
 
-async function autoLoginProfile() {
-  const name = store.get('el-profile-name', ''), pin = store.get('el-profile-pin', '');
-  if (!name || !pin) return;
-  const res = await profileCall({ kind: 'profile-login', name, pin });
-  if (res.ok) {
-    profile = { name: res.name || name };
-    if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); }
-  } else if (res.error === 'pin' || res.error === 'unbekannt') {
-    store.set('el-profile-name', ''); store.set('el-profile-pin', '');
-  }
+// Dieselben Pfade wie das Logo im Kopfbereich (index.html .brand-logo / gate.js) – für den Pflicht-Bildschirm,
+// der ohne Profil erscheint.
+const PROFILE_LOGO_PATHS = `<path d="M271.64,232.27h0.26c0,0,96.95,47.56,164.99,62.77c3.92,0.69,4.18,1.54,4.18,2.64l-2.88,2.23
+  c-64.32,13.4-166.35,62.01-166.61,62.13c-0.07,0.02-79.1,34.87-79.19,78.46c-0.07,25.38,18.49,47.42,25.31,55.26l3.76,4.14
+  c51.27,50.74,121.74,82.12,199.53,82.28c123.64,0.26,229.05-78.34,268.6-188.43c-0.93-4.63-9.72-5.51-18.7-4.54
+  C524.9,405.04,481.93,526.92,481.29,528.21c-122.78,37.46-113.97-32.11-113.97-32.11c-0.14-49.75,95.17-113.42,172.05-145.34
+  c10.05-4.16,75.08-28.88,159.24-38.57c5.4-0.43,7.27-5.06,7.53-9.55c0.36-6.56,0.31-10.93-0.67-16.68
+  c-1.26-5.61-6.11-6.96-9.84-7.32c-10.34-1.28-20.13-2.64-29.4-4.06c-29.35-5.06-75.96-15.59-126.73-36.22
+  c-55.59-22.55-170.34-81.19-171.34-139.59c0,0-8.53-69.62,114.11-31.63c0.62,1.26,43.09,123.35,188.98,139.8
+  c8.98,1.02,17.78,0.17,18.73-4.49C650.92,92.19,545.87,13.11,422.23,12.85c-77.82-0.17-148.41,30.92-199.91,81.43l-3.76,4.14
+  c-6.87,7.8-25.48,29.78-25.6,55.14C192.85,184.03,228.31,210.86,271.64,232.27"/>
+  <path d="M159.67,404.32c1.21,0,3.64-0.36,3.64-2.88c0.07-29.02,32.32-54.59,72.87-75.3c21.46-10.32,44.18-20.42,65.27-26.53
+  l3.02-2.23l-3.71-2.64c-18.16-6.44-44.09-16.92-66.07-27.5c-39.71-20.72-70.97-46.13-70.92-74.77c0.02-2.52-2.43-2.9-3.61-2.9
+  l-3.37,3.35c-12.72,32.18-19.73,67.26-19.82,103.98c-0.07,36.7,6.8,71.8,19.37,104.05L159.67,404.32z"/>`;
+
+function renderProfileGate() {
+  let host = document.getElementById('profileGate');
+  if (!host) { host = document.createElement('div'); host.id = 'profileGate'; document.body.appendChild(host); }
+  host.className = 'gate';
+  host.innerHTML = `
+    <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
+    <div class="gate-card">
+      <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
+      <h1>Profil nötig</h1>
+      <p>Um die Seite zu nutzen, brauchst du ein eigenes Profil (Name + PIN) – damit dir deine Lieblingsteams zugeordnet werden können.</p>
+      ${profileFormHtml()}
+    </div>`;
 }
 
+function enterApp() {
+  document.body.classList.remove('needs-profile');
+  document.getElementById('profileGate')?.remove();
+  boot();
+}
+
+async function ensureProfile() {
+  const name = store.get('el-profile-name', ''), pin = store.get('el-profile-pin', '');
+  if (name && pin) {
+    const res = await profileCall({ kind: 'profile-login', name, pin });
+    if (res.ok) {
+      profile = { name: res.name || name };
+      if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); }
+      return true;
+    }
+    if (res.error === 'pin' || res.error === 'unbekannt') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); }
+  }
+  return false;
+}
+
+// Ohne Profil kein Zugriff: solange body.needs-profile, zeigt ein Re-render das Pflicht-Fenster statt des Dashboards
+function refreshProfileUI() { if (document.body.classList.contains('needs-profile')) renderProfileGate(); else render(); }
+
 async function profileLogin(name, pin) {
-  profileBusy = true; profileError = ''; render();
+  profileBusy = true; profileError = ''; refreshProfileUI();
   const res = await profileCall({ kind: 'profile-login', name, pin });
   profileBusy = false;
   if (res.ok) {
@@ -137,14 +177,15 @@ async function profileLogin(name, pin) {
     if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); }
     favEdit = false;
     profileDraft = { name: '', pin: '' };
-  } else {
-    profileError = res.error === 'pin' ? 'Falsche PIN.' : res.error === 'unbekannt' ? 'Unbekannter Name – «Neu anlegen» verwenden.' : 'Das hat gerade nicht geklappt.';
+    enterApp();
+    return;
   }
-  render();
+  profileError = res.error === 'pin' ? 'Falsche PIN.' : res.error === 'unbekannt' ? 'Unbekannter Name – «Neu anlegen» verwenden.' : 'Das hat gerade nicht geklappt.';
+  refreshProfileUI();
 }
 
 async function profileCreate(name, pin) {
-  profileBusy = true; profileError = ''; render();
+  profileBusy = true; profileError = ''; refreshProfileUI();
   const res = await profileCall({ kind: 'profile-create', name, pin, favorites: FAV });
   profileBusy = false;
   if (res.ok) {
@@ -152,16 +193,19 @@ async function profileCreate(name, pin) {
     store.set('el-profile-name', name); store.set('el-profile-pin', pin);
     favEdit = false;
     profileDraft = { name: '', pin: '' };
-  } else {
-    profileError = res.error === 'vergeben' ? 'Dieser Name ist schon vergeben – stattdessen anmelden?' : 'Das hat gerade nicht geklappt.';
+    enterApp();
+    return;
   }
-  render();
+  profileError = res.error === 'vergeben' ? 'Dieser Name ist schon vergeben – stattdessen anmelden?' : 'Das hat gerade nicht geklappt.';
+  refreshProfileUI();
 }
 
+// Abmelden sperrt die Seite sofort wieder – ohne Profil ist kein Weiterschauen möglich
 function profileLogout() {
-  profile = null; profileError = '';
+  profile = null; profileError = ''; favEdit = false;
   store.set('el-profile-name', ''); store.set('el-profile-pin', '');
-  render();
+  document.body.classList.add('needs-profile');
+  renderProfileGate();
 }
 
 async function toggleFav(code) {
@@ -176,18 +220,13 @@ async function toggleFav(code) {
   }
 }
 
+// render() läuft nur, solange ein Profil besteht (siehe enterApp/ensureProfile) – kein Gast-Zustand mehr nötig
 function profileHtml() {
-  if (profile) {
-    return `<div class="profile-bar">
-      <span class="profile-who">${icon('star', 'icon')}${esc(profile.name)}</span>
-      <button type="button" class="profile-link" data-act="fav-edit">${favEdit ? 'Fertig' : 'Teams bearbeiten'}</button>
-      <button type="button" class="profile-link" data-act="profile-logout">Profil abmelden</button>
-    </div>${favEdit ? favEditHtml() : ''}`;
-  }
-  return `<div class="profile-bar guest">
-    <span class="profile-who">Ohne Profil – Teams nur auf diesem Gerät</span>
-    <button type="button" class="profile-link" data-act="profile-open">${favEdit ? 'Schliessen' : 'Profil anlegen / anmelden'}</button>
-  </div>${favEdit ? profileFormHtml() : ''}`;
+  return `<div class="profile-bar">
+    <span class="profile-who">${icon('star', 'icon')}${esc(profile.name)}</span>
+    <button type="button" class="profile-link" data-act="fav-edit">${favEdit ? 'Fertig' : 'Teams bearbeiten'}</button>
+    <button type="button" class="profile-link" data-act="profile-logout">Profil abmelden</button>
+  </div>${favEdit ? favEditHtml() : ''}`;
 }
 
 function profileFormHtml() {
@@ -483,11 +522,6 @@ function renderCenter(m) {
 function dkey(s) { const p = String(s || '').split('.'); return p.length === 3 ? p[2] + p[1] + p[0] : ''; }
 const SRC_COLOR = ['#5B7CFA', '#EE5F68', '#4CC38A', '#E8935F', '#6E3CF0'];
 
-function renderBrand() {
-  $('#issue').textContent = news ? `Ausgabe Nr. ${news.issue} · Erscheint täglich` : 'Erscheint täglich';
-  $('#updated').textContent = news?.updated ? `Zuletzt aktualisiert: ${news.updated}` : '';
-}
-
 function renderFeed() {
   const items = news?.items || [];
   const newest = items.map((i) => i.firstShown).sort((a, b) => dkey(b).localeCompare(dkey(a)))[0] || '';
@@ -523,7 +557,6 @@ function renderFeed() {
 function render() {
   const m = model();
   const keep = [...document.querySelectorAll('[data-keep-scroll]')].map((n) => [n.dataset.keepScroll, n.scrollLeft]);
-  renderBrand();
   renderLeft(m);
   renderCenter(m);
   for (const [k, x] of keep) { const n = document.querySelector(`[data-keep-scroll="${k}"]`); if (n) n.scrollLeft = x; }
@@ -832,13 +865,13 @@ document.addEventListener('click', (e) => {
   else if (act === 'leader-fav') { leaderState.fav = t.checked; render(); }
   else if (act === 'theme') toggleTheme();
   else if (act === 'logout') logout();
-  else if (act === 'profile-open' || act === 'fav-edit') { favEdit = !favEdit; profileError = ''; render(); }
+  else if (act === 'fav-edit') { favEdit = !favEdit; profileError = ''; render(); }
   else if (act === 'profile-logout') profileLogout();
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
   else if (act === 'profile-login-go' || act === 'profile-create-go') {
     const name = profileDraft.name.trim();
     const pin = profileDraft.pin.trim();
-    if (!name || !/^\d{4,8}$/.test(pin)) { profileError = 'Name und eine PIN aus 4–8 Ziffern eingeben.'; render(); return; }
+    if (!name || !/^\d{4,8}$/.test(pin)) { profileError = 'Name und eine PIN aus 4–8 Ziffern eingeben.'; refreshProfileUI(); return; }
     if (act === 'profile-login-go') profileLogin(name, pin); else profileCreate(name, pin);
   }
 });
@@ -895,7 +928,10 @@ matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', themeUi
 themeUi();
 // Klick neben das Fenster schliesst es
 $('#box').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); else clearTimeout(dataTimer); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !document.body.classList.contains('needs-profile')) refresh();
+  else clearTimeout(dataTimer);
+});
 
 // Ganz oben nach unten ziehen lädt die Seite neu (wie in iPhone-Apps) – vor allem für die Web-App vom
 // Home-Bildschirm, die keinen Neu-laden-Knopf hat. Bringt neueste Spielstände, News und Version der Seite.
@@ -939,10 +975,19 @@ function setupPullToRefresh() {
 
 // Marke: „Sport“ führt zur KI-News-Seite
 $('#siteLink').href = KI_NEWS_URL;
-setTab(tab, false);
-setupPullToRefresh();
-refresh({ withNews: true }).then(() => loadPlayers()).then(render);
-autoLoginProfile().then(render);
+
+function boot() {
+  setTab(tab, false);
+  setupPullToRefresh();
+  refresh({ withNews: true }).then(() => loadPlayers()).then(render);
+}
+
+// Ohne Profil geht es nicht weiter: zuerst ein vorhandenes Profil auf diesem Gerät prüfen, sonst das Pflicht-Fenster zeigen
+(async () => {
+  if (await ensureProfile()) { enterApp(); return; }
+  document.body.classList.add('needs-profile');
+  renderProfileGate();
+})();
 
 // ---------- Hinweis „App auf Homebildschirm speichern“ ----------
 // Nur im Browser (nicht in der Web-App vom Home-Bildschirm) und nur auf Handy/Tablet. „Später“ oder × blendet ihn für
