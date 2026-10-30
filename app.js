@@ -136,7 +136,7 @@ function renderProfileGate() {
   host.className = 'gate';
   host.innerHTML = `
     <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
-    <div class="gate-card">
+    <div class="gate-card${profileError ? ' has-error' : ''}">
       <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
       <h1>Profil nötig</h1>
       <p>Um die Seite zu nutzen, brauchst du ein eigenes Profil (Name + PIN) – damit dir deine Lieblingsteams zugeordnet werden können.</p>
@@ -372,8 +372,7 @@ function renderLeft(m) {
       <span class="rec num">${esc(rec(m, c))}</span>
       <span class="form" role="img" aria-label="Form: ${form.map((f) => (f.w ? 'Sieg' : 'Niederlage')).join(', ')}">${form.map((f) => `<i${f.w ? '' : ' class="l"'}></i>`).join('')}</span></article>`;
   }).join('');
-  left.innerHTML = `${profileHtml()}
-    <section class="panel chart" aria-label="${esc(fullName(m, sel))}, Korbdifferenz über die Saison">${chartHtml(m, sel)}</section>
+  left.innerHTML = `<section class="panel chart" aria-label="${esc(fullName(m, sel))}, Korbdifferenz über die Saison">${chartHtml(m, sel)}</section>
     <div class="chips" role="group" aria-label="Team wählen">${chips}</div>
     <section class="panel next" aria-label="Nächstes Spiel">${nextHtml(m, sel)}</section>
     <div class="sec-head"><h2>Deine Teams</h2><span class="label">Form · letzte 5</span></div>
@@ -557,6 +556,7 @@ function renderFeed() {
 function render() {
   const m = model();
   const keep = [...document.querySelectorAll('[data-keep-scroll]')].map((n) => [n.dataset.keepScroll, n.scrollLeft]);
+  $('#profileBar').innerHTML = profileHtml();
   renderLeft(m);
   renderCenter(m);
   for (const [k, x] of keep) { const n = document.querySelector(`[data-keep-scroll="${k}"]`); if (n) n.scrollLeft = x; }

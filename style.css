@@ -487,6 +487,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   .brand{flex:1;order:1;padding-right:0;min-width:0;}
   .theme-btn{position:static;flex:none;order:2;}
   #logoutBtn{order:3;}
+  #profileBar{order:4;flex-basis:100%;}
 }
 
 /* Tabelle: Zonen, Heim/Auswärts, Serie, Team antippbar */
@@ -630,3 +631,11 @@ body.needs-profile .mtabs{display:none;}
 .gate-card button{align-self:stretch;min-height:46px;border:0;border-radius:12px;background:var(--blue);
   color:var(--on-color, #fff);font-weight:600;font-size:0.95rem;cursor:pointer;}
 .gate-err{color:var(--coral, #D23C47);font-size:0.85rem;}
+.gate-card.has-error{box-shadow:inset 0 0 0 2px var(--coral, #D23C47), 0 18px 40px rgba(0,0,0,0.35);animation:gate-shake 0.4s;}
+@keyframes gate-shake{
+  10%, 90%{transform:translateX(-1px);}
+  20%, 80%{transform:translateX(2px);}
+  30%, 50%, 70%{transform:translateX(-4px);}
+  40%, 60%{transform:translateX(4px);}
+}
+@media (prefers-reduced-motion: reduce){ .gate-card.has-error{animation:none;} }
