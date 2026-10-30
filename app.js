@@ -547,7 +547,7 @@ function renderCenter(m) {
       return `<section class="live-hero" ${boxAttrs(m, g)}>
       <div class="flap-row">${logo(m, g.home, 'sm')}<span class="flap-name">${esc(name(m, g.home))}</span>${tiles(String(g.hs).padStart(3, ' '))}</div>
       <div class="flap-row">${logo(m, g.away, 'sm')}<span class="flap-name">${esc(name(m, g.away))}</span>${tiles(String(g.as).padStart(3, ' '))}</div>
-      <div class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)} · Spieltag ${g.round}</span>
+      <div class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)}<span class="flap-round">&nbsp;· Spieltag ${g.round}</span></span>
         <span class="flap-clock">${clock ? tiles(clock) : ''}<span class="flap-more" aria-hidden="true">›</span></span></div></section>`;
     }).join('');
     parts.push(`<div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="live" aria-label="Live-Spiele">${cards}</div>`);

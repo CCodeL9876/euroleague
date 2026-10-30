@@ -688,5 +688,6 @@ body.needs-profile .mtabs{display:none;}
   .flap-row{gap:8px;}
   .flap-row .logo.sm{width:36px;height:36px;}
   .flap-name{font-size:0.82rem;padding:8px;}
+  .flap-round{display:none;}
   .flap{width:28px;height:40px;font-size:1.7rem;}
 }
