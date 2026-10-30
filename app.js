@@ -270,10 +270,16 @@ function profileFormHtml() {
   </form>`;
 }
 
+// Wappen, falls Spieldaten schon geladen sind (unabhängig vom Profilstatus, siehe loadData() ganz unten);
+// ohne Daten (z.B. offline bei der allerersten Anmeldung) einfach ohne Bild, Name reicht dann als Beschriftung
+function teamLogo(c) {
+  const crest = data?.teams?.[c]?.crest || '';
+  return /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//.test(crest) ? `<img class="fav-pick-logo" src="${esc(crest)}" alt="" loading="lazy">` : '';
+}
 function favEditHtml() {
   const teams = Object.keys(SHORTNAME).sort((a, b) => SHORTNAME[a].localeCompare(SHORTNAME[b], 'de'));
   return `<div class="fav-edit" role="group" aria-label="Lieblingsteams wählen">
-    ${teams.map((c) => `<button type="button" class="fav-pick" style="--c:${favColor(c)}" data-act="fav-toggle" data-c="${c}" aria-pressed="${FAV.includes(c)}">${esc(SHORTNAME[c])}</button>`).join('')}
+    ${teams.map((c) => `<button type="button" class="fav-pick" style="--c:${favColor(c)}" data-act="fav-toggle" data-c="${c}" aria-pressed="${FAV.includes(c)}">${teamLogo(c)}${esc(SHORTNAME[c])}</button>`).join('')}
   </div>${profileError ? `<p class="profile-err">${esc(profileError)}</p>` : ''}`;
 }
 
@@ -1011,6 +1017,10 @@ function boot() {
   setupPullToRefresh();
   refresh({ withNews: true }).then(() => loadPlayers()).then(render);
 }
+
+// Teamdaten (für die Logos in der Favoriten-Auswahl) schon vor der Anmeldung laden, unabhängig vom Profilstatus.
+// Nur die Teamwahl neu zeichnen, falls sie gerade offen ist – das Anmelde-/Anlege-Formular soll dabei nicht stören.
+loadData().then(() => { if (onboarding) renderOnboarding(); });
 
 // Ohne Profil geht es nicht weiter: zuerst ein vorhandenes Profil auf diesem Gerät prüfen, sonst das Pflicht-Fenster zeigen
 (async () => {
