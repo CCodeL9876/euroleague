@@ -2,7 +2,7 @@
 // aktuell ist); ohne Netz kommt der letzte Stand – bei den Spieldaten mit Kopfzeile „x-offline“, damit die Seite
 // „Offline – Stand von …“ anzeigt. Logos und Spielerfotos: zuerst aus dem Zwischenspeicher (ändern sich kaum).
 
-const CACHE = 'euroleague-v8';
+const CACHE = 'euroleague-v9';
 const IMAGES = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//;
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 const DATA = /\/functions\/v1\/euroleague/;

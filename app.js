@@ -708,6 +708,7 @@ function logout() {
     key = localStorage.getItem('el-gate-key') || '';
     localStorage.removeItem('el-gate-ok');
     localStorage.removeItem('el-gate-key');
+    if (!key) sessionStorage.setItem('el-gate-relogin', '1');
   } catch { /* privates Fenster */ }
   const url = new URL(location.href);
   url.search = key ? `?key=${encodeURIComponent(key)}` : '';

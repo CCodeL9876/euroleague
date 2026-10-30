@@ -109,11 +109,25 @@ function showPrompt(key) {
   });
 }
 
+function showRelinkNotice() {
+  const gate = document.createElement('div');
+  gate.className = 'gate';
+  gate.innerHTML = `
+    <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
+    <div class="gate-card">
+      <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${LOGO_PATHS}</svg>
+      <h1>Abgemeldet</h1>
+      <p>Zum erneuten Anmelden bitte den ursprünglichen Zugangslink nochmal öffnen.</p>
+    </div>`;
+  document.body.appendChild(gate);
+}
+
 if (unlocked()) {
   cleanUrl();
   boot();
 } else {
   const key = new URLSearchParams(location.search).get('key');
   if (key) showPrompt(key);
-  // Ohne ?key=... in der URL bleibt die Seite leer – keine Fehlermeldung, kein Hinweis.
+  else if (sessionStorage.getItem('el-gate-relogin') === '1') { sessionStorage.removeItem('el-gate-relogin'); showRelinkNotice(); }
+  // Sonst (fremder Besuch ohne Link): Seite bleibt leer – keine Fehlermeldung, kein Hinweis.
 }
