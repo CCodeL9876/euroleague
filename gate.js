@@ -76,7 +76,7 @@ function showPrompt(key) {
       <h1>Zugangscode</h1>
       <p>Diese Seite ist nur für einen eingeladenen Kreis zugänglich.</p>
       <input id="gateCode" type="password" inputmode="text" autocomplete="off" placeholder="Code eingeben" aria-label="Zugangscode">
-      <button type="submit" id="gateGo">Weiter</button>
+      <button type="submit" id="gateGo" class="onboarding-go">Weiter</button>
       <p class="gate-err" id="gateErr" hidden>Falscher Code. Nochmal versuchen.</p>
     </form>`;
   document.body.appendChild(gate);

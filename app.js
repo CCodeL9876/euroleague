@@ -97,6 +97,7 @@ let profile = null; // { name } sobald angemeldet
 let profileBusy = false;
 let profileError = '';
 let favEdit = false;
+let onboarding = false; // true direkt nach dem Anlegen: Team-Wahl ist Pflicht, bevor es weitergeht
 // Merkt die Eingabe im Formular, damit ein Zwischen-render() (z.B. „Prüfe …“ oder nach einem Fehler) sie nicht löscht
 let profileDraft = { name: store.get('el-profile-name', ''), pin: '' };
 
@@ -144,28 +145,48 @@ function renderProfileGate() {
     </div>`;
 }
 
+function renderOnboarding() {
+  let host = document.getElementById('profileGate');
+  if (!host) { host = document.createElement('div'); host.id = 'profileGate'; document.body.appendChild(host); }
+  host.className = 'gate';
+  host.innerHTML = `
+    <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
+    <div class="gate-card gate-card-wide">
+      <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
+      <h1>Lieblingsteams wählen</h1>
+      <p>Willkommen, ${esc(profile.name)}! Wähle mindestens ein Team – deine Spiele werden dann hervorgehoben.</p>
+      ${favEditHtml()}
+      <button type="button" class="onboarding-go" data-act="onboarding-done"${FAV.length ? '' : ' disabled'}>Los geht's</button>
+    </div>`;
+}
+
 function enterApp() {
   document.body.classList.remove('needs-profile');
   document.getElementById('profileGate')?.remove();
   boot();
 }
 
+// 'in'=Dashboard öffnen, 'onboarding'=Teamwahl nachholen (z.B. Tab vor Abschluss der Anmeldung geschlossen), 'out'=Pflicht-Fenster
 async function ensureProfile() {
   const name = store.get('el-profile-name', ''), pin = store.get('el-profile-pin', '');
   if (name && pin) {
     const res = await profileCall({ kind: 'profile-login', name, pin });
     if (res.ok) {
       profile = { name: res.name || name };
-      if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); }
-      return true;
+      if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); return 'in'; }
+      FAV = []; saveLocalFav(FAV);
+      return 'onboarding';
     }
     if (res.error === 'pin' || res.error === 'unbekannt') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); }
   }
-  return false;
+  return 'out';
 }
 
-// Ohne Profil kein Zugriff: solange body.needs-profile, zeigt ein Re-render das Pflicht-Fenster statt des Dashboards
-function refreshProfileUI() { if (document.body.classList.contains('needs-profile')) renderProfileGate(); else render(); }
+// Ohne Profil kein Zugriff: solange body.needs-profile, zeigt ein Re-render das passende Pflicht-Fenster statt des Dashboards
+function refreshProfileUI() {
+  if (!document.body.classList.contains('needs-profile')) return render();
+  if (onboarding) renderOnboarding(); else renderProfileGate();
+}
 
 async function profileLogin(name, pin) {
   profileBusy = true; profileError = ''; refreshProfileUI();
@@ -174,10 +195,16 @@ async function profileLogin(name, pin) {
   if (res.ok) {
     profile = { name: res.name || name };
     store.set('el-profile-name', name); store.set('el-profile-pin', pin);
-    if (Array.isArray(res.favorites) && res.favorites.length) { FAV = res.favorites; saveLocalFav(FAV); }
     favEdit = false;
     profileDraft = { name: '', pin: '' };
-    enterApp();
+    if (Array.isArray(res.favorites) && res.favorites.length) {
+      FAV = res.favorites; saveLocalFav(FAV);
+      enterApp();
+    } else {
+      FAV = []; saveLocalFav(FAV);
+      onboarding = true;
+      refreshProfileUI();
+    }
     return;
   }
   profileError = res.error === 'pin' ? 'Falsche PIN.' : res.error === 'unbekannt' ? 'Unbekannter Name – «Neu anlegen» verwenden.' : 'Das hat gerade nicht geklappt.';
@@ -186,14 +213,16 @@ async function profileLogin(name, pin) {
 
 async function profileCreate(name, pin) {
   profileBusy = true; profileError = ''; refreshProfileUI();
-  const res = await profileCall({ kind: 'profile-create', name, pin, favorites: FAV });
+  const res = await profileCall({ kind: 'profile-create', name, pin, favorites: [] });
   profileBusy = false;
   if (res.ok) {
     profile = { name: res.name || name };
     store.set('el-profile-name', name); store.set('el-profile-pin', pin);
     favEdit = false;
     profileDraft = { name: '', pin: '' };
-    enterApp();
+    FAV = []; saveLocalFav(FAV); // neues Profil: Teamwahl ist Pflicht, keine Vorauswahl übernehmen
+    onboarding = true;
+    refreshProfileUI();
     return;
   }
   profileError = res.error === 'vergeben' ? 'Dieser Name ist schon vergeben – stattdessen anmelden?' : 'Das hat gerade nicht geklappt.';
@@ -202,7 +231,7 @@ async function profileCreate(name, pin) {
 
 // Abmelden sperrt die Seite sofort wieder – ohne Profil ist kein Weiterschauen möglich
 function profileLogout() {
-  profile = null; profileError = ''; favEdit = false;
+  profile = null; profileError = ''; favEdit = false; onboarding = false;
   store.set('el-profile-name', ''); store.set('el-profile-pin', '');
   document.body.classList.add('needs-profile');
   renderProfileGate();
@@ -211,9 +240,9 @@ function profileLogout() {
 async function toggleFav(code) {
   const i = FAV.indexOf(code);
   if (i >= 0) { if (FAV.length <= 1) return; FAV.splice(i, 1); } else FAV.push(code);
-  if (!FAV.includes(sel)) sel = FAV[0];
+  if (FAV.length && !FAV.includes(sel)) sel = FAV[0];
   saveLocalFav(FAV);
-  render();
+  refreshProfileUI();
   if (profile) {
     const pin = store.get('el-profile-pin', '');
     if (pin) await profileCall({ kind: 'profile-save', name: profile.name, pin, favorites: FAV });
@@ -868,6 +897,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'fav-edit') { favEdit = !favEdit; profileError = ''; render(); }
   else if (act === 'profile-logout') profileLogout();
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
+  else if (act === 'onboarding-done') { if (!FAV.length) return; onboarding = false; enterApp(); }
   else if (act === 'profile-login-go' || act === 'profile-create-go') {
     const name = profileDraft.name.trim();
     const pin = profileDraft.pin.trim();
@@ -984,9 +1014,10 @@ function boot() {
 
 // Ohne Profil geht es nicht weiter: zuerst ein vorhandenes Profil auf diesem Gerät prüfen, sonst das Pflicht-Fenster zeigen
 (async () => {
-  if (await ensureProfile()) { enterApp(); return; }
+  const state = await ensureProfile();
+  if (state === 'in') { enterApp(); return; }
   document.body.classList.add('needs-profile');
-  renderProfileGate();
+  if (state === 'onboarding') { onboarding = true; renderOnboarding(); } else renderProfileGate();
 })();
 
 // ---------- Hinweis „App auf Homebildschirm speichern“ ----------
