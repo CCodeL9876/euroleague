@@ -98,6 +98,7 @@ let profileBusy = false;
 let profileError = '';
 let favEdit = false;
 let onboarding = false; // true direkt nach dem Anlegen: Team-Wahl ist Pflicht, bevor es weitergeht
+let introStage = false; // true nach der Team-Wahl: kurzer Überblick, bevor es ins Dashboard geht
 // Merkt die Eingabe im Formular, damit ein Zwischen-render() (z.B. „Prüfe …“ oder nach einem Fehler) sie nicht löscht
 let profileDraft = { name: store.get('el-profile-name', ''), pin: '' };
 
@@ -156,7 +157,27 @@ function renderOnboarding() {
       <h1>Lieblingsteams wählen</h1>
       <p>Willkommen, ${esc(profile.name)}! Wähle mindestens ein Team – deine Spiele werden dann hervorgehoben.</p>
       ${favEditHtml()}
-      <button type="button" class="onboarding-go" data-act="onboarding-done"${FAV.length ? '' : ' disabled'}>Los geht's</button>
+      <button type="button" class="onboarding-go" data-act="onboarding-done"${FAV.length ? '' : ' disabled'}>Weiter</button>
+    </div>`;
+}
+
+function renderIntro() {
+  let host = document.getElementById('profileGate');
+  if (!host) { host = document.createElement('div'); host.id = 'profileGate'; document.body.appendChild(host); }
+  host.className = 'gate';
+  host.innerHTML = `
+    <svg class="gate-mark" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
+    <div class="gate-card gate-card-wide">
+      <svg class="gate-crest" viewBox="135 8 572 579" aria-hidden="true" focusable="false">${PROFILE_LOGO_PATHS}</svg>
+      <h1>Das kannst du hier</h1>
+      <ul class="intro-list">
+        <li>${icon('ball')}Live-Spielstände, Viertel für Viertel mit und ohne Wurfkarte</li>
+        <li>${icon('bars')}Tabelle, Bestenlisten und Spielerstatistik der ganzen Saison</li>
+        <li>${icon('star')}Deine Lieblingsteams überall hervorgehoben</li>
+        <li>${icon('trend')}Teamseiten mit Kader, Form und Saisonverlauf</li>
+        <li>${icon('chat')}Tägliche News aus den wichtigsten Basketball-Portalen</li>
+      </ul>
+      <button type="button" class="onboarding-go" data-act="intro-done">Let's Go</button>
     </div>`;
 }
 
@@ -185,7 +206,7 @@ async function ensureProfile() {
 // Ohne Profil kein Zugriff: solange body.needs-profile, zeigt ein Re-render das passende Pflicht-Fenster statt des Dashboards
 function refreshProfileUI() {
   if (!document.body.classList.contains('needs-profile')) return render();
-  if (onboarding) renderOnboarding(); else renderProfileGate();
+  if (introStage) renderIntro(); else if (onboarding) renderOnboarding(); else renderProfileGate();
 }
 
 async function profileLogin(name, pin) {
@@ -231,7 +252,7 @@ async function profileCreate(name, pin) {
 
 // Abmelden sperrt die Seite sofort wieder – ohne Profil ist kein Weiterschauen möglich
 function profileLogout() {
-  profile = null; profileError = ''; favEdit = false; onboarding = false;
+  profile = null; profileError = ''; favEdit = false; onboarding = false; introStage = false;
   store.set('el-profile-name', ''); store.set('el-profile-pin', '');
   document.body.classList.add('needs-profile');
   renderProfileGate();
@@ -903,7 +924,8 @@ document.addEventListener('click', (e) => {
   else if (act === 'fav-edit') { favEdit = !favEdit; profileError = ''; render(); }
   else if (act === 'profile-logout') profileLogout();
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
-  else if (act === 'onboarding-done') { if (!FAV.length) return; onboarding = false; enterApp(); }
+  else if (act === 'onboarding-done') { if (!FAV.length) return; onboarding = false; introStage = true; refreshProfileUI(); }
+  else if (act === 'intro-done') { introStage = false; enterApp(); }
   else if (act === 'profile-login-go' || act === 'profile-create-go') {
     const name = profileDraft.name.trim();
     const pin = profileDraft.pin.trim();
