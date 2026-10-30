@@ -657,44 +657,36 @@ body.needs-profile .mtabs{display:none;}
 }
 @media (prefers-reduced-motion: reduce){ .gate-card.has-error{animation:none;} }
 
-/* Live-Spiele als Hallentafel: Metallgehäuse, rote 7-Segment-Punkte, Uhr/Viertel in Bernstein, LED-Punktschrift.
-   Die Tafel ist ein „Gegenstand“ und bleibt darum auch im hellen Modus dunkel (feste Farben). */
-.live-hero{--led-red:#FF3B2F;--led-red-off:#2A0D0C;--led-amber:#FFB01F;--led-amber-off:#2B1E06;--led-white:#F4F1E6;
-  min-width:0;cursor:pointer;position:relative;border-radius:16px;padding:12px;color:#F4F1E6;
-  background:linear-gradient(180deg, #2A2A33, #16161C 18%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 24px rgba(0,0,0,0.3);}
-.live-hero::before, .live-hero::after{content:"";position:absolute;top:6px;width:5px;height:5px;border-radius:50%;background:#3A3A44;}
-.live-hero::before{left:6px;} .live-hero::after{right:6px;}
-.live-hero:focus-visible{outline:2px solid var(--led-amber);outline-offset:3px;}
+/* Live-Spiele als Fallblatt-Anzeige (wie früher am Bahnhof): pro Team eine Zeile mit Logo, Namen und Punkten,
+   Viertel und Uhr unten. Die Tafel ist ein „Gegenstand“ und bleibt darum auch im hellen Modus dunkel (feste Farben). */
+.live-hero{min-width:0;cursor:pointer;display:flex;flex-direction:column;gap:10px;border-radius:16px;padding:12px;
+  background:#0E0E11;border:1px solid #222228;color:#F2EFE6;box-shadow:0 10px 24px rgba(0,0,0,0.3);}
+.live-hero:hover{border-color:#3A3A44;}
+.live-hero:focus-visible{outline:2px solid var(--green);outline-offset:3px;}
 .hero-scroll{padding:5px;margin:-5px;scroll-padding-inline:5px;}
-.hall-panel{background:#07070A;border-radius:10px;padding:12px 12px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center;
-  background-image:radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1.2px);background-size:4px 4px;}
-.hall-side{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;}
-.hall-side .logo.sm{width:48px;height:48px;}
-.hall-side .logo img{width:76%;height:76%;}
-.hall-label{font-family:'Doto', var(--mono);font-weight:900;font-size:1rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--led-white);
-  text-shadow:0 0 6px rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
-.hall-score{height:64px;}
-.hall-mid{display:flex;flex-direction:column;align-items:center;gap:8px;}
-.hall-clock{height:34px;}
-.hall-per{display:flex;align-items:center;gap:6px;height:24px;font-family:var(--mono);font-size:0.62rem;letter-spacing:0.14em;color:#9A9AA6;}
-.hall-per .seg{height:24px;}
-.hall-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 4px 0;font-family:var(--mono);font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:#8D8D99;}
-.hall-live{display:flex;align-items:center;color:var(--led-red);}
-.live-hero:hover .hall-foot span:last-child{color:#D8D8E0;}
-.seg{display:block;height:100%;width:auto;max-width:100%;overflow:visible;}
-.seg .off{fill:var(--off);}
-.seg .on{fill:var(--on);filter:drop-shadow(0 0 3px var(--on));}
-.seg.red{--on:var(--led-red);--off:var(--led-red-off);}
-.seg.amber{--on:var(--led-amber);--off:var(--led-amber-off);}
-.live-hero.flash .hall-score .on{animation:seg-flash 0.25s steps(1) 4;}
-@keyframes seg-flash{50%{fill:var(--off);filter:none;}}
-@media (prefers-reduced-motion: reduce){ .live-hero.flash .hall-score .on{animation:none;} }
+.flap-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;}
+.flap-row .logo.sm{width:40px;height:40px;}
+.flap-name{position:relative;font-family:var(--mono);font-weight:600;font-size:0.92rem;letter-spacing:0.06em;text-transform:uppercase;color:#F2EFE6;
+  background:linear-gradient(180deg, #232326 0 50%, #151517 50% 100%);border-radius:5px;padding:9px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.flap-name::after, .tile::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#000;box-shadow:0 1px 0 rgba(255,255,255,0.06);}
+.tiles{display:flex;gap:3px;}
+.tile{position:relative;width:32px;height:46px;border-radius:5px;background:linear-gradient(180deg, #232326 0 50%, #151517 50% 100%);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:2rem;line-height:1;color:#F2EFE6;font-variant-numeric:tabular-nums;}
+.tile.flip{animation:flap-flip 0.36s ease-in;}
+@keyframes flap-flip{0%{transform:perspective(200px) rotateX(0);}50%{transform:perspective(200px) rotateX(-90deg);}100%{transform:perspective(200px) rotateX(0);}}
+.flap-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.flap-q{display:flex;align-items:center;min-width:0;font-family:var(--mono);font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:#9A9AA6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.flap-clock{display:flex;align-items:center;gap:8px;flex:none;}
+.flap-clock .tile{width:21px;height:30px;font-size:1.15rem;}
+.flap-clock .tile.sep{width:8px;background:none;}
+.flap-clock .tile.sep::after{display:none;}
+.flap-more{font-size:1.2rem;color:#6E6E7A;}
+.live-hero:hover .flap-more{color:#F2EFE6;}
+@media (prefers-reduced-motion: reduce){ .tile.flip{animation:none;} }
 @media (max-width:820px){
-  .live-hero{padding:10px;}
-  .hall-panel{padding:10px 8px 8px;gap:8px;}
-  .hall-side .logo.sm{width:40px;height:40px;}
-  .hall-label{font-size:0.88rem;}
-  .hall-score{height:50px;}
-  .hall-clock{height:28px;}
-  .hall-per, .hall-per .seg{height:20px;}
+  .live-hero{padding:10px;gap:8px;}
+  .flap-row{gap:8px;}
+  .flap-row .logo.sm{width:36px;height:36px;}
+  .flap-name{font-size:0.82rem;padding:8px;}
+  .tile{width:28px;height:40px;font-size:1.7rem;}
 }

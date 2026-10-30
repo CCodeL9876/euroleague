@@ -494,23 +494,8 @@ function cardFor(g) {
   });
 }
 
-// 7-Segment-Ziffern wie auf der Hallentafel (SVG); nicht leuchtende Segmente schimmern leicht durch
-const SEG_T = 8;
-const segH = (x, y, l) => `${x},${y} ${x + SEG_T / 2},${y - SEG_T / 2} ${x + l - SEG_T / 2},${y - SEG_T / 2} ${x + l},${y} ${x + l - SEG_T / 2},${y + SEG_T / 2} ${x + SEG_T / 2},${y + SEG_T / 2}`;
-const segV = (x, y, l) => `${x},${y} ${x + SEG_T / 2},${y + SEG_T / 2} ${x + SEG_T / 2},${y + l - SEG_T / 2} ${x},${y + l} ${x - SEG_T / 2},${y + l - SEG_T / 2} ${x - SEG_T / 2},${y + SEG_T / 2}`;
-const SEGS = { a: segH(9, 6, 34), b: segV(46, 8, 36), c: segV(46, 48, 36), d: segH(9, 86, 34), e: segV(6, 48, 36), f: segV(6, 8, 36), g: segH(9, 46, 34) };
-const SEG_DIGITS = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
-function seg7(text, cls) {
-  let x = 0, body = '';
-  for (const ch of text) {
-    if (ch === ':') { body += `<g transform="translate(${x} 0)"><circle cx="8" cy="30" r="4.5" class="on"/><circle cx="8" cy="62" r="4.5" class="on"/></g>`; x += 16; continue; }
-    const on = SEG_DIGITS[ch] || '';
-    body += `<g transform="translate(${x} 0) skewX(-5)">${Object.entries(SEGS).map(([k, p]) => `<polygon points="${p}" class="${on.includes(k) ? 'on' : 'off'}"/>`).join('')}</g>`;
-    x += 60;
-  }
-  return `<svg class="seg ${cls}" viewBox="-4 0 ${x} 92" aria-hidden="true" focusable="false">${body}</svg>`;
-}
-const lastScores = new Map();
+// Letzte Zeichen jeder Fallblatt-Anzeige, damit nur geänderte Blätter umklappen
+const lastFlaps = new Map();
 
 const HERO_ART ='<svg viewBox="0 0 300 240"><path d="M70 170a95 95 0 1 1 170 -40" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.9"/><path d="M60 150a95 95 0 0 0 40 50" fill="none" stroke="#5B7CFA" stroke-width="10" stroke-linecap="round" opacity="0.5"/><ellipse cx="150" cy="212" rx="70" ry="10" fill="#1B1C38" opacity="0.6"/><circle cx="150" cy="118" r="72" fill="#E8935F"/><circle cx="150" cy="118" r="72" fill="none" stroke="#C86F3B" stroke-width="3"/><path d="M78 118h144M150 46v144M100 66c22 26 22 78 0 104M200 66c-22 26-22 78 0 104" fill="none" stroke="#4A2210" stroke-width="5" stroke-linecap="round"/><ellipse cx="124" cy="86" rx="22" ry="12" fill="#FFFFFF" opacity="0.18" transform="rotate(-30 124 86)"/></svg>';
 
@@ -545,22 +530,25 @@ function renderCenter(m) {
   const finals = m.lastPlayed ? m.rounds[m.lastPlayed].filter((g) => g.status === 'final') : [];
   const lives = m.games.filter((g) => g.status === 'live');
   if (lives.length) {
-    // Als Hallentafel: ganze Tafel antippbar (öffnet den Spielbericht); bei neuem Korb blinken die Punkte kurz
+    // Als Fallblatt-Anzeige: ganze Tafel antippbar (öffnet den Spielbericht); geänderte Blätter klappen um
     const cards = lives.map((g) => {
-      const key = `${g.hs}:${g.as}`, before = lastScores.get(g.code);
-      lastScores.set(g.code, key);
       const n = Number((/\d+/.exec(g.period || '') || [])[0]);
-      const clock = /^\d{1,2}:\d\d$/.test(g.clock || '') ? g.clock.padStart(5, ' ') : '  :  ';
-      const label = liveLabel(g) || 'Live';
-      const state = n >= 1 && g.clock !== '00:00' ? 'Live' : label;
-      return `<section class="live-hero${before && before !== key ? ' flash' : ''}" ${boxAttrs(m, g)}>
-      <div class="hall-panel">
-        <div class="hall-side">${logo(m, g.home, 'sm')}<span class="hall-label">${esc(shortName(m, g.home))}</span><div class="hall-score">${seg7(String(g.hs).padStart(3, ' '), 'red')}</div></div>
-        <div class="hall-mid"><div class="hall-clock">${seg7(clock, 'amber')}</div>
-          <div class="hall-per">${n > 4 ? 'VERL.' : `VIERTEL ${seg7(n >= 1 ? String(n) : ' ', 'amber')}`}</div></div>
-        <div class="hall-side">${logo(m, g.away, 'sm')}<span class="hall-label">${esc(shortName(m, g.away))}</span><div class="hall-score">${seg7(String(g.as).padStart(3, ' '), 'red')}</div></div>
-      </div>
-      <div class="hall-foot"><span class="hall-live"><i class="live-dot" aria-hidden="true"></i>${esc(state)}</span><span>Spieltag ${g.round} · Bericht ›</span></div></section>`;
+      const running = n >= 1 && /^\d{1,2}:\d\d$/.test(g.clock || '') && g.clock !== '00:00';
+      const state = running ? (n > 4 ? 'Verlängerung' : `${n}. Viertel`) : (liveLabel(g) || 'Live');
+      const clock = running ? g.clock.replace(/^0(?=\d:)/, '') : '';
+      const chars = [...String(g.hs).padStart(3, ' '), ...String(g.as).padStart(3, ' '), ...clock];
+      const before = lastFlaps.get(g.code) || [];
+      lastFlaps.set(g.code, chars);
+      let i = 0;
+      const tiles = (str) => `<span class="tiles">${[...str].map((ch) => {
+        const flip = before.length && before[i] !== ch; i += 1;
+        return `<span class="tile${ch === ':' ? ' sep' : ''}${flip ? ' flip' : ''}">${ch === ' ' ? '' : esc(ch)}</span>`;
+      }).join('')}</span>`;
+      return `<section class="live-hero" ${boxAttrs(m, g)}>
+      <div class="flap-row">${logo(m, g.home, 'sm')}<span class="flap-name">${esc(name(m, g.home))}</span>${tiles(String(g.hs).padStart(3, ' '))}</div>
+      <div class="flap-row">${logo(m, g.away, 'sm')}<span class="flap-name">${esc(name(m, g.away))}</span>${tiles(String(g.as).padStart(3, ' '))}</div>
+      <div class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)} · Spieltag ${g.round}</span>
+        <span class="flap-clock">${clock ? tiles(clock) : ''}<span class="flap-more" aria-hidden="true">›</span></span></div></section>`;
     }).join('');
     parts.push(`<div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="live" aria-label="Live-Spiele">${cards}</div>`);
   }
