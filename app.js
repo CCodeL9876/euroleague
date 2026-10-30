@@ -507,7 +507,8 @@ function renderCenter(m) {
 
   // Heute
   const label = day ? (day === today ? 'Heute' : cap(rel(day))) : 'Keine Spiele angesetzt';
-  const chips = dayGames.map((g) => {
+  // Laufende Spiele stehen gross in den Live-Boxen darunter, oben nur die übrigen
+  const chips = dayGames.filter((g) => g.status !== 'live').map((g) => {
     const mid = g.status === 'final' ? `${g.hs}:${g.as}` : g.status === 'live' ? `${g.hs}:${g.as}` : g.time;
     const sub = g.status === 'live' ? `<small><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')}</small>` : '';
     const fav = FAV.includes(g.home) || FAV.includes(g.away);
@@ -518,7 +519,7 @@ function renderCenter(m) {
   parts.push(`<section class="today" aria-label="Spiele ${day === today ? 'von heute' : 'am nächsten Spieltag'}">
     <div class="today-head"><h2>${esc(label)}${dayGames.length ? ` <span>· Spieltag ${dayGames[0].round} · ${dayGames.length} ${dayGames.length === 1 ? 'Spiel' : 'Spiele'}</span>` : ''}</h2>
       ${data ? `<span class="stand${liveNow ? ' is-live' : ''}">${liveNow ? 'Live · ' : ''}Stand ${esc(zTime(new Date(data.updated)))}</span>` : ''}</div>
-    ${dayGames.length ? `<div class="day-games" data-keep-scroll="today">${chips}</div>` : ''}</section>`);
+    ${chips ? `<div class="day-games" data-keep-scroll="today">${chips}</div>` : ''}</section>`);
 
   if (dataError) parts.push(`<p class="notice">${esc(dataError)}</p>`);
 
