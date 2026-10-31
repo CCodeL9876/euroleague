@@ -94,7 +94,8 @@ async function afLeague(lg, season, now) {
   if (!Deno.env.get('APIFOOTBALL_KEY')) return { status: 'nokey', message: 'API-Football-Schlüssel fehlt', matches: [] };
   const ck = `af:${lg.key}:${season}`;
   const hit = await cacheGet(ck);
-  const ttl = hit && liveWindow(hit.data.matches || [], now) ? 15 * 60 * 1000 : 6 * 3600 * 1000;
+  // Fehler (z. B. Saison nicht im Plan) nur kurz merken, damit ein Plan-Wechsel schnell greift
+  const ttl = hit && (hit.data.status !== 'ok' || liveWindow(hit.data.matches || [], now)) ? 15 * 60 * 1000 : 6 * 3600 * 1000;
   if (hit && now - hit.at < ttl) return hit.data;
   if (!(await afAllowed())) return hit?.data || { status: 'error', message: 'Tageslimit von API-Football erreicht', matches: [] };
   try {
