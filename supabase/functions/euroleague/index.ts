@@ -26,6 +26,12 @@
 //       shots: [{ x, y, m, v, r }] }                             (alle Würfe der Saison, r = Spieltag)
 //     (career: Summen pro Saison; min in Minuten; team darf fehlen – dann aus den Spielen)
 //
+//   GET ?facts=1 → „Statistiken & Fakten“: ewige Bestenlisten (seit 2000/01), NBA-Erfahrung der aktuellen Spieler
+//   (aus Wikipedia), Kader-Fakten (älteste, jüngste, grösste … Spieler, Nationen, Durchschnittsalter pro Team)
+//   → { updated, total, alltime: { gp|pts|reb|ast|pir|fg3m|blk|stl: [{ id, name, team, value, active }] },
+//       nba: { count, known, players: [{ id, name, team, nba: [Teams] }] },
+//       roster: { players: [{ id, name, team, birth, height, country, countryName, img }] } }
+//
 //   POST { key, code } → Zugriffsschutz der Seite (gate.js): prüft gegen die Secrets GATE_KEY/GATE_CODE dieser
 //   Funktion (Supabase-Dashboard → Edge Functions → euroleague → Secrets), damit die Werte nicht im Repo/Quelltext
 //   stehen. → { ok: true|false }. Ohne gesetzte Secrets immer { ok: false }.
@@ -58,6 +64,7 @@ const PLAYERS_MS = 30 * 60 * 1000;
 const PLAYER_MS = 10 * 60 * 1000;
 const ROSTER_MS = 6 * 3600 * 1000;
 const HISTORY_MS = 24 * 3600 * 1000;
+const FACTS_MS = 12 * 3600 * 1000;
 const POINTS_MS = 30 * 60 * 1000;
 const WIKI_UA = 'euroleague-pwa/1.0 (https://github.com/CCodeL9876/euroleague)';
 // Stand abfragen ab 5 Minuten vor dem angesetzten Beginn bis 4 Stunden danach (solange nicht „played“)
@@ -340,6 +347,88 @@ async function historyOf(id, first, last, birth) {
   return data;
 }
 
+// ---------- Statistiken & Fakten ----------
+const NBA_TEAMS = new Set(['Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'New Jersey Nets', 'Charlotte Hornets', 'Charlotte Bobcats', 'Chicago Bulls',
+  'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets', 'Detroit Pistons', 'Golden State Warriors', 'Houston Rockets', 'Indiana Pacers',
+  'Los Angeles Clippers', 'LA Clippers', 'Los Angeles Lakers', 'Memphis Grizzlies', 'Vancouver Grizzlies', 'Miami Heat', 'Milwaukee Bucks',
+  'Minnesota Timberwolves', 'New Orleans Pelicans', 'New Orleans Hornets', 'New Orleans/Oklahoma City Hornets', 'New York Knicks', 'Oklahoma City Thunder',
+  'Seattle SuperSonics', 'Orlando Magic', 'Philadelphia 76ers', 'Phoenix Suns', 'Portland Trail Blazers', 'Sacramento Kings', 'San Antonio Spurs',
+  'Toronto Raptors', 'Utah Jazz', 'Washington Wizards', 'Washington Bullets']);
+let facts = { at: 0, season: '', data: null };
+async function wikiBatch(titles) {
+  const out = {};
+  for (let i = 0; i < titles.length; i += 50) {
+    const part = titles.slice(i, i + 50);
+    const d = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&rvsection=0&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(part.join('|'))}`,
+      { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) }).then((r) => r.json()).catch(() => null);
+    const map = {};
+    for (const t of part) map[t] = t;
+    for (const n of d?.query?.normalized || []) for (const t of part) if (map[t] === n.from) map[t] = n.to;
+    for (const r of d?.query?.redirects || []) for (const t of part) if (map[t] === r.from) map[t] = r.to;
+    const text = {};
+    for (const pg of d?.query?.pages || []) text[pg.title] = pg.revisions?.[0]?.slots?.main?.content || '';
+    for (const t of part) if (text[map[t]]) out[t] = text[map[t]];
+  }
+  return out;
+}
+async function factsOf(season) {
+  if (facts.season === season && facts.data && Date.now() - facts.at < FACTS_MS) return facts.data;
+  const clubs = await getJson(`https://api-live.euroleague.net/v2/competitions/E/seasons/${season}/clubs`);
+  const codes = (Array.isArray(clubs?.data) ? clubs.data : []).map((c) => String(c.code || '')).filter(Boolean);
+  const rosters = await Promise.all(codes.map((c) => rosterOf(season, c).then((r) => ({ c, r })).catch(() => ({ c, r: [] }))));
+  const roster = [];
+  for (const { c, r } of rosters) for (const e of Array.isArray(r) ? r : []) {
+    if (e?.typeName !== 'Player' || e.active === false || !e.person?.code) continue;
+    const pr = e.person, [last, first] = String(pr.name || '').split(',').map((x) => x.trim());
+    const img = e.images?.headshot || '';
+    roster.push({ id: pr.code, name: playerName(pr.name), first: nice(first), last: nice(last), team: c, birth: String(pr.birthDate || '').slice(0, 10),
+      height: Number(pr.height) || 0, country: String(pr.country?.code || ''), countryName: String(pr.country?.name || ''),
+      img: /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//.test(img) ? img : '' });
+  }
+  const active = new Set(roster.map((p) => p.id));
+  // Ewige Bestenlisten (alle Spieler seit 2000/01, Summen)
+  const all = await fetch('https://api-live.euroleague.net/v3/competitions/E/statistics/players/traditional?seasonMode=All&statisticMode=Accumulated&limit=5000',
+    { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS * 3) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const rows = (all?.players || []).map((s) => ({ id: String(s.player?.code || ''), name: playerName(s.player?.name), team: String(s.player?.team?.code || '').split(';').pop().trim(),
+    gp: Number(s.gamesPlayed) || 0, pts: Number(s.pointsScored) || 0, reb: Number(s.totalRebounds) || 0, ast: Number(s.assists) || 0, pir: Number(s.pir) || 0,
+    fg3m: Number(s.threePointersMade) || 0, blk: Number(s.blocks) || 0, stl: Number(s.steals) || 0 }));
+  const alltime = {};
+  for (const k of ['gp', 'pts', 'reb', 'ast', 'pir', 'fg3m', 'blk', 'stl']) {
+    alltime[k] = [...rows].sort((a, b) => b[k] - a[k]).slice(0, 10).map((r) => ({ id: r.id, name: r.name, team: r.team, value: r[k], active: active.has(r.id) }));
+  }
+  // NBA-Erfahrung: Wikipedia-Artikel über die EuroLeague-ID, sonst über Geburtsdatum + Name; Infobox nach NBA-Teams durchsuchen
+  const article = {};
+  try {
+    const ids = roster.map((p) => `"${p.id}"`).join(' ');
+    for (const r of await sparql(`SELECT ?id ?a WHERE { VALUES ?id { ${ids} } ?p wdt:P3536 ?id . ?a schema:about ?p ; schema:isPartOf <https://en.wikipedia.org/> }`)) article[r.id.value] = titleOf(r.a.value);
+    const rest = roster.filter((p) => !article[p.id] && /^\d{4}-\d{2}-\d{2}$/.test(p.birth));
+    if (rest.length) {
+      const dates = [...new Set(rest.map((p) => `"${p.birth}T00:00:00Z"^^xsd:dateTime`))].join(' ');
+      const cand = await sparql(`SELECT ?b ?l ?a WHERE { VALUES ?b { ${dates} } ?p wdt:P106 wd:Q3665646 ; wdt:P569 ?b ; rdfs:label ?l . FILTER(LANG(?l) = "en") ?a schema:about ?p ; schema:isPartOf <https://en.wikipedia.org/> }`);
+      for (const p of rest) {
+        const want = plain(`${p.first} ${p.last}`);
+        const hit = cand.find((c) => c.b.value.startsWith(p.birth) && plain(c.l.value) === want);
+        if (hit) article[p.id] = titleOf(hit.a.value);
+      }
+    }
+  } catch { /* Wikidata nicht erreichbar */ }
+  const texts = await wikiBatch([...new Set(Object.values(article))]).catch(() => ({}));
+  const nbaPlayers = [];
+  let known = 0;
+  for (const p of roster) {
+    const w = texts[article[p.id]];
+    if (!w) continue;
+    known++;
+    const teams = [...new Set(parseCareer(w).filter((h) => !h.loan && NBA_TEAMS.has(h.team)).map((h) => h.team))];
+    if (teams.length) nbaPlayers.push({ id: p.id, name: p.name, team: p.team, nba: teams });
+  }
+  const data = { updated: new Date().toISOString(), total: roster.length, alltime,
+    nba: { count: nbaPlayers.length, known, players: nbaPlayers },
+    roster: { players: roster.map(({ first, last, ...r }) => r) } };
+  facts = { at: Date.now(), season, data };
+  return data;
+}
+
 async function playerOf(season, id, team) {
   const key = `${id}:${team}`;
   const hit = playerPages.get(key);
@@ -522,6 +611,14 @@ async function handle(req) {
       return new Response(JSON.stringify(await playersOf(season)), { headers: { ...headers, 'Cache-Control': 'public, max-age=600' } });
     } catch {
       return new Response(JSON.stringify({ error: 'Die Spielerstatistik ist gerade nicht erreichbar.' }), { status: 502, headers });
+    }
+  }
+  if (params.has('facts')) {
+    const headers = { ...cors, 'Content-Type': 'application/json' };
+    try {
+      return new Response(JSON.stringify(await factsOf(season)), { headers: { ...headers, 'Cache-Control': 'public, max-age=3600' } });
+    } catch {
+      return new Response(JSON.stringify({ error: 'Die Statistiken sind gerade nicht erreichbar.' }), { status: 502, headers });
     }
   }
   const player = params.get('player');

@@ -619,6 +619,7 @@ function renderCenter(m) {
     <button type="button" class="tile t-blue" data-act="toggle-table" aria-expanded="${open.table}" aria-controls="tableBox"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M34 18h52v22c0 18-12 30-26 30S34 58 34 40z" fill="#8FA6FF"/><path d="M34 26H18c0 16 8 24 18 26M86 26h16c0 16-8 24-18 26" fill="none" stroke="#8FA6FF" stroke-width="8" stroke-linecap="round"/><rect x="52" y="68" width="16" height="18" fill="#7D96FF"/><rect x="36" y="86" width="48" height="14" rx="5" fill="#A9BBFF"/></svg><strong>Tabelle</strong><p>${tabTxt}</p></button>
     <button type="button" class="tile t-violet" data-act="toggle-next" aria-expanded="${open.next}" aria-controls="nextBox"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="58" r="44" fill="#9C78FF"/><path d="M16 58h88M60 14v88M30 26c14 16 14 48 0 64M90 26c-14 16-14 48 0 64" fill="none" stroke="#5A2BD6" stroke-width="6" stroke-linecap="round"/></svg><strong>Nächste Spiele</strong><p>${nextTxt}</p></button>
     <button type="button" class="tile t-coral" data-act="toggle-leaders" aria-expanded="${open.leaders}" aria-controls="leadersBox"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="18" y="62" width="20" height="38" rx="6" fill="#FF9AA0"/><rect x="50" y="40" width="20" height="60" rx="6" fill="#FFB4B8"/><rect x="82" y="18" width="20" height="82" rx="6" fill="#FF9AA0"/></svg><strong>Bestenlisten</strong><p>${esc(leaderTeaser(m))}</p></button>
+    <button type="button" class="tile t-teal" data-act="facts" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="#6FD6C9"/><path d="M60 34v4M60 52v32" stroke="#0E5E57" stroke-width="10" stroke-linecap="round"/><circle cx="60" cy="40" r="2" fill="#0E5E57"/></svg><strong>Fakten</strong><p>${esc(factsTeaser())}</p></button>
   </div>`);
   center.innerHTML = parts.join('');
 
@@ -1220,6 +1221,70 @@ function renderPlayer() {
     </div></div>`;
   const path = $('.pc-path', dlg); if (path) path.scrollLeft = path.scrollWidth;
 }
+// ---------- Statistiken & Fakten (Kachel „Fakten“) ----------
+const factsState = { data: null, error: '', loading: false, cat: 'pts' };
+const ALLTIME = [['pts', 'Punkte'], ['gp', 'Spiele'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['pir', 'PIR'], ['fg3m', 'Dreier'], ['blk', 'Blocks'], ['stl', 'Steals']];
+const factsTeaser = () => (factsState.data ? `${factsState.data.nba.count} Spieler mit NBA-Vergangenheit, ewige Bestenlisten und Kader-Rekorde.` : 'NBA-Erfahrung, ewige Bestenlisten und Kader-Rekorde.');
+function openFacts() {
+  const dlg = $('#factsDlg');
+  renderFacts();
+  if (!dlg.open) dlg.showModal();
+  dlg.scrollTop = 0;
+  if (factsState.data || factsState.loading) return;
+  factsState.loading = true; factsState.error = '';
+  const url = testData ? 'facts.json' : `${DATA_URL}?facts=1`;
+  fetch(url, { headers: testData ? {} : { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(90000) })
+    .then(async (res) => { const d = await res.json(); if (!res.ok || !d?.alltime) throw new Error(d?.error || ''); factsState.data = d; })
+    .catch((err) => { factsState.error = err?.message || 'Die Statistiken sind gerade nicht erreichbar.'; })
+    .finally(() => { factsState.loading = false; if ($('#factsDlg').open) renderFacts(); });
+}
+function renderFacts() {
+  const dlg = $('#factsDlg'), d = factsState.data, m = model();
+  const top = '<div class="box-top"><h2 id="factsTitle">Statistiken &amp; Fakten</h2><button type="button" class="box-close" data-act="facts-close" aria-label="Schliessen">×</button></div>';
+  if (!d) {
+    dlg.innerHTML = `<div class="box-in">${top}<p class="label">${esc(factsState.error || 'Lade Statistiken … Beim ersten Mal kann das bis zu 30 Sekunden dauern.')}</p></div>`;
+    return;
+  }
+  const tname = (c) => (m.teams[c] ? name(m, c) : c);
+  const tlogo = (c) => (m.teams[c] ? logo(m, c, 'xxs') : '<span class="logo xxs none" aria-hidden="true"></span>');
+  const fmt = (v) => Math.round(v).toLocaleString('de-CH');
+  // NBA-Erfahrung pro Team
+  const byTeam = {};
+  for (const p of d.nba.players) (byTeam[p.team] ||= []).push(p);
+  const total = {}; for (const p of d.roster.players) total[p.team] = (total[p.team] || 0) + 1;
+  const teamRows = Object.keys(total).sort((a, b) => (byTeam[b]?.length || 0) - (byTeam[a]?.length || 0) || tname(a).localeCompare(tname(b)));
+  const maxN = Math.max(1, ...teamRows.map((c) => byTeam[c]?.length || 0));
+  const nbaHtml = `<section class="fx-sec" aria-labelledby="fxNba"><h3 id="fxNba">NBA-Erfahrung</h3>
+    <div class="fx-hero"><b class="num">${d.nba.count}</b><span>von ${d.nba.known} Spielern haben schon in der NBA gespielt<small>Vereinsgeschichte laut Wikipedia; für ${d.total - d.nba.known} der ${d.total} Spieler nicht gefunden</small></span></div>
+    <div class="fx-teams">${teamRows.map((c) => { const list = byTeam[c] || []; return `<details class="fx-team"><summary>${tlogo(c)}<span class="fx-tn">${esc(tname(c))}</span>
+      <span class="fx-bar" aria-hidden="true"><i style="width:${(list.length / maxN) * 100}%"></i></span><b class="num">${list.length}</b></summary>
+      ${list.length ? `<ul>${list.map((p) => `<li>${playerBtn(p, p.team)}<small>${esc(p.nba.join(', '))}</small></li>`).join('')}</ul>` : '<p class="label">Kein Spieler mit NBA-Vergangenheit.</p>'}</details>`; }).join('')}</div></section>`;
+  // Ewige Bestenliste
+  const cat = factsState.cat, list = d.alltime[cat] || [];
+  const atHtml = `<section class="fx-sec" aria-labelledby="fxAll"><h3 id="fxAll">Ewige Bestenliste <small>EuroLeague seit 2000/01, Summen</small></h3>
+    <div class="cats" role="group" aria-label="Kategorie">${ALLTIME.map(([k, l]) => `<button type="button" data-act="facts-cat" data-cat="${k}" aria-pressed="${k === cat}">${l}</button>`).join('')}</div>
+    <ol class="leaders fx-list">${list.map((p, i) => `<li><span class="rk num">${i + 1}</span>${tlogo(p.team)}<span class="who"><b>${p.active ? playerBtn(p, p.team) : esc(p.name)}</b>${p.active ? '<small class="fx-active">aktiv</small>' : ''}</span><span class="val num">${fmt(p.value)}</span></li>`).join('')}</ol></section>`;
+  // Kader-Fakten
+  const now = Date.now();
+  const age = (b) => (b ? (now - new Date(`${b}T00:00:00`)) / (365.2425 * 864e5) : 0);
+  const ps = d.roster.players.filter((p) => p.birth || p.height);
+  const withAge = ps.filter((p) => p.birth), withH = ps.filter((p) => p.height > 150);
+  const pick = (arr, f, dir) => [...arr].sort((a, b) => (f(b) - f(a)) * dir)[0];
+  const card = (label, p, val) => (p ? `<div class="fx-card">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : ''}<span class="fx-k">${label}</span><b class="num">${val}</b>
+    <span class="fx-who">${playerBtn(p, p.team)}</span><small>${esc(tname(p.team))}</small></div>` : '');
+  const oldest = pick(withAge, (p) => age(p.birth), 1), youngest = pick(withAge, (p) => age(p.birth), -1);
+  const tallest = pick(withH, (p) => p.height, 1), shortest = pick(withH, (p) => p.height, -1);
+  const m2 = (cm) => `${(cm / 100).toFixed(2).replace('.', ',')} m`;
+  const nations = {}; for (const p of d.roster.players) if (p.country) nations[p.country] = (nations[p.country] || 0) + 1;
+  const natList = Object.entries(nations).sort((a, b) => b[1] - a[1]);
+  const teamAvg = Object.keys(total).map((c) => { const a = withAge.filter((p) => p.team === c); return { c, v: a.length ? a.reduce((s, p) => s + age(p.birth), 0) / a.length : 0 }; }).filter((x) => x.v).sort((a, b) => a.v - b.v);
+  const rosterHtml = `<section class="fx-sec" aria-labelledby="fxRoster"><h3 id="fxRoster">Kader-Fakten <small>${d.total} Spieler</small></h3>
+    <div class="fx-cards">${card('Ältester', oldest, `${Math.floor(age(oldest?.birth))} J.`)}${card('Jüngster', youngest, `${Math.floor(age(youngest?.birth))} J.`)}${card('Grösster', tallest, m2(tallest?.height || 0))}${card('Kleinster', shortest, m2(shortest?.height || 0))}</div>
+    <div class="fx-pair"><div class="fx-box"><span class="fx-k">Nationen</span><b class="num">${natList.length}</b><ul>${natList.slice(0, 6).map(([c, n]) => `<li><span>${esc(countryName(c, c))}</span><b class="num">${n}</b></li>`).join('')}</ul></div>
+      <div class="fx-box"><span class="fx-k">Durchschnittsalter</span><ul>${[...teamAvg.slice(0, 3).map((x) => ['jung', x]), ...teamAvg.slice(-3).reverse().map((x) => ['alt', x])].map(([k, x]) => `<li><span>${tlogo(x.c)}${esc(tname(x.c))}</span><b class="num">${x.v.toFixed(1).replace('.', ',')} J.</b></li>`).join('')}</ul><small class="fx-note">die drei jüngsten und ältesten Teams</small></div></div></section>`;
+  dlg.innerHTML = `<div class="box-in fx">${top}${nbaHtml}${atHtml}${rosterHtml}<p class="box-note small">Daten: EuroLeague; NBA-Vereine laut Wikipedia/Wikidata · Stand ${esc(zTime(new Date(d.updated)))}</p></div>`;
+}
+
 // ---------- Daten holen ----------
 let playersError = '', playersLoading = null;
 function loadPlayers() {
@@ -1296,6 +1361,9 @@ document.addEventListener('click', (e) => {
   else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; renderBox(); }
   else if (act === 'team') openTeam(t.dataset.c);
   else if (act === 'team-close') $('#teamDlg').close();
+  else if (act === 'facts') openFacts();
+  else if (act === 'facts-close') $('#factsDlg').close();
+  else if (act === 'facts-cat') { factsState.cat = t.dataset.cat; renderFacts(); }
   else if (act === 'player') openPlayer(t.dataset.id, t.dataset.pteam);
   else if (act === 'player-close') $('#playerDlg').close();
   else if (act === 'player-metric') { playerState.metric = t.dataset.k; renderPlayer(); }
@@ -1345,6 +1413,7 @@ $('#newsSearch').addEventListener('input', (e) => { feedState.q = e.target.value
 $('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxState.code = 0; });
 $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
 $('#playerDlg').addEventListener('close', () => { playerState.id = ''; });
+$('#factsDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#playerDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 document.addEventListener('change', (e) => { if (e.target.id === 'shotPlayer') { boxState.shooter = e.target.value; renderBox(); $('#shotPlayer')?.focus(); } });
@@ -1396,7 +1465,7 @@ function setupPullToRefresh() {
   };
   const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
   window.addEventListener('touchstart', (e) => {
-    if (busy || e.touches.length !== 1 || window.scrollY > 0 || $('#box').open || $('#teamDlg').open || $('#playerDlg').open) return;
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open) return;
     startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
@@ -1460,7 +1529,7 @@ function setupInstallHint() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const shareIcon = '<svg class="ins-ico" viewBox="0 0 24 24" aria-label="Teilen"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
   setTimeout(() => {
-    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open) return;
+    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open) return;
     const howto = ios
       ? `Tippe in Safari auf ${shareIcon} <b>Teilen</b> (bei neueren iPhones im Menü <b>«…»</b>) und dann auf <b>«Zum Home-Bildschirm»</b>. Danach öffnet sich die Seite wie eine App – ohne Adresszeile.`
       : installEvent ? 'Mit einem Tipp auf «Installieren» liegt die Seite wie eine App auf deinem Startbildschirm.'

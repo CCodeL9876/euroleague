@@ -12,6 +12,7 @@ Läuft auf GitHub Pages, ohne Build-Schritt (reines HTML/CSS/JavaScript).
 | Wurfkarte (im Spielbericht) | Supabase-Funktion `euroleague` mit `?game=…` (Würfe mit Koordinaten) | wie der Spielbericht |
 | Bestenlisten, Kader, Top-Spieler der Vorschau | Supabase-Funktion `euroleague` mit `?players=1` (Saisonwerte pro Spiel aller Spieler) | höchstens alle 30 Minuten neu |
 | Spielerseite (Antippen eines Spielernamens: Steckbrief, Stationen, Formkurve, Spiel für Spiel, Karriere) | Supabase-Funktion `euroleague` mit `?player=…&team=…` (Personen-, Kader-, Statistik- und Wurfdaten der EuroLeague; alle früheren Vereine aus der englischen Wikipedia, Liga/Land aus Wikidata) | beim Öffnen, höchstens alle 10 Minuten neu |
+| Statistiken & Fakten (Kachel „Fakten“: NBA-Erfahrung, ewige Bestenlisten, Kader-Fakten) | Supabase-Funktion `euroleague` mit `?facts=1` (Kader und ewige Statistik der EuroLeague, Vereinsgeschichten aus Wikipedia/Wikidata) | höchstens alle 12 Stunden neu; der erste Abruf dauert bis ~30 s |
 | News (16 Meldungen) | `news.json` in diesem Repository | täglich um 07:15 durch eine Claude-Aufgabe |
 | Lieblingsteams | ohne Profil: nur lokal auf dem Gerät (`localStorage`); mit Profil (Name+PIN): Tabelle `el_profiles`, über die Funktion `euroleague` | bei jeder Änderung |
 

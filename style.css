@@ -161,18 +161,19 @@
   .btn-accent span{color:var(--blue-hi);font-weight:600;font-size:1.1rem;}
   .btn-accent:hover{background:color-mix(in srgb, var(--blue) 16%, transparent);}
 
-  .tiles{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:20px;padding-top:24px;}
+  .tiles{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:16px;padding-top:24px;}
   .tile{position:relative;border:0;border-radius:26px;padding:96px 20px 20px;min-height:230px;color:var(--on-color);text-decoration:none;text-align:left;cursor:pointer;
     display:flex;flex-direction:column;justify-content:flex-end;gap:6px;background:var(--tc);
     box-shadow:0 14px 28px color-mix(in srgb, var(--tc) 35%, transparent);transition:transform .25s cubic-bezier(.2,.7,.2,1);}
   .tile:hover{transform:translateY(-4px);}
   .tile[aria-expanded="true"]{outline:3px solid var(--text);outline-offset:3px;}
-  .tile svg{position:absolute;top:-26px;left:18px;width:120px;height:120px;filter:drop-shadow(0 12px 14px rgba(20,16,60,0.35));}
+  .tile svg{position:absolute;top:-26px;left:14px;width:110px;height:110px;filter:drop-shadow(0 12px 14px rgba(20,16,60,0.35));}
   .tile strong{font-size:1.15rem;font-weight:600;letter-spacing:-0.01em;}
   .tile p{margin:0;font-size:0.9rem;font-weight:500;line-height:1.35;}
   .t-blue{--tc:var(--blue);}
   .t-violet{--tc:var(--violet);}
   .t-coral{--tc:var(--coral);}
+  .t-teal{--tc:#178276;}
 
   /* Tabelle und Resultate (von der bisherigen Seite gerendert) */
   .standings-wrap{background:var(--card);border-radius:22px;padding:18px 20px;overflow-x:auto;}
@@ -320,7 +321,9 @@
     .pill-dark, .btn-accent{min-height:44px;padding:0 12px;font-size:0.85rem;}
     .pill-dark{background:var(--card-2);}
 
-    .tiles{grid-template-columns:repeat(3, minmax(0,1fr));gap:10px;padding-top:0;}
+    .tiles{grid-template-columns:repeat(4, minmax(0,1fr));gap:8px;padding-top:0;}
+    .tile{padding:10px;}
+    .tile strong{font-size:0.8rem;overflow-wrap:anywhere;}
     .tile{min-height:0;padding:12px;border-radius:18px;justify-content:flex-start;gap:8px;box-shadow:none;}
     .tile svg{position:static;width:40px;height:40px;filter:none;transform:none;}
     .tile strong{font-size:0.88rem;line-height:1.2;}
@@ -887,3 +890,53 @@ body.needs-profile .mtabs{display:none;}
 .pc-zone b{font-size:1.1rem;font-weight:600;}
 .pc-zone small{font-size:0.7rem;color:var(--faint);}
 .pc-court .shots-sum{margin:0;}
+
+/* ---------- Statistiken & Fakten ---------- */
+.fx-sec{display:flex;flex-direction:column;gap:10px;}
+.box .fx-sec h3{color:var(--text);display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.box .fx-sec h3 small{font-size:0.78rem;font-weight:500;color:var(--dim);}
+.fx-hero{display:flex;align-items:center;gap:14px;background:color-mix(in srgb, #178276 22%, var(--card));border-radius:18px;padding:14px 16px;}
+.fx-hero b{font-size:2.6rem;font-weight:600;line-height:1;letter-spacing:-0.03em;}
+.fx-hero span{display:flex;flex-direction:column;gap:2px;font-weight:500;}
+.fx-hero small{font-size:0.75rem;color:var(--dim);font-weight:400;}
+.fx-teams{display:flex;flex-direction:column;background:var(--card);border-radius:16px;padding:4px 12px;}
+.fx-team{border-bottom:1px solid var(--line);}
+.fx-team:last-child{border-bottom:0;}
+.fx-team summary{display:grid;grid-template-columns:auto minmax(0,9rem) minmax(0,1fr) 2ch;gap:10px;align-items:center;padding:8px 0;cursor:pointer;list-style:none;font-size:0.88rem;}
+.fx-team summary::-webkit-details-marker{display:none;}
+.fx-team summary .logo.xxs{margin-right:0;}
+.fx-tn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+.fx-bar{height:8px;border-radius:99px;background:var(--card-2);overflow:hidden;}
+.fx-bar i{display:block;height:100%;border-radius:99px;background:#2DB3A3;}
+.fx-team summary b{text-align:right;}
+.fx-team[open] summary .fx-tn{color:var(--blue-hi);}
+.fx-team ul{list-style:none;margin:0 0 10px;padding:0 0 0 32px;display:flex;flex-direction:column;gap:6px;font-size:0.85rem;}
+.fx-team li{display:flex;flex-direction:column;}
+.fx-team li small{font-size:0.75rem;color:var(--dim);}
+.fx-team .label{margin:0 0 10px 32px;font-size:0.82rem;}
+.fx-list{background:var(--card);border-radius:16px;padding:4px 12px;}
+.fx-list li{grid-template-columns:28px auto minmax(0,1fr) auto;}
+.fx-list .logo.xxs{margin-right:0;}
+.fx-list .who{flex-direction:row;align-items:center;gap:8px;}
+.fx-active{font-size:0.65rem;font-weight:600;color:var(--green);border:1px solid color-mix(in srgb, var(--green) 50%, transparent);border-radius:6px;padding:0 5px;}
+.fx-cards{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:8px;}
+.fx-card{position:relative;overflow:hidden;background:var(--card);border-radius:16px;padding:10px;min-height:150px;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;}
+.fx-card img{position:absolute;right:-12px;bottom:0;height:80%;width:auto;max-width:65%;object-fit:contain;object-position:bottom right;opacity:0.9;}
+.fx-card > *:not(img){position:relative;z-index:1;}
+.fx-k{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);}
+.fx-card b{font-size:1.4rem;font-weight:600;line-height:1.1;}
+.fx-who{font-weight:600;font-size:0.88rem;max-width:75%;}
+.fx-card small{font-size:0.72rem;color:var(--dim);max-width:75%;}
+.fx-pair{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:8px;}
+.fx-box{background:var(--card);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0;}
+.fx-box > b{font-size:1.6rem;font-weight:600;line-height:1;}
+.fx-box ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:0.84rem;}
+.fx-box li{display:flex;justify-content:space-between;gap:8px;align-items:center;}
+.fx-box li span{display:flex;align-items:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fx-box li .logo.xxs{margin-right:6px;}
+.fx-note{font-size:0.72rem;color:var(--faint);}
+@media (max-width:560px){
+  .fx-cards{grid-template-columns:repeat(2, minmax(0,1fr));}
+  .fx-pair{grid-template-columns:minmax(0,1fr);}
+  .fx-team summary{grid-template-columns:auto minmax(0,7rem) minmax(0,1fr) 2ch;}
+}
