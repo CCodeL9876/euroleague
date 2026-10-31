@@ -978,3 +978,26 @@ body.needs-profile .mtabs{display:none;}
 @media (prefers-color-scheme: light){ :root:not([data-theme="dark"]) .app{box-shadow:0 0 0 1px var(--line);} }
 :root[data-theme="light"] .app{box-shadow:0 0 0 1px var(--line);}
 @media (max-width:820px){ :root .app{box-shadow:none;} }
+
+/* Verletzte Spieler (injuries.json): Kennzeichen hinter dem Namen, Hinweis auf Spieler- und Teamseite */
+.inj-tag{display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:6px;font-family:var(--font);font-size:0.62rem;font-weight:700;letter-spacing:0.02em;
+  vertical-align:1px;white-space:nowrap;color:#fff;background:var(--coral);}
+.inj-tag.doubt{color:#2A1E00;background:var(--gold);}
+.pc-inj{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:16px;background:color-mix(in srgb, var(--coral) 14%, var(--card));border:1px solid color-mix(in srgb, var(--coral) 45%, transparent);}
+.pc-inj.doubt{background:color-mix(in srgb, var(--gold) 14%, var(--card));border-color:color-mix(in srgb, var(--gold) 45%, transparent);}
+.pc-inj .inj-tag{margin:2px 0 0;flex:none;font-size:0.7rem;padding:2px 8px;}
+.pc-inj p{margin:0;font-size:0.9rem;font-weight:500;display:flex;flex-direction:column;gap:2px;}
+.pc-inj small{font-size:0.75rem;color:var(--dim);font-weight:400;}
+.pc-inj a{color:var(--blue-hi);text-decoration:none;font-weight:600;}
+.h3-sub{font-size:0.78rem;font-weight:500;color:var(--faint);}
+.inj-list{list-style:none;margin:0;padding:4px 12px;background:var(--card);border-radius:16px;display:flex;flex-direction:column;}
+.inj-list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:0.88rem;}
+.inj-list li:last-child{border-bottom:0;}
+.inj-list li .inj-tag{margin:0;}
+.inj-list li > span:nth-child(2){display:flex;flex-direction:column;min-width:0;}
+.inj-list small{font-size:0.76rem;color:var(--dim);}
+.inj-list a{font-size:0.78rem;color:var(--blue-hi);text-decoration:none;font-weight:600;white-space:nowrap;}
+/* Stationen antippbar: ganze Station als Link (Teamseite oder Wikipedia) */
+.pc-stop-link{position:absolute;inset:0;z-index:2;border:0;background:transparent;border-radius:14px;cursor:pointer;}
+.pc-stop-link:hover ~ b, .pc-stop-link:focus-visible ~ b{color:var(--blue-hi);text-decoration:underline;}
+.pc-stop-link:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}

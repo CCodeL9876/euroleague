@@ -1014,6 +1014,7 @@ function renderTeamPage() {
     <section class="panel chart">${chartHtml(m, c)}</section>
     ${next.length ? '<h3>Nächste Spiele</h3><div class="games" id="teamNext"></div>' : ''}
     <h3>Resultate</h3>${results.length ? '<div class="games" id="teamResults"></div>' : '<p class="label">Noch keine Spiele.</p>'}
+    ${(() => { const list = [...injuries.values()].filter((i) => i.team === c); return list.length ? `<h3>Verletzt <span class="h3-sub">laut Meldungen</span></h3><ul class="inj-list">${list.map((i) => `<li><span class="inj-tag${i.status === 'doubtful' ? ' doubt' : ''}">${i.status === 'doubtful' ? 'Fraglich' : 'Verletzt'}</span><span><b>${playerBtn({ id: i.id, name: i.name, team: i.team }, c, esc(i.name)).replace(/<span class="inj-tag[^]*$/, '')}</b><small>${esc(i.note)}${i.back ? ` · Rückkehr: ${esc(i.back)}` : ''} · seit ${esc(dmy(i.since))}</small></span>${/^https:\/\//.test(i.url) ? `<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.source)} ↗</a>` : ''}</li>`).join('')}</ul>` : ''; })()}
     <h3>Kader · Saisonwerte pro Spiel</h3>
     ${players ? (roster.length ? `<div class="pl-wrap"><table class="pl-table num"><thead><tr><th scope="col" class="pl">Spieler</th><th scope="col"><abbr title="Spiele">Sp</abbr></th><th scope="col">Min</th><th scope="col">Pkt</th><th scope="col"><abbr title="Rebounds">Reb</abbr></th><th scope="col"><abbr title="Assists">Ass</abbr></th><th scope="col"><abbr title="Steals">St</abbr></th><th scope="col"><abbr title="Blocks">Bl</abbr></th><th scope="col"><abbr title="3-Punkte-Quote">3P%</abbr></th><th scope="col"><abbr title="Effizienz">PIR</abbr></th></tr></thead>
       <tbody>${roster.map((p) => `<tr><th scope="row" class="pl">${playerImg(p, 'pimg sm')}${playerBtn(p, c)}</th><td>${p.gp}</td><td>${num1(p.min)}</td><td><b>${num1(p.pts)}</b></td><td>${num1(p.reb)}</td><td>${num1(p.ast)}</td><td>${num1(p.stl)}</td><td>${num1(p.blk)}</td><td>${num1(p.fg3p)}</td><td><b>${num1(p.pir)}</b></td></tr>`).join('')}</tbody></table></div>`
@@ -1051,7 +1052,7 @@ function clubLabel(c) {
   const code = Object.keys(m.teams).find((k) => m.teams[k].name === c.teamName);
   return code ? name(m, code) : (c.teamName || c.team || 'Verein');
 }
-const playerBtn = (p, team, label) => p.id ? `<button type="button" class="player-link" data-act="player" data-id="${esc(p.id)}" data-pteam="${esc(team || p.team || '')}">${label ?? esc(p.name)}</button>` : (label ?? esc(p.name));
+const playerBtn = (p, team, label) => (p.id ? `<button type="button" class="player-link" data-act="player" data-id="${esc(p.id)}" data-pteam="${esc(team || p.team || '')}">${label ?? esc(p.name)}</button>` : (label ?? esc(p.name))) + injTag(p);
 const crestImg = (url) => /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//.test(url || '') ? `<img src="${esc(url)}" alt="" loading="lazy">` : '';
 
 async function openPlayer(id, team) {
@@ -1091,7 +1092,8 @@ function historyStations(d) {
     const to = h.to ?? new Date().getFullYear() + 1;
     const el = hits.some((p) => p.el != null && p.el >= h.from - 1 && p.el <= to);
     const initials = h.team.split(/\s+/).filter((x) => !STOP.has(x.toLowerCase())).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
-    return { name: h.team, from: h.from, to: h.to, now: h.to == null, logo: hits[0]?.logo || '', badge: league === 'NBA' ? 'NBA' : league === 'G League' ? 'G' : initials,
+    const code = Object.keys(m.teams).find((k) => words(`${m.teams[k].name} ${m.teams[k].short || ''}`).some((x) => w.includes(x))) || '';
+    return { name: h.team, from: h.from, to: h.to, now: h.to == null, logo: hits[0]?.logo || '', code, article: h.article || '', badge: league === 'NBA' ? 'NBA' : league === 'G League' ? 'G' : initials,
       sub: [h.loan ? 'Leihe' : '', league || h.country, el ? 'EuroLeague' : ''].filter(Boolean).join(' · ') };
   });
 }
@@ -1102,7 +1104,9 @@ function playerStations(d) {
     const key = c.team || c.logo;
     const last = st.at(-1);
     if (last && last.key === key && c.year <= last.to) { last.to = Math.max(last.to, c.year + 1); last.comps.add(COMP[c.comp] || c.comp); continue; }
-    st.push({ key, name: clubLabel(c), logo: c.logo, from: c.year, to: c.year + 1, comps: new Set([COMP[c.comp] || c.comp]) });
+    const m = model();
+    st.push({ key, name: clubLabel(c), logo: c.logo, from: c.year, to: c.year + 1, comps: new Set([COMP[c.comp] || c.comp]),
+      code: Object.keys(m.teams).find((k) => m.teams[k].name === c.teamName) || '' });
   }
   const out = [];
   st.forEach((s, i) => {
@@ -1198,6 +1202,8 @@ function renderPlayer() {
       ${d.img ? `<img class="pc-photo" src="${esc(d.img)}" alt="">` : ''}
     </header>
     <div class="pc-body">
+      ${(() => { const i = injuryOf({ id: d.id, name: d.last, team: d.team }); return i ? `<div class="pc-inj${i.status === 'doubtful' ? ' doubt' : ''}" role="note"><span class="inj-tag${i.status === 'doubtful' ? ' doubt' : ''}">${i.status === 'doubtful' ? 'Einsatz fraglich' : 'Verletzt'}</span>
+        <p>${esc(i.note)}${i.back ? ` · Rückkehr: ${esc(i.back)}` : ''}<small>Seit ${esc(dmy(i.since))} · gemeldet am ${esc(dmy(i.reported))}${/^https:\/\//.test(i.url) ? ` · <a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.source)} ↗</a>` : ''}</small></p></div>` : ''; })()}
       <section aria-label="Steckbrief"><h3>Steckbrief</h3><dl class="pc-facts">
         ${fact('Alter', age ? `${age} <small>· ${Number(bd)}.${Number(bm)}.${by}</small>` : '')}
         ${fact('Grösse', d.height ? `${(d.height / 100).toFixed(2).replace('.', ',')} m` : '')}
@@ -1207,7 +1213,8 @@ function renderPlayer() {
         ${fact('Nummer', esc(d.no))}
         ${fact('Zuvor', esc(d.lastTeam))}
         ${fact('Im Team seit', sy ? `${MONTHS[Number(sm) - 1]} ${sy}` : '')}</dl></section>
-      ${stations.length ? `<section aria-label="Stationen"><h3>Stationen <small>bisherige Teams</small></h3><ol class="pc-path">${stations.map((s) => `<li class="pc-stop${s.now ? ' now' : ''}">
+      ${stations.length ? `<section aria-label="Stationen"><h3>Stationen <small>bisherige Teams</small></h3><ol class="pc-path">${stations.map((s) => `<li class="pc-stop${s.now ? ' now' : ''}">${s.gap ? '' : s.code ? `<button type="button" class="pc-stop-link" data-act="team" data-c="${esc(s.code)}" aria-label="Teamseite ${esc(s.name)}"></button>`
+          : `<a class="pc-stop-link" href="https://en.wikipedia.org/${s.article ? `wiki/${encodeURIComponent(s.article.replace(/ /g, '_'))}` : `w/index.php?search=${encodeURIComponent(`${s.name} basketball`)}`}" target="_blank" rel="noopener" aria-label="${esc(s.name)} auf Wikipedia"></a>`}
         <span class="logo${s.gap || !s.logo ? ' other' : ''}">${s.gap ? '···' : s.logo ? crestImg(s.logo) : esc(s.badge || '·')}</span><span class="yrs num">${s.now ? `seit ${s.from}` : s.to > s.from ? `${s.from}–${s.to}` : s.from}</span>
         <b>${esc(s.name)}</b><small>${esc(s.gap ? s.sub : s.comps ? [...s.comps].join(', ') : s.sub)}</small></li>`).join('')}</ol>${d.history?.length ? '<p class="box-note small">Vereine laut Wikipedia</p>' : ''}</section>` : ''}
       <section aria-label="Saisonwerte"><h3>Saison ${(() => { const y = Number((/\d{4}/.exec(data?.season || '') || [])[0]); return y ? `${y}/${String(y + 1).slice(2)}` : ''; })()} <small>pro Spiel · ${a.gp} ${a.gp === 1 ? 'Spiel' : 'Spiele'}</small></h3>
@@ -1321,11 +1328,34 @@ async function loadData() {
   }
 }
 
+// Verletzte Spieler (injuries.json, von der täglichen News-Aufgabe gepflegt): id → Eintrag
+let injuries = new Map();
+async function loadInjuries() {
+  try {
+    const res = await fetch('injuries.json', { cache: 'no-cache' });
+    const d = await res.json();
+    if (Array.isArray(d?.players)) { injuries = new Map(d.players.map((p, k) => [p.id ? String(p.id) : `n${k}`, p])); return true; }
+  } catch { /* ohne Liste weiter */ }
+  return false;
+}
+// Zuordnung über die EuroLeague-ID oder – falls die News-Aufgabe keine ID kennt – über Team + Nachname
+const lastWord = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().split(/\s+/).pop();
+function injuryOf(p) {
+  if (!p) return null;
+  const byId = p.id && injuries.get(String(p.id));
+  if (byId) return byId;
+  const lw = lastWord(p.name || p.last);
+  for (const i of injuries.values()) if (!i.id && lw && lastWord(i.name) === lw && (!p.team || !i.team || i.team === p.team)) return i;
+  return null;
+}
+const injTag = (p) => { const i = injuryOf(p); return i ? `<span class="inj-tag${i.status === 'doubtful' ? ' doubt' : ''}" title="${esc(i.status === 'doubtful' ? 'Einsatz fraglich' : 'Verletzt')}: ${esc(i.note)}">${i.status === 'doubtful' ? 'Fraglich' : 'Verletzt'}</span>` : ''; };
+const dmy = (iso) => { const [y, m, d] = String(iso || '').split('-'); return d ? `${Number(d)}.${Number(m)}.${y}` : ''; };
+
 async function loadNews() {
   try {
     const res = await fetch('news.json', { cache: 'no-cache' });
     const n = await res.json();
-    if (Array.isArray(n?.items)) { const changed = JSON.stringify(n) !== JSON.stringify(news); news = n; return changed; }
+    if (Array.isArray(n?.items)) { const changed = JSON.stringify(n) !== JSON.stringify(news); news = n; await loadInjuries(); return changed; }
   } catch { /* behalten, was da ist */ }
   return false;
 }

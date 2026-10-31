@@ -317,10 +317,10 @@ async function historyOf(id, first, last, birth) {
       data = parseCareer(wp?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content);
       // Liga (ohne Europacups) und Land der Vereine; Weiterleitungen der Artikelnamen zuerst auflösen
       const arts = [...new Set(data.map((h) => h.article).filter(Boolean))].slice(0, 50);
+      const canon = {};
       if (arts.length) {
         const rq = await fetch(`https://en.wikipedia.org/w/api.php?action=query&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(arts.join('|'))}`,
           { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => r.json()).catch(() => null);
-        const canon = {};
         for (const a of arts) canon[a] = a.replace(/_/g, ' ');
         for (const n of rq?.query?.normalized || []) for (const a of arts) if (canon[a] === n.from) canon[a] = n.to;
         for (const r of rq?.query?.redirects || []) for (const a of arts) if (canon[a] === r.from) canon[a] = r.to;
@@ -340,7 +340,8 @@ async function historyOf(id, first, last, birth) {
           h.country = e.country || '';
         }
       }
-      for (const h of data) delete h.article;
+      // Artikelname behalten (Link auf Wikipedia in den Stationen), Weiterleitungen aufgelöst
+      for (const h of data) h.article = h.article ? (canon[h.article] || h.article) : '';
     }
   } catch { /* Wikipedia nicht erreichbar: nur EuroLeague-Stationen */ }
   histories.set(id, { at: Date.now(), data });

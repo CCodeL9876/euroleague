@@ -1,0 +1,102 @@
+{
+ "updated": "2026-11-01",
+ "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
+ "players": [
+  {
+   "id": "007982",
+   "name": "Nigel Williams-Goss",
+   "team": "ZAL",
+   "status": "out",
+   "since": "2026-10-01",
+   "note": "Verletzung, verpasste fast den ganzen Saisonstart; fehlt weiterhin",
+   "back": "",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-258500-nigel-williams-goss-gets-update-on-injury-after-additional-tests.html",
+   "reported": "2026-10-30"
+  },
+  {
+   "id": "010106",
+   "name": "Juan Núñez",
+   "team": "BAR",
+   "status": "out",
+   "since": "2026-10-29",
+   "note": "Verstauchung am rechten Knöchel",
+   "back": "ca. 10 Tage",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/barcelona-juan-nunez-suffers-right-ankle-sprain-expected-to-miss-around-10-days/",
+   "reported": "2026-10-29"
+  },
+  {
+   "id": "003941",
+   "name": "Nikola Milutinov",
+   "team": "OLY",
+   "status": "doubtful",
+   "since": "2026-10-29",
+   "note": "wird noch untersucht",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/olympiacos-bartzokas-provides-injury-update-milutinov-and-fournier-still-being-evaluated/",
+   "reported": "2026-10-29"
+  },
+  {
+   "id": "013380",
+   "name": "Evan Fournier",
+   "team": "OLY",
+   "status": "doubtful",
+   "since": "2026-10-29",
+   "note": "wird noch untersucht",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/olympiacos-bartzokas-provides-injury-update-milutinov-and-fournier-still-being-evaluated/",
+   "reported": "2026-10-29"
+  },
+  {
+   "id": "010042",
+   "name": "Jean Montero",
+   "team": "OLY",
+   "status": "out",
+   "since": "2026-10-16",
+   "note": "Operation am Aussenmeniskus im linken Knie",
+   "back": "ca. 6 Monate",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2028468/jean-montero-undergoes-knee-surgery-out-for-six-months/",
+   "reported": "2026-10-30"
+  },
+  {
+   "id": "012613",
+   "name": "Mikael Jantunen",
+   "team": "MAD",
+   "status": "out",
+   "since": "2026-10-30",
+   "note": "vollständiger Riss der Plantarfaszie im linken Fuss",
+   "back": "offen",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/real-madrids-mikael-jantunen-suffers-complete-plantar-fascia-tear/",
+   "reported": "2026-10-30"
+  },
+  {
+   "id": "007027",
+   "name": "Theo Maledon",
+   "team": "MAD",
+   "status": "out",
+   "since": "2026-10-30",
+   "note": "Verstauchung im rechten Knie",
+   "back": "offen",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/real-madrids-theo-maledon-suffers-right-knee-sprain/",
+   "reported": "2026-10-30"
+  },
+  {
+   "id": "002939",
+   "name": "Tomas Satoransky",
+   "team": "HTA",
+   "status": "doubtful",
+   "since": "2026-10-30",
+   "note": "nach Sturz auf den Rücken auf der Trage vom Feld; wach und ansprechbar",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2028539/terrifying-fall-for-satoransky-left-the-court-on-a-stretcher/",
+   "reported": "2026-10-30"
+  }
+ ]
+}
