@@ -619,7 +619,7 @@ function renderCenter(m) {
     <button type="button" class="tile t-blue" data-act="toggle-table" aria-expanded="${open.table}" aria-controls="tableBox"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M34 18h52v22c0 18-12 30-26 30S34 58 34 40z" fill="#8FA6FF"/><path d="M34 26H18c0 16 8 24 18 26M86 26h16c0 16-8 24-18 26" fill="none" stroke="#8FA6FF" stroke-width="8" stroke-linecap="round"/><rect x="52" y="68" width="16" height="18" fill="#7D96FF"/><rect x="36" y="86" width="48" height="14" rx="5" fill="#A9BBFF"/></svg><strong>Tabelle</strong><p>${tabTxt}</p></button>
     <button type="button" class="tile t-violet" data-act="toggle-next" aria-expanded="${open.next}" aria-controls="nextBox"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="58" r="44" fill="#9C78FF"/><path d="M16 58h88M60 14v88M30 26c14 16 14 48 0 64M90 26c-14 16-14 48 0 64" fill="none" stroke="#5A2BD6" stroke-width="6" stroke-linecap="round"/></svg><strong>Nächste Spiele</strong><p>${nextTxt}</p></button>
     <button type="button" class="tile t-coral" data-act="toggle-leaders" aria-expanded="${open.leaders}" aria-controls="leadersBox"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="18" y="62" width="20" height="38" rx="6" fill="#FF9AA0"/><rect x="50" y="40" width="20" height="60" rx="6" fill="#FFB4B8"/><rect x="82" y="18" width="20" height="82" rx="6" fill="#FF9AA0"/></svg><strong>Bestenlisten</strong><p>${esc(leaderTeaser(m))}</p></button>
-    <button type="button" class="tile t-teal" data-act="facts" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="#6FD6C9"/><path d="M60 34v4M60 52v32" stroke="#0E5E57" stroke-width="10" stroke-linecap="round"/><circle cx="60" cy="40" r="2" fill="#0E5E57"/></svg><strong>Fakten</strong><p>${esc(factsTeaser())}</p></button>
+    <button type="button" class="tile t-teal tile-wide" data-act="facts" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="#6FD6C9"/><path d="M60 34v4M60 52v32" stroke="#0E5E57" stroke-width="10" stroke-linecap="round"/><circle cx="60" cy="40" r="2" fill="#0E5E57"/></svg><strong>Nice things to know</strong><p>${esc(factsTeaser())}</p><span class="tile-go" aria-hidden="true">›</span></button>
   </div>`);
   center.innerHTML = parts.join('');
 
@@ -1240,7 +1240,7 @@ function openFacts() {
 }
 function renderFacts() {
   const dlg = $('#factsDlg'), d = factsState.data, m = model();
-  const top = '<div class="box-top"><h2 id="factsTitle">Statistiken &amp; Fakten</h2><button type="button" class="box-close" data-act="facts-close" aria-label="Schliessen">×</button></div>';
+  const top = '<div class="box-top"><h2 id="factsTitle">Nice things to know</h2><button type="button" class="box-close" data-act="facts-close" aria-label="Schliessen">×</button></div>';
   if (!d) {
     dlg.innerHTML = `<div class="box-in">${top}<p class="label">${esc(factsState.error || 'Lade Statistiken … Beim ersten Mal kann das bis zu 30 Sekunden dauern.')}</p></div>`;
     return;
