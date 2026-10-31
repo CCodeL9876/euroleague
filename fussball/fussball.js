@@ -130,11 +130,79 @@ async function loadGoals(m) {
   render();
 }
 
+// ---------- Kopf: Hell/Dunkel und Profil-Menü (wie im Basketball-Bereich) ----------
+const ICON = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  star: '<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
+};
+const icon = (n) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
+const currentTheme = () => document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+function themeUi() {
+  const dark = currentTheme() === 'dark', btn = $('#themeBtn');
+  btn.innerHTML = icon(dark ? 'sun' : 'moon');
+  btn.setAttribute('aria-label', dark ? 'Hellen Modus einschalten' : 'Dunklen Modus einschalten');
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  document.querySelectorAll('meta[name="theme-color"]').forEach((mt) => { mt.content = bg; });
+}
+function toggleTheme() {
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  store.set('el-theme', next);
+  themeUi();
+}
+let menuOpen = false;
+const profileName = store.get('el-profile-name', '');
+const initials = (n) => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); return (w.length > 1 ? w[0][0] + w[1][0] : (w[0] || '?').slice(0, 2)).toUpperCase(); };
+function renderMenu() {
+  const btn = $('#profileBtn'), menu = $('#profileMenu');
+  btn.textContent = initials(profileName);
+  btn.setAttribute('aria-expanded', String(menuOpen));
+  btn.setAttribute('aria-label', `Profil ${profileName}`);
+  menu.hidden = !menuOpen;
+  if (!menuOpen) return;
+  const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
+  menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV.map((k) => k[0].toUpperCase() + k.slice(1)).join(', '))}</small></span></div>
+    ${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
+  menu.querySelector('.pm-item')?.focus();
+}
+function toast(msg) {
+  const t = $('#toast'); if (!t) return;
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, 3200);
+}
+async function copyLink() {
+  const key = store.get('el-gate-key', '');
+  if (!key) { toast('Link nicht gespeichert – im Basketball-Bereich abmelden und mit dem Zugangslink neu anmelden.'); return; }
+  const url = `${location.origin}${location.pathname.replace(/fussball\/?(index\.html)?$/, '')}?key=${encodeURIComponent(key)}`;
+  try { await navigator.clipboard.writeText(url); toast('Link kopiert – in der Home-App bei «Zugang nötig» einfügen.'); }
+  catch { window.prompt('Link kopieren:', url); }
+}
+function logout() {
+  let key = '';
+  try { key = localStorage.getItem('el-gate-key') || ''; localStorage.removeItem('el-gate-ok'); localStorage.removeItem('el-gate-key'); if (!key) sessionStorage.setItem('el-gate-relogin', '1'); } catch { /* privates Fenster */ }
+  location.href = `../${key ? `?key=${encodeURIComponent(key)}` : ''}`;
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && menuOpen) { menuOpen = false; renderMenu(); $('#profileBtn')?.focus(); } });
+
 document.addEventListener('click', (e) => {
   const d = e.target.closest('.fb-day');
   if (d) { sel = d.dataset.d; open.clear(); render(); return; }
-  const mine = e.target.closest('#fbMine');
-  if (mine) { mineOnly = !mineOnly; mine.setAttribute('aria-pressed', String(mineOnly)); sel = ''; render(); return; }
+  const tab = e.target.closest('.fb-tabs [data-view]');
+  if (tab) {
+    mineOnly = tab.dataset.view === 'mine'; sel = ''; open.clear();
+    document.querySelectorAll('.fb-tabs [data-view]').forEach((x) => { if (x === tab) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
+    render(); scrollTo(0, 0); return;
+  }
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (menuOpen && !e.target.closest('#profileMenu, #profileBtn')) { menuOpen = false; renderMenu(); }
+  if (act === 'theme') { toggleTheme(); return; }
+  if (act === 'profile-menu') { menuOpen = !menuOpen; renderMenu(); return; }
+  if (act === 'copy-link') { menuOpen = false; renderMenu(); copyLink(); return; }
+  if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../'; return; }
+  if (act === 'logout') { logout(); return; }
   const b = e.target.closest('.fb-match');
   if (b) {
     const id = b.dataset.id;
@@ -145,4 +213,6 @@ document.addEventListener('click', (e) => {
   }
 });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+themeUi();
+renderMenu();
 load();
