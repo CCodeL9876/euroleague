@@ -21,7 +21,9 @@
 //   → { id, first, last, no, pos, team, img, country, height, weight, birth, lastTeam, since,
 //       avg: { gp, gs, min, pts, reb, oreb, ast, stl, tov, blk, fd, pir, pm, fg2, fg3, ft, fga, fta, fg2p, fg3p, ftp },
 //       games: [{ r, utc, home, away, hs, as, team, start, min, pts, reb, ast, stl, tov, pir, pm }],
-//       career: [{ comp, season, year, team, teamName, logo, gp, min, pts, reb, ast, pir }] }
+//       career: [{ comp, season, year, team, teamName, logo, gp, min, pts, reb, ast, pir }],
+//       history: [{ from, to, team, loan, league, country }],   (alle Vereine laut Wikipedia; to: null = aktuell)
+//       shots: [{ x, y, m, v, r }] }                             (alle Würfe der Saison, r = Spieltag)
 //     (career: Summen pro Saison; min in Minuten; team darf fehlen – dann aus den Spielen)
 //
 //   POST { key, code } → Zugriffsschutz der Seite (gate.js): prüft gegen die Secrets GATE_KEY/GATE_CODE dieser
@@ -55,6 +57,9 @@ const BOX_FINAL_MS = 60 * 60 * 1000;
 const PLAYERS_MS = 30 * 60 * 1000;
 const PLAYER_MS = 10 * 60 * 1000;
 const ROSTER_MS = 6 * 3600 * 1000;
+const HISTORY_MS = 24 * 3600 * 1000;
+const POINTS_MS = 30 * 60 * 1000;
+const WIKI_UA = 'euroleague-pwa/1.0 (https://github.com/CCodeL9876/euroleague)';
 // Stand abfragen ab 5 Minuten vor dem angesetzten Beginn bis 4 Stunden danach (solange nicht „played“)
 const EARLY_MS = 5 * 60 * 1000;
 const LATE_MS = 4 * 3600 * 1000;
@@ -139,7 +144,7 @@ export function buildShots(points) {
   const kinds = { '2FGM': [2, true], '2FGA': [2, false], '3FGM': [3, true], '3FGA': [3, false] };
   return (points?.Rows || []).filter((r) => kinds[String(r.ID_ACTION || '').trim()]).map((r) => {
     const [v, m] = kinds[String(r.ID_ACTION).trim()];
-    return { t: String(r.TEAM || '').trim(), p: playerName(r.PLAYER), x: Number(r.COORD_X) || 0, y: Number(r.COORD_Y) || 0, m, v };
+    return { t: String(r.TEAM || '').trim(), p: playerName(r.PLAYER), id: String(r.ID_PLAYER || '').trim().replace(/^P/, ''), x: Number(r.COORD_X) || 0, y: Number(r.COORD_Y) || 0, m, v };
   });
 }
 
@@ -236,6 +241,105 @@ export function buildPlayerPage(id, season, bio, entry, seasonStats, careerRaw) 
     since: String(entry?.startDate || '').slice(0, 10), avg, games, career };
 }
 
+// ---------- Würfe der Saison (für die Wurfkarte der Spielerseite) ----------
+const pointsCache = new Map();
+async function pointsOf(season, code) {
+  const hit = pointsCache.get(code);
+  if (hit && Date.now() - hit.at < POINTS_MS) return hit.data;
+  const data = buildShots(await getJson(`https://live.euroleague.net/api/Points?gamecode=${code}&seasoncode=${season}`));
+  pointsCache.set(code, { at: Date.now(), data });
+  if (pointsCache.size > 400) pointsCache.delete(pointsCache.keys().next().value);
+  return data;
+}
+async function seasonShots(season, id, seasonStats) {
+  const games = (seasonStats?.games || []).map((x) => ({ code: Number(x.game?.gameCode) || 0, r: Number(x.game?.round) || 0 })).filter((g) => g.code);
+  const lists = await Promise.all(games.map((g) => pointsOf(season, g.code).then((l) => l.filter((s) => s.id === id).map(({ x, y, m, v }) => ({ x, y, m, v, r: g.r }))).catch(() => [])));
+  return lists.flat();
+}
+
+// ---------- Vereinsgeschichte aus Wikipedia (Infobox „years/team“), Liga und Land aus Wikidata ----------
+const histories = new Map();
+const plain = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+async function sparql(q) {
+  const res = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`, { headers: { accept: 'application/sparql-results+json', 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`sparql ${res.status}`);
+  return (await res.json())?.results?.bindings || [];
+}
+const titleOf = (url) => decodeURIComponent(String(url || '').split('/wiki/')[1] || '').replace(/_/g, ' ');
+// Englischer Wikipedia-Artikel: über die EuroLeague-ID (Wikidata P3536), sonst Basketballer mit gleichem Geburtsdatum und Namen
+async function wikiArticle(id, first, last, birth) {
+  const byId = await sparql(`SELECT ?a WHERE { ?p wdt:P3536 "${id}" . ?a schema:about ?p ; schema:isPartOf <https://en.wikipedia.org/> }`);
+  if (byId[0]) return titleOf(byId[0].a.value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)) return '';
+  const rows = await sparql(`SELECT ?l ?a WHERE { ?p wdt:P106 wd:Q3665646 ; wdt:P569 ?b . FILTER(?b = "${birth}T00:00:00Z"^^xsd:dateTime) ?p rdfs:label ?l . FILTER(LANG(?l) = "en") ?a schema:about ?p ; schema:isPartOf <https://en.wikipedia.org/> }`);
+  const want = plain(`${first} ${last}`), lastN = plain(last);
+  const hit = rows.find((r) => plain(r.l.value) === want) || rows.find((r) => plain(r.l.value).split(' ').includes(lastN.split(' ').pop()));
+  return hit ? titleOf(hit.a.value) : '';
+}
+// Wikitext aufräumen: [[Ziel|Text]] → Text, {{nbay|2016|start}} → 2016, Fussnoten weg
+function wikiClean(v) {
+  return String(v || '').replace(/<ref[^>]*\/>|<ref[^>]*>[\s\S]*?<\/ref>/g, '').replace(/<[^>]+>/g, '')
+    .replace(/\{\{\s*nbay\s*\|\s*(\d{4})[^}]*\}\}/gi, '$1').replace(/\{\{[^{}]*\}\}/g, '')
+    .replace(/\[\[([^\]|]*)\|([^\]]*)\]\]/g, '$2').replace(/\[\[([^\]]*)\]\]/g, '$1').replace(/'{2,}/g, '').replace(/&nbsp;/g, ' ').trim();
+}
+export function parseCareer(wikitext) {
+  const box = String(wikitext || '');
+  const fields = {};
+  const re = /\|\s*(years|team)(\d+)\s*=\s*((?:\[\[[^\]]*\]\]|\{\{[^}]*\}\}|<ref[\s\S]*?<\/ref>|[^|\n])*)/g;
+  let m;
+  while ((m = re.exec(box))) (fields[m[2]] ||= {})[m[1]] = m[3];
+  return Object.keys(fields).map(Number).sort((a, b) => a - b).map((k) => {
+    const raw = fields[k], teamRaw = String(raw.team || '').trim();
+    const link = /\[\[([^\]|]+)/.exec(teamRaw);
+    const yrs = wikiClean(raw.years);
+    const y = /(\d{4})(?:\s*[–—-]\s*(\d{4}|present))?/i.exec(yrs);
+    if (!y) return null;
+    return { from: Number(y[1]), to: y[2] ? (/present/i.test(y[2]) ? null : Number(y[2])) : Number(y[1]),
+      team: wikiClean(teamRaw).replace(/^→\s*/, ''), article: link ? link[1].trim() : '', loan: teamRaw.startsWith('→') };
+  }).filter((h) => h && h.team);
+}
+async function historyOf(id, first, last, birth) {
+  const hit = histories.get(id);
+  if (hit && Date.now() - hit.at < HISTORY_MS) return hit.data;
+  let data = [];
+  try {
+    const title = await wikiArticle(id, first, last, birth);
+    if (title) {
+      const wp = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&rvsection=0&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(title)}`,
+        { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => r.json());
+      data = parseCareer(wp?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content);
+      // Liga (ohne Europacups) und Land der Vereine; Weiterleitungen der Artikelnamen zuerst auflösen
+      const arts = [...new Set(data.map((h) => h.article).filter(Boolean))].slice(0, 50);
+      if (arts.length) {
+        const rq = await fetch(`https://en.wikipedia.org/w/api.php?action=query&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(arts.join('|'))}`,
+          { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => r.json()).catch(() => null);
+        const canon = {};
+        for (const a of arts) canon[a] = a.replace(/_/g, ' ');
+        for (const n of rq?.query?.normalized || []) for (const a of arts) if (canon[a] === n.from) canon[a] = n.to;
+        for (const r of rq?.query?.redirects || []) for (const a of arts) if (canon[a] === r.from) canon[a] = r.to;
+        const iri = (t) => `<https://en.wikipedia.org/wiki/${encodeURIComponent(t.replace(/ /g, '_')).replace(/%2C/g, ',').replace(/%3A/g, ':')}>`;
+        const rows = await sparql(`SELECT ?a ?lgLabel ?cLabel WHERE { VALUES ?a { ${[...new Set(Object.values(canon))].map(iri).join(' ')} } ?a schema:about ?t .
+          OPTIONAL { ?t wdt:P118 ?lg } OPTIONAL { ?t wdt:P17 ?c } SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en". } }`).catch(() => []);
+        const info = {};
+        for (const r of rows) {
+          const t = titleOf(r.a.value), e = (info[t] ||= { leagues: [], country: '' });
+          const lg = r.lgLabel?.value || '';
+          if (lg && !/^Q\d+$/.test(lg) && !e.leagues.includes(lg)) e.leagues.push(lg);
+          if (!e.country && r.cLabel?.value && !/^Q\d+$/.test(r.cLabel.value)) e.country = r.cLabel.value;
+        }
+        for (const h of data) {
+          const e = info[canon[h.article]] || {};
+          h.league = (e.leagues || []).find((l) => !/euroleague|eurocup|champions league|europe cup|fiba|basketball league europe/i.test(l)) || '';
+          h.country = e.country || '';
+        }
+      }
+      for (const h of data) delete h.article;
+    }
+  } catch { /* Wikipedia nicht erreichbar: nur EuroLeague-Stationen */ }
+  histories.set(id, { at: Date.now(), data });
+  return data;
+}
+
 async function playerOf(season, id, team) {
   const key = `${id}:${team}`;
   const hit = playerPages.get(key);
@@ -251,7 +355,12 @@ async function playerOf(season, id, team) {
   const roster = club ? await rosterOf(season, club).catch(() => []) : [];
   const entry = (Array.isArray(roster) ? roster : []).find((p) => p?.person?.code === id) || null;
   const data = buildPlayerPage(id, season, bio, entry, seasonStats, careerRaw);
-  await Promise.all(data.career.map(async (c) => { c.teamName = await clubName(c.team, season); }));
+  const [history, shots] = await Promise.all([
+    historyOf(id, data.first, data.last, data.birth).catch(() => []),
+    seasonShots(season, id, seasonStats).catch(() => []),
+    Promise.all(data.career.map(async (c) => { c.teamName = await clubName(c.team, season); })),
+  ]);
+  data.history = history; data.shots = shots;
   playerPages.set(key, { at: Date.now(), data });
   if (playerPages.size > 300) playerPages.delete(playerPages.keys().next().value);
   return data;

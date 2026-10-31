@@ -932,6 +932,34 @@ function previewHtml(m, g) {
 }
 
 // Wurfkarte: halbes Spielfeld (FIBA-Masse in cm, Korb bei 0/0, y Richtung Mittellinie), Treffer gefüllt, Fehlwürfe als Ring
+// Halbes Spielfeld (cm, Korb bei 0/0, y Richtung Mittellinie)
+function courtSvg(dots, label) {
+  return `<svg class="court" viewBox="-760 -170 1520 1090" role="img" aria-label="${esc(label)}">
+      <rect class="ct-floor" x="-750" y="-157.5" width="1500" height="1070"/>
+      <rect class="ct-line" x="-245" y="-157.5" width="490" height="580"/>
+      <circle class="ct-line" cx="0" cy="422.5" r="180"/>
+      <path class="ct-line" d="M-660 -157.5 V141.5 A675 675 0 0 0 660 141.5 V-157.5"/>
+      <path class="ct-line" d="M-125 0 A125 125 0 0 0 125 0"/>
+      <line class="ct-line" x1="-90" y1="-37.5" x2="90" y2="-37.5"/>
+      <circle class="ct-line" cx="0" cy="0" r="22.5"/>
+      ${dots}</svg>`;
+}
+// Wurfkarte der ganzen Saison auf der Spielerseite, mit Quoten nach Zone
+function playerShotsHtml(d) {
+  const all = d.shots || [];
+  if (!all.length) return '';
+  const zone = (x) => (x.v === 3 ? 'three' : Math.hypot(x.x, x.y) <= 300 ? 'paint' : 'mid');
+  const z = { paint: [0, 0], mid: [0, 0], three: [0, 0] };
+  for (const x of all) { const k = zone(x); z[k][1]++; if (x.m) z[k][0]++; }
+  const dots = [...all].sort((a, b) => a.m - b.m).map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
+  const made = all.filter((x) => x.m).length;
+  const zt = (l, [mm, n]) => `<div class="pc-zone"><span>${l}</span><b class="num">${n ? Math.round(mm / n * 100) : 0} %</b><small class="num">${mm}/${n}</small></div>`;
+  return `<div class="pc-court"><h4>Wurfkarte der Saison <small class="num">${made}/${all.length} getroffen</small></h4>
+    ${courtSvg(dots, `Wurfkarte der Saison: ${made} von ${all.length} Würfen getroffen`)}
+    <div class="pc-zones">${zt('Korbnähe', z.paint)}${zt('Mitteldistanz', z.mid)}${zt('Dreier', z.three)}</div>
+    <p class="shots-sum"><span><i class="lg made"></i>Treffer</span><span><i class="lg miss"></i>Fehlwurf</span><span>ohne Freiwürfe</span></p></div>`;
+}
+
 function shotsHtml(b, team) {
   const all = (b.shots || []).filter((x) => x.t === team.code);
   if (!all.length) return '';
@@ -944,15 +972,7 @@ function shotsHtml(b, team) {
   return `<div class="shots"><div class="shots-head"><h4>Wurfkarte</h4>
       <label class="sr-only" for="shotPlayer">Spieler</label>
       <select id="shotPlayer"><option value="">Alle Spieler</option>${shooters.map((p) => `<option value="${esc(p)}"${p === boxState.shooter ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
-    <svg class="court" viewBox="-760 -170 1520 1090" role="img" aria-label="Wurfkarte: ${c2[0] + c3[0]} von ${c2[1] + c3[1]} Würfen getroffen">
-      <rect class="ct-floor" x="-750" y="-157.5" width="1500" height="1070"/>
-      <rect class="ct-line" x="-245" y="-157.5" width="490" height="580"/>
-      <circle class="ct-line" cx="0" cy="422.5" r="180"/>
-      <path class="ct-line" d="M-660 -157.5 V141.5 A675 675 0 0 0 660 141.5 V-157.5"/>
-      <path class="ct-line" d="M-125 0 A125 125 0 0 0 125 0"/>
-      <line class="ct-line" x1="-90" y1="-37.5" x2="90" y2="-37.5"/>
-      <circle class="ct-line" cx="0" cy="0" r="22.5"/>
-      ${dots}</svg>
+    ${courtSvg(dots, `Wurfkarte: ${c2[0] + c3[0]} von ${c2[1] + c3[1]} Würfen getroffen`)}
     <p class="shots-sum num"><span><i class="lg made"></i>Treffer</span><span><i class="lg miss"></i>Fehlwurf</span><span>2P ${c2[0]}/${c2[1]} (${pct(c2)})</span><span>3P ${c3[0]}/${c3[1]} (${pct(c3)})</span></p></div>`;
 }
 
@@ -1043,6 +1063,28 @@ async function openPlayer(id, team) {
 }
 
 // Bisherige Teams: aufeinanderfolgende Saisons beim selben Verein zusammengefasst; Lücken = andere Ligen
+// Stationen aus der Vereinsgeschichte (Wikipedia): alle Vereine, auch NBA und andere Ligen.
+// Logos nur, wo die EuroLeague den Verein kennt (eigene Karriere oder heutige Teams); sonst ein Kürzel.
+const STOP = new Set(['kk', 'bc', 'sk', 'as', 'pbc', 'fc', 'cb', 'basket', 'basketball', 'club', 'de', 'the', 'real', 'city']);
+const words = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w));
+const LEAGUE_SHORT = { 'National Basketball Association': 'NBA', 'NBA G-League': 'G League', 'NBA G League': 'G League', 'NBA Development League': 'G League' };
+function historyStations(d) {
+  const m = model();
+  const pool = [...d.career.map((c) => ({ name: c.teamName || '', logo: c.logo, el: c.comp === 'Euroleague' ? c.year : null })),
+    ...Object.values(m.teams).map((t) => ({ name: `${t.name} ${t.short || ''}`, logo: t.crest, el: null }))].filter((p) => p.logo);
+  return d.history.map((h) => {
+    const w = words(h.team);
+    const hits = pool.filter((p) => words(p.name).some((x) => w.includes(x)));
+    const lg = h.league || d.history.find((x) => x.team === h.team && x.league)?.league || '';
+    const league = LEAGUE_SHORT[lg] || lg;
+    const to = h.to ?? new Date().getFullYear() + 1;
+    const el = hits.some((p) => p.el != null && p.el >= h.from - 1 && p.el <= to);
+    const initials = h.team.split(/\s+/).filter((x) => !STOP.has(x.toLowerCase())).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
+    return { name: h.team, from: h.from, to: h.to, now: h.to == null, logo: hits[0]?.logo || '', badge: league === 'NBA' ? 'NBA' : league === 'G League' ? 'G' : initials,
+      sub: [h.loan ? 'Leihe' : '', league || h.country, el ? 'EuroLeague' : ''].filter(Boolean).join(' · ') };
+  });
+}
+
 function playerStations(d) {
   const st = [];
   for (const c of d.career) {
@@ -1118,14 +1160,15 @@ function renderPlayer() {
   const fact = (dt, dd) => (dd ? `<div><dt>${dt}</dt><dd>${dd}</dd></div>` : '');
   const ts = a.fga + 0.44 * a.fta > 0 ? a.pts / (2 * (a.fga + 0.44 * a.fta)) * 100 : 0;
   const shot = (l, made, pct) => `<div class="pc-shot"><div><span>${l}${made ? ` <span class="num">${made}</span>` : ''}</span><b class="num">${de1(pct)} %</b></div><div class="pc-meter"><i style="width:${Math.min(100, pct)}%"></i></div></div>`;
-  const stations = playerStations(d);
+  const stations = d.history?.length ? historyStations(d) : playerStations(d);
   const el = d.career.filter((c) => c.comp === 'Euroleague');
   const rows = [];
   el.forEach((c, i) => {
     const prev = el[i - 1];
     if (prev && c.year > prev.year + 1) {
       const later = el.slice(i + 1).some((n, j) => n.year > el[i + j].year + 1);
-      rows.push(`<tr class="gap"><td colspan="7">${prev.year + 1} bis ${c.year}: nicht in der EuroLeague${!later && d.lastTeam ? `, zuletzt ${esc(d.lastTeam)}` : ''}</td></tr>`);
+      const between = (d.history || []).filter((h) => !h.loan && h.from >= prev.year + 1 && h.from < c.year).map((h) => h.team);
+      rows.push(`<tr class="gap"><td colspan="7">${prev.year + 1} bis ${c.year}: ${between.length ? esc([...new Set(between)].join(', ')) : `nicht in der EuroLeague${!later && d.lastTeam ? `, zuletzt ${esc(d.lastTeam)}` : ''}`}</td></tr>`);
     }
     const per = (v) => (c.gp ? de1(v / c.gp) : '–');
     rows.push(`<tr${i === el.length - 1 && c.year >= new Date().getFullYear() - 1 && c.team && (c.team === team || c.teamName === fullName(m, team)) ? ' class="now"' : ''}><td>${esc(c.season.replace('-', '/'))}</td><td class="pc-tm"><span class="logo xxs">${crestImg(c.logo)}</span>${esc(clubLabel(c))}</td><td>${c.gp}</td><td>${per(c.pts)}</td><td>${per(c.reb)}</td><td>${per(c.ast)}</td><td>${per(c.pir)}</td></tr>`);
@@ -1154,12 +1197,13 @@ function renderPlayer() {
         ${fact('Zuvor', esc(d.lastTeam))}
         ${fact('Im Team seit', sy ? `${MONTHS[Number(sm) - 1]} ${sy}` : '')}</dl></section>
       ${stations.length ? `<section aria-label="Stationen"><h3>Stationen <small>bisherige Teams</small></h3><ol class="pc-path">${stations.map((s) => `<li class="pc-stop${s.now ? ' now' : ''}">
-        <span class="logo${s.gap ? ' other' : ''}">${s.gap ? '···' : crestImg(s.logo)}</span><span class="yrs num">${s.now ? `seit ${s.from}` : `${s.from}–${s.to}`}</span>
-        <b>${esc(s.name)}</b><small>${esc(s.gap ? s.sub : [...s.comps].join(', '))}</small></li>`).join('')}</ol></section>` : ''}
+        <span class="logo${s.gap || !s.logo ? ' other' : ''}">${s.gap ? '···' : s.logo ? crestImg(s.logo) : esc(s.badge || '·')}</span><span class="yrs num">${s.now ? `seit ${s.from}` : s.to > s.from ? `${s.from}–${s.to}` : s.from}</span>
+        <b>${esc(s.name)}</b><small>${esc(s.gap ? s.sub : s.comps ? [...s.comps].join(', ') : s.sub)}</small></li>`).join('')}</ol>${d.history?.length ? '<p class="box-note small">Vereine laut Wikipedia</p>' : ''}</section>` : ''}
       <section aria-label="Saisonwerte"><h3>Saison ${(() => { const y = Number((/\d{4}/.exec(data?.season || '') || [])[0]); return y ? `${y}/${String(y + 1).slice(2)}` : ''; })()} <small>pro Spiel · ${a.gp} ${a.gp === 1 ? 'Spiel' : 'Spiele'}</small></h3>
         ${a.gp ? `<div class="pc-stats">${[['pts', 'Punkte'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['pir', 'PIR (Bewertung)']].map(([k, l], i) => `<div class="pc-stat${i ? '' : ' key'}"><b class="num">${de1(a[k])}</b><span>${l}</span></div>`).join('')}</div>
         <div class="pc-sub"><span><b class="num">${de1(a.min)}</b> Minuten</span><span><b class="num">${a.gs} von ${a.gp}</b> in der Startformation</span><span><b class="num">${de1(a.fd)}</b> gezogene Fouls</span></div>
-        <div class="pc-shots">${shot('Zweier', `${de1(a.fg2[0])}/${de1(a.fg2[1])}`, a.fg2p)}${shot('Dreier', `${de1(a.fg3[0])}/${de1(a.fg3[1])}`, a.fg3p)}${shot('Freiwürfe', `${de1(a.ft[0])}/${de1(a.ft[1])}`, a.ftp)}${shot('True Shooting', '', ts)}</div>` : '<p class="label">Noch keine Einsätze in dieser Saison.</p>'}</section>
+        <div class="pc-shots">${shot('Zweier', `${de1(a.fg2[0])}/${de1(a.fg2[1])}`, a.fg2p)}${shot('Dreier', `${de1(a.fg3[0])}/${de1(a.fg3[1])}`, a.fg3p)}${shot('Freiwürfe', `${de1(a.ft[0])}/${de1(a.ft[1])}`, a.ftp)}${shot('True Shooting', '', ts)}</div>
+        ${playerShotsHtml(d)}` : '<p class="label">Noch keine Einsätze in dieser Saison.</p>'}</section>
       ${d.games.length ? `<section aria-label="Formkurve"><h3>Formkurve <span class="seg" role="group" aria-label="Wert">${[['pts', 'Punkte'], ['reb', 'Rebounds'], ['pir', 'PIR']].map(([k, l]) => `<button type="button" data-act="player-metric" data-k="${k}" aria-pressed="${k === playerState.metric}">${l}</button>`).join('')}</span></h3>
         <div class="pc-chart" id="pcChart">${playerChart(d)}</div></section>
       <section aria-label="Spiel für Spiel"><h3>Spiel für Spiel <small>neuestes zuerst</small></h3>
@@ -1174,6 +1218,7 @@ function renderPlayer() {
         <p class="pc-total">EuroLeague total <b class="num">${tot.gp}</b> Spiele · <b class="num">${tot.pts}</b> Punkte</p></section>` : ''}
       <p class="box-note small">Daten: EuroLeague</p>
     </div></div>`;
+  const path = $('.pc-path', dlg); if (path) path.scrollLeft = path.scrollWidth;
 }
 // ---------- Daten holen ----------
 let playersError = '', playersLoading = null;
