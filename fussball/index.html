@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sport-News Fussball</title>
+  <meta name="description" content="Fussball-Spielübersicht: Resultate und anstehende Spiele aus Premier League, Bundesliga, 2. Bundesliga, Super League und Challenge League.">
+  <meta name="theme-color" content="#262746">
+  <meta name="color-scheme" content="dark light">
+  <script src="../theme-boot.js"></script>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://upload.wikimedia.org https://i.imgur.com https://assets.dfb.de https://media.api-sports.io; connect-src 'self' https://*.supabase.co; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="icon" href="../icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../icon-180.png">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400..600&display=swap">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="fussball.css">
+</head>
+<body data-app="./fussball/fussball.js">
+  <div class="fb">
+    <header class="fb-top">
+      <a class="fb-sport" href="../" aria-label="Zu Basketball wechseln" title="Zu Basketball wechseln">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#fff" stroke="#1D1E3B" stroke-width="1.5"/><path d="M16 9.5l5 3.6-1.9 5.9h-6.2L11 13.1z" fill="#1D1E3B"/><path d="M16 9.5V4M21 13.1l5-1.8M19.1 19l3.3 4.4M12.9 19l-3.3 4.4M11 13.1l-5-1.8" stroke="#1D1E3B" stroke-width="1.4" fill="none"/></svg>
+        <span class="fb-swap" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span>
+      </a>
+      <h1>Sport-News <em>Fussball</em></h1>
+      <button type="button" class="fb-mine" id="fbMine" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>Nur meine</button>
+    </header>
+    <nav class="fb-days" id="fbDays" aria-label="Tag"></nav>
+    <main class="fb-list" id="fbList" aria-live="polite"><p class="fb-empty">Lade Spiele …</p></main>
+    <p class="fb-foot" id="fbFoot"></p>
+  </div>
+  <script type="module" src="../gate.js"></script>
+</body>
+</html>

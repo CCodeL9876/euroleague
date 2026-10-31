@@ -110,3 +110,24 @@ Testdaten im selben Format statt der Funktion.
 
 Keine: GitHub Pages ist für öffentliche Repositories gratis; die Aufrufe der Supabase-Funktion liegen weit im
 kostenlosen Rahmen (während eines Spiels ein Aufruf pro Minute und offenem Gerät).
+
+## 6. Fussball-Bereich (`/fussball/`)
+
+Ein Tipp aufs EuroLeague-Logo oben links öffnet die Fussball-Spielübersicht (Resultate und anstehende Spiele pro Tag,
+nach Liga gruppiert, eigene Teams oben); das Fussball-Symbol führt zurück. Zugang und Profil wie im Basketball-Bereich.
+
+| Liga | Quelle |
+|---|---|
+| Bundesliga, 2. Bundesliga | OpenLigaDB (frei, ohne Schlüssel, mit Torschützen) |
+| Premier League, Super League, Challenge League | API-Football (Secret `APIFOOTBALL_KEY`, Gratis-Plan 100 Abfragen/Tag) |
+
+Einrichtung (einmalig):
+1. Supabase → Edge Functions → Secrets: `APIFOOTBALL_KEY` = Schlüssel aus dashboard.api-football.com (Account → My Access).
+2. Supabase → SQL Editor, damit der Zwischenspeicher Neustarts der Funktion übersteht (spart API-Abfragen):
+   ```sql
+   create table if not exists el_fb_cache (key text primary key, data jsonb, at timestamptz default now());
+   alter table el_fb_cache enable row level security;   -- keine Policies: nur die Funktion (Service-Role) darf lesen/schreiben
+   ```
+3. Funktion `euroleague` neu deployen.
+
+Lieblingsteams (vorerst lokal, Stichwörter im Teamnamen): Liverpool, Chelsea, Basel, Mainz.

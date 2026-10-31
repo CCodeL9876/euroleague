@@ -946,3 +946,9 @@ body.needs-profile .mtabs{display:none;}
   .fx-pair{grid-template-columns:minmax(0,1fr);}
   .fx-team summary{grid-template-columns:auto minmax(0,7rem) minmax(0,1fr) 2ch;}
 }
+
+/* Logo oben links: Wechsel zum Fussball-Bereich */
+.sport-link{position:relative;display:inline-flex;flex:none;border-radius:12px;}
+.sport-link:focus-visible{outline:2px solid var(--blue-hi);outline-offset:3px;}
+.sport-swap{position:absolute;right:-6px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:#2E9E5B;display:grid;place-items:center;box-shadow:0 0 0 3px var(--panel);}
+.sport-swap svg{width:11px;height:11px;fill:none;stroke:#fff;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;}

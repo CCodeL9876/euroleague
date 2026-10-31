@@ -21,9 +21,10 @@ function remember(key) {
   } catch {}
 }
 
+// Lädt die Seite des Bereichs: Basketball (app.js) oder z. B. Fussball (<body data-app="./fussball/fussball.js">)
 function boot() {
   document.body.classList.add('unlocked');
-  import('./app.js');
+  import(/^\.\/[\w/-]+\.js$/.test(document.body.dataset.app || '') ? document.body.dataset.app : './app.js');
 }
 
 function cleanUrl() {
@@ -146,7 +147,8 @@ if (unlocked()) {
   boot();
 } else {
   const key = new URLSearchParams(location.search).get('key');
-  if (key) showPrompt(key);
+  if (!key && document.body.dataset.app) location.replace('../');   // Unterbereich ohne Anmeldung: zur Startseite
+  else if (key) showPrompt(key);
   else if (sessionStorage.getItem('el-gate-relogin') === '1') { sessionStorage.removeItem('el-gate-relogin'); showRelinkNotice('Abgemeldet'); }
   // Als Homebildschirm-App gespeichert, aber (noch) nicht angemeldet: Link + Code direkt hier eingeben lassen –
   // hier ist man sicher keine zufällige Besucherin. Sonst (fremder Besuch im Browser ohne Link): Seite bleibt leer.
