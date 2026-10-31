@@ -3,6 +3,7 @@
    Leiste unten (Spieltag, News, Teams). Bewusst nur dunkel. */
   :root{
     color-scheme:dark;
+    --pitch-hi:#5BD08A;
     --frame:#B9B8E6;
     --bg:#262746;
     --panel:#2C2D50;
@@ -364,6 +365,12 @@
       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:0.78rem;font-weight:600;cursor:pointer;
       transition:background .2s ease, color .2s ease;}
     .mtabs button .icon{width:23px;height:23px;}
+    /* Vierter Tab: Wechsel in den Fussball-Bereich, mit feiner Linie von den Basketball-Tabs getrennt */
+    .mtab-fb{position:relative;flex:1;min-height:58px;border-radius:18px;color:var(--pitch-hi, #5BD08A);text-decoration:none;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:0.78rem;font-weight:600;}
+    .mtab-fb::before{content:"";position:absolute;left:-3px;top:12px;bottom:12px;width:1px;background:var(--line);}
+    .mtab-fb .icon{width:23px;height:23px;}
+    .mtab-fb:active{background:color-mix(in srgb, #2E9E5B 20%, transparent);}
     .mtabs button:hover{color:var(--text);}
     .mtabs button[aria-current="page"]{color:var(--on-color);background:var(--blue);box-shadow:0 8px 18px rgba(91,124,250,0.45);}
     .mtabs .badge{position:absolute;top:5px;left:calc(50% + 7px);min-width:19px;height:19px;padding:0 5px;border-radius:10px;
@@ -476,12 +483,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   :root:not([data-theme="dark"]){color-scheme:light;
     --frame:#FFFFFF;--bg:#FFFFFF;--panel:#FFFFFF;--card:#E8EAF6;--card-2:#DADDEE;--line:#CBCFE4;
     --text:#14152E;--dim:#3F4368;--faint:#575B82;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#D23C47;
-    --green:#12774F;--orange:#B85E25;--gold:#946A00;}
+    --green:#12774F;--orange:#B85E25;--gold:#946A00;--pitch-hi:#1F7A45;}
 }
 :root[data-theme="light"]{color-scheme:light;
   --frame:#FFFFFF;--bg:#FFFFFF;--panel:#FFFFFF;--card:#E8EAF6;--card-2:#DADDEE;--line:#CBCFE4;
   --text:#14152E;--dim:#3F4368;--faint:#575B82;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#D23C47;
-  --green:#12774F;--orange:#B85E25;--gold:#946A00;}
+  --green:#12774F;--orange:#B85E25;--gold:#946A00;--pitch-hi:#1F7A45;}
 :root[data-theme="dark"]{color-scheme:dark;}
 
 /* Kurve: Farben aus den Bausteinen */
