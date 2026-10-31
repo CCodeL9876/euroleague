@@ -1,10 +1,10 @@
 // Fussball-Bereich: Spielübersicht (Resultate und anstehende Spiele) pro Tag, nach Liga gruppiert, eigene Teams oben.
-// Daten über die Supabase-Funktion „euroleague“ (?fb=1): Bundesliga/2. Bundesliga aus OpenLigaDB, Premier League und
+// Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): Bundesliga/2. Bundesliga aus OpenLigaDB, Premier League und
 // Schweizer Ligen aus API-Football. Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 
-const DATA_URL = `${SUPABASE_URL}/functions/v1/euroleague`;
+const DATA_URL = `${SUPABASE_URL}/functions/v1/fussball`;
 const LIVE_POLL_MS = 60 * 1000;
 const IDLE_POLL_MS = 10 * 60 * 1000;
 const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];

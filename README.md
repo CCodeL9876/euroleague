@@ -121,6 +121,8 @@ nach Liga gruppiert, eigene Teams oben); das Fussball-Symbol führt zurück. Zug
 | Bundesliga, 2. Bundesliga | OpenLigaDB (frei, ohne Schlüssel, mit Torschützen) |
 | Premier League, Super League, Challenge League | API-Football (Secret `APIFOOTBALL_KEY`, Gratis-Plan 100 Abfragen/Tag) |
 
+Daten über die **eigene** Supabase-Funktion `fussball` (`supabase/functions/fussball/index.ts`), getrennt von `euroleague`.
+
 Einrichtung (einmalig):
 1. Supabase → Edge Functions → Secrets: `APIFOOTBALL_KEY` = Schlüssel aus dashboard.api-football.com (Account → My Access).
 2. Supabase → SQL Editor, damit der Zwischenspeicher Neustarts der Funktion übersteht (spart API-Abfragen):
@@ -128,6 +130,7 @@ Einrichtung (einmalig):
    create table if not exists el_fb_cache (key text primary key, data jsonb, at timestamptz default now());
    alter table el_fb_cache enable row level security;   -- keine Policies: nur die Funktion (Service-Role) darf lesen/schreiben
    ```
-3. Funktion `euroleague` neu deployen.
+3. Neue Funktion `fussball` anlegen (Edge Functions → Deploy a new function → Via Editor, Name `fussball`), Code aus
+   `supabase/functions/fussball/index.ts` einfügen, **„Verify JWT“ ausschalten** (wie bei `euroleague`) und deployen.
 
 Lieblingsteams (vorerst lokal, Stichwörter im Teamnamen): Liverpool, Chelsea, Basel, Mainz.
