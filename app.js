@@ -286,17 +286,26 @@ async function toggleFav(code) {
 }
 
 // render() läuft nur, solange ein Profil besteht (siehe enterApp/ensureProfile) – kein Gast-Zustand mehr nötig
+// Profil oben rechts: Kürzel-Knopf öffnet ein Menü (Lieblingsteams, Link für Home-App, abmelden);
+// darunter erscheint nur noch die Teamauswahl, während man sie bearbeitet
+let profileMenuOpen = false;
+const initials = (n) => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); return (w.length > 1 ? w[0][0] + w[1][0] : (w[0] || '?').slice(0, 2)).toUpperCase(); };
 function profileHtml() {
-  return `<div class="profile-bar">
-    <span class="profile-who">${icon('star', 'icon')}${esc(profile.name)}</span>
-    <div class="profile-acts">
-      ${favEdit
-        ? '<button type="button" class="profile-link" data-act="fav-edit">Fertig</button>'
-        : `<button type="button" class="profile-icon" data-act="fav-edit" aria-label="Lieblingsteams bearbeiten" title="Lieblingsteams bearbeiten">${icon('star')}</button>`}
-      <button type="button" class="profile-icon" data-act="copy-link" aria-label="Link für Home-App kopieren" title="Link für Home-App kopieren">${icon('share')}</button>
-      <button type="button" class="profile-icon" data-act="profile-logout" aria-label="Profil abmelden" title="Profil abmelden">${icon('logout')}</button>
-    </div>
-  </div>${favEdit ? favEditHtml() : ''}`;
+  return favEdit ? `<div class="profile-bar"><span class="profile-who">${icon('star', 'icon')}Lieblingsteams wählen</span>
+    <button type="button" class="profile-link" data-act="fav-edit">Fertig</button></div>${favEditHtml()}` : '';
+}
+function renderProfileMenu() {
+  const btn = $('#profileBtn'), menu = $('#profileMenu');
+  if (!btn || !menu) return;
+  btn.textContent = initials(profile?.name);
+  btn.setAttribute('aria-expanded', String(profileMenuOpen));
+  btn.setAttribute('aria-label', `Profil ${profile?.name || ''}`);
+  menu.hidden = !profileMenuOpen;
+  if (!profileMenuOpen) return;
+  const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
+  menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profile?.name))}</span><span><b>${esc(profile?.name || '')}</b><small>${FAV.length} ${FAV.length === 1 ? 'Lieblingsteam' : 'Lieblingsteams'}</small></span></div>
+    ${item('fav-edit', 'star', 'Lieblingsteams bearbeiten')}${item('copy-link', 'share', 'Link für Home-App kopieren')}
+    <hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
 }
 
 function profileFormHtml() {
@@ -767,6 +776,7 @@ function render() {
   const m = model();
   const keep = [...document.querySelectorAll('[data-keep-scroll]')].map((n) => [n.dataset.keepScroll, n.scrollLeft]);
   $('#profileBar').innerHTML = profileHtml();
+  renderProfileMenu();
   renderLeft(m);
   renderCenter(m);
   for (const [k, x] of keep) { const n = document.querySelector(`[data-keep-scroll="${k}"]`); if (n) n.scrollLeft = x; }
@@ -1337,6 +1347,7 @@ async function refresh({ withNews = false } = {}) {
 
 // ---------- Bedienung ----------
 document.addEventListener('click', (e) => {
+  if (profileMenuOpen && !e.target.closest('#profileMenu, #profileBtn')) { profileMenuOpen = false; renderProfileMenu(); }
   const t = e.target.closest('[data-act], [data-team], [data-src], .mtabs button');
   if (!t) return;
   if (t.matches('.mtabs button')) return setTab(t.dataset.tab);
@@ -1375,9 +1386,10 @@ document.addEventListener('click', (e) => {
   else if (act === 'leader-fav') { leaderState.fav = t.checked; render(); }
   else if (act === 'theme') toggleTheme();
   else if (act === 'logout') logout();
-  else if (act === 'fav-edit') { favEdit = !favEdit; profileError = ''; render(); }
-  else if (act === 'profile-logout') profileLogout();
-  else if (act === 'copy-link') copyAccessLink();
+  else if (act === 'profile-menu') { profileMenuOpen = !profileMenuOpen; renderProfileMenu(); if (profileMenuOpen) $('#profileMenu .pm-item')?.focus(); }
+  else if (act === 'fav-edit') { favEdit = !favEdit; profileMenuOpen = false; profileError = ''; render(); }
+  else if (act === 'profile-logout') { profileMenuOpen = false; renderProfileMenu(); profileLogout(); }
+  else if (act === 'copy-link') { profileMenuOpen = false; renderProfileMenu(); copyAccessLink(); }
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
   else if (act === 'onboarding-done') { if (!FAV.length) return; onboarding = false; introStage = true; refreshProfileUI(); }
   else if (act === 'intro-done') { introStage = false; enterApp(); }
@@ -1409,6 +1421,7 @@ document.addEventListener('keydown', (e) => {
   const t = e.target.closest?.('[data-act="box"], article[data-act="team"]');
   if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (t.dataset.act === 'box') openBox(Number(t.dataset.code)); else openTeam(t.dataset.c); }
 });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && profileMenuOpen) { profileMenuOpen = false; renderProfileMenu(); $('#profileBtn')?.focus(); } });
 $('#newsSearch').addEventListener('input', (e) => { feedState.q = e.target.value; renderFeed(); });
 $('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxState.code = 0; });
 $('#teamDlg').addEventListener('close', () => { teamCode = ''; });

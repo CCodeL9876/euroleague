@@ -474,13 +474,13 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 /* ---------- Heller Modus: gleiche Bausteine, helle Werte. Ohne eigene Wahl folgt die Seite dem iPhone ---------- */
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){color-scheme:light;
-    --frame:#DCDCF3;--bg:#F5F5FC;--panel:#FFFFFF;--card:#EEEEF8;--card-2:#E3E4F3;--line:#D6D7EA;
-    --text:#1D1E3B;--dim:#4C4F74;--faint:#5F628A;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#D23C47;
+    --frame:#FFFFFF;--bg:#FFFFFF;--panel:#FFFFFF;--card:#E8EAF6;--card-2:#DADDEE;--line:#CBCFE4;
+    --text:#14152E;--dim:#3F4368;--faint:#575B82;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#D23C47;
     --green:#12774F;--orange:#B85E25;--gold:#946A00;}
 }
 :root[data-theme="light"]{color-scheme:light;
-  --frame:#DCDCF3;--bg:#F5F5FC;--panel:#FFFFFF;--card:#EEEEF8;--card-2:#E3E4F3;--line:#D6D7EA;
-  --text:#1D1E3B;--dim:#4C4F74;--faint:#5F628A;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#D23C47;
+  --frame:#FFFFFF;--bg:#FFFFFF;--panel:#FFFFFF;--card:#E8EAF6;--card-2:#DADDEE;--line:#CBCFE4;
+  --text:#14152E;--dim:#3F4368;--faint:#575B82;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#D23C47;
   --green:#12774F;--orange:#B85E25;--gold:#946A00;}
 :root[data-theme="dark"]{color-scheme:dark;}
 
@@ -497,13 +497,29 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   display:grid;place-items:center;cursor:pointer;}
 .theme-btn:hover{color:var(--text);}
 .theme-btn .icon{width:19px;height:19px;}
-#logoutBtn{right:68px;}
+/* Profil oben rechts: Kürzel, Menü darunter */
+.theme-btn#themeBtn{right:68px;}
+.profile-btn{font-family:var(--font);font-size:0.82rem;font-weight:700;letter-spacing:0.02em;background:var(--blue);color:var(--on-color);}
+.profile-btn:hover, .profile-btn[aria-expanded="true"]{color:var(--on-color);background:color-mix(in srgb, var(--blue) 85%, black);}
+.profile-menu{position:absolute;top:72px;right:20px;z-index:40;width:min(280px, calc(100vw - 32px));display:flex;flex-direction:column;gap:2px;padding:6px;
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 40px rgba(10,10,30,0.35);}
+.profile-menu[hidden]{display:none;}
+.pm-head{display:flex;align-items:center;gap:10px;padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:4px;}
+.pm-head > span:last-child{display:flex;flex-direction:column;min-width:0;}
+.pm-head b{font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pm-head small{font-size:0.75rem;color:var(--dim);}
+.pm-avatar{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--blue);color:var(--on-color);font-weight:700;font-size:0.82rem;}
+.pm-item{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 10px;border:0;border-radius:12px;background:transparent;color:var(--text);font:inherit;font-size:0.9rem;text-align:left;cursor:pointer;}
+.pm-item:hover, .pm-item:focus-visible{background:var(--card);outline:none;}
+.pm-item .icon{width:18px;height:18px;color:var(--dim);flex:none;}
+.profile-menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px;}
 .brand{padding-right:96px;}
 @media (max-width:820px){
   .brand-area{flex-wrap:wrap;row-gap:4px;}
   .brand{flex:1;order:1;padding-right:0;min-width:0;}
   .theme-btn{position:static;flex:none;order:2;}
-  #logoutBtn{order:3;}
+  #profileBtn{order:3;}
+  .profile-menu{top:62px;right:max(16px, env(safe-area-inset-right, 0px));}
   #profileBar{order:4;flex-basis:100%;}
 }
 
@@ -948,7 +964,10 @@ body.needs-profile .mtabs{display:none;}
 }
 
 /* Logo oben links: Wechsel zum Fussball-Bereich */
-.sport-link{position:relative;display:inline-flex;flex:none;border-radius:12px;}
+.sport-link{display:inline-flex;flex:none;border-radius:12px;}
 .sport-link:focus-visible{outline:2px solid var(--blue-hi);outline-offset:3px;}
-.sport-swap{position:absolute;right:-6px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:#2E9E5B;display:grid;place-items:center;box-shadow:0 0 0 3px var(--panel);}
-.sport-swap svg{width:11px;height:11px;fill:none;stroke:#fff;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Heller Modus: weisser Hintergrund – Rahmen statt dunklem Schatten */
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]) .app{box-shadow:0 0 0 1px var(--line);} }
+:root[data-theme="light"] .app{box-shadow:0 0 0 1px var(--line);}
+@media (max-width:820px){ :root .app{box-shadow:none;} }
