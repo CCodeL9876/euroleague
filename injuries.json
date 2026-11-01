@@ -92,11 +92,47 @@
    "team": "HTA",
    "status": "doubtful",
    "since": "2026-10-30",
-   "note": "nach Sturz auf den Rücken auf der Trage vom Feld; wach und ansprechbar",
+   "note": "nach Sturz auf den Rücken auf der Trage vom Feld; fühlt sich laut eigener Aussage deutlich besser, hofft auf baldige Rückkehr",
    "back": "",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2028539/terrifying-fall-for-satoransky-left-the-court-on-a-stretcher/",
-   "reported": "2026-10-30"
+   "url": "https://www.eurohoops.net/en/euroleague/2028976/tomas-satoransky-talks-injury-hapoel-euroleague/",
+   "reported": "2026-11-01"
+  },
+  {
+   "id": "",
+   "name": "Derek Willis",
+   "team": "PAR",
+   "status": "out",
+   "since": "2026-10-31",
+   "note": "Knöchelverletzung",
+   "back": "zweite Novemberwoche",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2028995/vanja-marinkovic-derek-willis-tonye-jekiri-updates-partizan-euroleague/",
+   "reported": "2026-11-01"
+  },
+  {
+   "id": "",
+   "name": "Tonye Jekiri",
+   "team": "PAR",
+   "status": "out",
+   "since": "2026-10-31",
+   "note": "Leistenzerrung seit Mitte Oktober",
+   "back": "ca. 2 Wochen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2028995/vanja-marinkovic-derek-willis-tonye-jekiri-updates-partizan-euroleague/",
+   "reported": "2026-11-01"
+  },
+  {
+   "id": "",
+   "name": "Iffe Lundberg",
+   "team": "TEL",
+   "status": "out",
+   "since": "2026-10-20",
+   "note": "Verletzung im Training am 20. Oktober; Klub sucht Ersatz",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2029140/maccabi-minority-owner-richard-deitz-denies-blocking-signings-the-opposite-is-true/",
+   "reported": "2026-11-01"
   }
  ]
 }
