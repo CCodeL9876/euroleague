@@ -139,7 +139,7 @@ function pitchHtml(m, d) {
   if (!hr || !ar) return '';
   // yGoal: Torlinie, yMid: Mittellinie (in % der Feldhöhe); Gast gespiegelt
   const place = (rows, side, yGoal, yMid) => rows.map((line, li) => {
-    const y = yGoal + (yMid - yGoal) * (li === 0 ? 0 : 0.26 + (li - 1) * (0.6 / Math.max(1, rows.length - 2)));
+    const y = yGoal + (yMid - yGoal) * (li === 0 ? 0 : 0.24 + (li - 1) * (0.68 / Math.max(1, rows.length - 2)));
     return line.map((p, k) => {
       const f = (k + 1) * 100 / (line.length + 1), x = side === 'h' ? 100 - f : f;
       return `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"><span class="sh">${esc(p.no)}</span><span class="nm">${esc(lastName(p.n))}</span></div>`;
@@ -148,10 +148,10 @@ function pitchHtml(m, d) {
   // Vereinswappen als Wasserzeichen in der jeweiligen Hälfte
   const wm = (u, pos) => (LOGO_OK.test(u || '') ? `<span class="wm ${pos}" aria-hidden="true"><img src="${esc(u)}" alt=""></span>` : '');
   return `<div class="fb-pitch" role="img" aria-label="Aufstellung ${esc(m.h)} ${esc(d.home.formation)} gegen ${esc(m.a)} ${esc(d.away.formation)}">${wm(m.al, 'top')}${wm(m.hl, 'bot')}
-    <svg class="lines" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="75" x2="100" y2="75"/><circle cx="50" cy="75" r="11"/>
-      <rect x="22" y="0" width="56" height="20"/><rect x="36" y="0" width="28" height="7"/><rect x="22" y="130" width="56" height="20"/><rect x="36" y="143" width="28" height="7"/></svg>
+    <svg class="lines" viewBox="0 0 100 170" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="85" x2="100" y2="85"/><circle cx="50" cy="85" r="11"/>
+      <rect x="22" y="0" width="56" height="20"/><rect x="36" y="0" width="28" height="7"/><rect x="22" y="150" width="56" height="20"/><rect x="36" y="163" width="28" height="7"/></svg>
     <span class="fm top">${logo(m.al)}${esc(d.away.formation)}</span><span class="fm bot">${logo(m.hl)}${esc(d.home.formation)}</span>
-    ${place(hr, 'h', 93, 53)}${place(ar, 'a', 7, 47)}</div>`;
+    ${place(hr, 'h', 94.5, 52)}${place(ar, 'a', 5.5, 48)}</div>`;
 }
 function lineupHtml(m) {
   const d = detailCache.get(`${m.id}|lineup`);
