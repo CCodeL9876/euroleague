@@ -7,7 +7,7 @@
 //     Champions League, Bundesliga/2. Bundesliga: OpenLigaDB (frei, mit Torschützen). Premier League, Super League, Challenge League:
 //     Sportradar Soccer v4 (Secrets SPORTRADAR_KEY, SPORTRADAR_LEVEL = trial|production, SPORTRADAR_DAILY = Tagesgrenze, sonst 60):
 //     Saison-Spielplan pro Liga alle 12 Std., während Spielen alle 5 Min. die Live-Timelines (eine Abfrage, mit Torschützen),
-//     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
+//     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, Neuaufsteiger dort ergänzen). Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
 //   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
@@ -169,6 +169,57 @@ function srGoals(timeline) {
       n: `${String(sc?.name || '').replace(/^(.+), (.+)$/, '$2 $1')}${e.method === 'penalty' ? ' (Pen.)' : e.method === 'own_goal' ? ' (Eigentor)' : ''}` };
   });
 }
+// Wappen der Sportradar-Teams (Sportradar liefert in der Soccer API keine Bilder): Wikipedia-Vorschaubilder, 120 px
+const SR_LOGO = {
+  'AFC Bournemouth': 'en/thumb/e/e5/AFC_Bournemouth_%282013%29.svg/120px-AFC_Bournemouth_%282013%29.svg.png',
+  'Arsenal FC': 'en/thumb/5/53/Arsenal_FC.svg/120px-Arsenal_FC.svg.png',
+  'Aston Villa': 'en/thumb/9/9a/Aston_Villa_FC_new_crest.svg/120px-Aston_Villa_FC_new_crest.svg.png',
+  'Brentford FC': 'en/thumb/2/2a/Brentford_FC_crest.svg/120px-Brentford_FC_crest.svg.png',
+  'Brighton & Hove Albion': 'en/thumb/d/d0/Brighton_and_Hove_Albion_FC_crest.svg/120px-Brighton_and_Hove_Albion_FC_crest.svg.png',
+  'Chelsea FC': 'en/thumb/c/cc/Chelsea_FC.svg/120px-Chelsea_FC.svg.png',
+  'Coventry City': 'en/thumb/7/7b/Coventry_City_FC_crest.svg/120px-Coventry_City_FC_crest.svg.png',
+  'Crystal Palace': 'en/thumb/a/a2/Crystal_Palace_FC_logo_%282022%29.svg/120px-Crystal_Palace_FC_logo_%282022%29.svg.png',
+  'Etoile Carouge FC': 'commons/thumb/5/55/%C3%89toile_Carouge_FC_2023_Logo.svg/120px-%C3%89toile_Carouge_FC_2023_Logo.svg.png',
+  'Everton FC': 'en/thumb/7/7c/Everton_FC_logo.svg/120px-Everton_FC_logo.svg.png',
+  'FC Aarau': 'en/thumb/3/3b/Wappen_FCAg.svg/120px-Wappen_FCAg.svg.png',
+  'FC Basel 1893': 'commons/thumb/c/c1/FC_Basel_crest.svg/120px-FC_Basel_crest.svg.png',
+  'FC Lugano': 'commons/thumb/1/1c/Logo_FC_Lugano_2025.svg/120px-Logo_FC_Lugano_2025.svg.png',
+  'FC Luzern': 'en/thumb/1/12/FC_Luzern_crest.svg/120px-FC_Luzern_crest.svg.png',
+  'FC Rapperswil-Jona': 'en/thumb/3/33/FC_Rapperswil-Jona_logo.svg/120px-FC_Rapperswil-Jona_logo.svg.png',
+  'FC Sion': 'commons/thumb/d/d4/FC_Sion.svg/120px-FC_Sion.svg.png',
+  'FC St. Gallen 1879': 'commons/thumb/e/e3/FC_St._Gallen_logo.svg/120px-FC_St._Gallen_logo.svg.png',
+  'FC Stade Nyonnais': 'en/thumb/4/48/FC_Stade_Nyonnais_logo.svg/120px-FC_Stade_Nyonnais_logo.svg.png',
+  'FC Thun': 'commons/thumb/2/24/FC_Thun_Logo_2011.svg/120px-FC_Thun_Logo_2011.svg.png',
+  'FC Vaduz': 'en/thumb/c/c5/FC_Vaduz_logo.svg/120px-FC_Vaduz_logo.svg.png',
+  'FC Wil 1900': 'en/thumb/5/5a/FC_Wil_logo.svg/120px-FC_Wil_logo.svg.png',
+  'FC Winterthur': 'en/thumb/a/a9/FC_Winterthur_logo.svg/120px-FC_Winterthur_logo.svg.png',
+  'FC Zurich': 'commons/thumb/6/68/FC_Zurich_Logo_2022.svg/120px-FC_Zurich_Logo_2022.svg.png',
+  'Fulham FC': 'en/thumb/e/eb/Fulham_FC_%28shield%29.svg/120px-Fulham_FC_%28shield%29.svg.png',
+  'Grasshopper Club Zurich': 'commons/thumb/f/ff/GC_Z%C3%BCrich_Logo.svg/120px-GC_Z%C3%BCrich_Logo.svg.png',
+  'Hull City': 'en/thumb/5/54/Hull_City_A.F.C._logo.svg/120px-Hull_City_A.F.C._logo.svg.png',
+  'Ipswich Town': 'en/thumb/4/43/Ipswich_Town.svg/120px-Ipswich_Town.svg.png',
+  'Lausanne-Sport': 'commons/thumb/0/0d/FC_Lausanne-Sport_logo.svg/120px-FC_Lausanne-Sport_logo.svg.png',
+  'Leeds United': 'en/thumb/5/54/Leeds_United_F.C._logo.svg/120px-Leeds_United_F.C._logo.svg.png',
+  'Liverpool FC': 'en/thumb/0/0c/Liverpool_FC.svg/120px-Liverpool_FC.svg.png',
+  'Manchester City': 'en/thumb/e/eb/Manchester_City_FC_badge.svg/120px-Manchester_City_FC_badge.svg.png',
+  'Manchester United': 'en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png',
+  'Neuchatel Xamax': 'en/thumb/6/6f/Neuch%C3%A2tel_Xamax_FCS_logo.svg/120px-Neuch%C3%A2tel_Xamax_FCS_logo.svg.png',
+  'Newcastle United': 'en/thumb/8/87/Newcastle_United_FC_2026_crest.svg/120px-Newcastle_United_FC_2026_crest.svg.png',
+  'Nottingham Forest': 'en/thumb/e/e5/Nottingham_Forest_F.C._logo.svg/120px-Nottingham_Forest_F.C._logo.svg.png',
+  'SC Kriens': 'en/thumb/d/d6/SC_Kriens_logo.svg/120px-SC_Kriens_logo.svg.png',
+  'Servette Geneva': 'en/thumb/f/f4/Servette_FC_crest.svg/120px-Servette_FC_crest.svg.png',
+  'Stade Lausanne Ouchy': 'en/thumb/0/0e/FC_Stade_Lausanne_Ouchy_logo.svg/120px-FC_Stade_Lausanne_Ouchy_logo.svg.png',
+  'Sunderland AFC': 'en/thumb/7/77/Logo_Sunderland.svg/120px-Logo_Sunderland.svg.png',
+  'Tottenham Hotspur': 'en/thumb/b/b4/Tottenham_Hotspur.svg/120px-Tottenham_Hotspur.svg.png',
+  'Young Boys Bern': 'commons/thumb/c/c2/BSC_Young_Boys.svg/120px-BSC_Young_Boys.svg.png',
+  'Yverdon-Sport': 'commons/thumb/8/83/Logo_Yverdon_Sport_FC.png/120px-Logo_Yverdon_Sport_FC.png',
+};
+// Anzeigenamen: Sportradar-Namen kürzen (Zusätze wie FC/AFC und Gründungsjahre weg, Schweizer Namen wie üblich)
+const SR_NAME = { 'Young Boys Bern': 'Young Boys', 'Servette Geneva': 'Servette', 'Grasshopper Club Zurich': 'GC Zürich', 'FC Zurich': 'FC Zürich',
+  'Neuchatel Xamax': 'Xamax', 'Etoile Carouge FC': 'Étoile Carouge', 'Stade Lausanne Ouchy': 'Lausanne-Ouchy', 'FC Stade Nyonnais': 'Stade Nyonnais',
+  'Brighton & Hove Albion': 'Brighton', 'Tottenham Hotspur': 'Tottenham', 'Manchester United': 'Man United', 'Manchester City': 'Man City', 'AFC Bournemouth': 'Bournemouth' };
+const srName = (n) => SR_NAME[n] || String(n || '').replace(/ (19|18)\d\d$/, '').replace(/ A?FC$/, '');
+const srLogo = (n) => (SR_LOGO[n] ? `https://upload.wikimedia.org/wikipedia/${SR_LOGO[n]}` : '');
 export function mapSr(lg, sum) {
   const ev = sum.sport_event || {}, es = sum.sport_event_status || {};
   const comp = ev.competitors || [];
@@ -177,7 +228,7 @@ export function mapSr(lg, sum) {
   const p1 = (es.period_scores || []).find((p) => p.number === 1);
   const rnd = ev.sport_event_context?.round;
   return { id: srId(ev.id), l: lg.id, utc: new Date(ev.start_time).toISOString(), round: rnd?.number ? String(rnd.number) : String(rnd?.name || ''),
-    h: String(home.short_name || home.name || ''), a: String(away.short_name || away.name || ''), hl: '', al: '',
+    h: srName(home.name || home.short_name), a: srName(away.name || away.short_name), hl: srLogo(home.name), al: srLogo(away.name),
     hs: st === 'pre' ? null : es.home_score ?? null, as: st === 'pre' ? null : es.away_score ?? null,
     st, min: st === 'live' ? srMin(es) : null, ht: p1 ? `${p1.home_score}:${p1.away_score}` : '', note: st === 'off' ? String(es.status || '') : '' };
 }
