@@ -169,6 +169,8 @@ async function load() {
   }
   render();
   clearTimeout(timer);
+  // Nur nachladen, solange die Seite sichtbar ist (Hintergrund-Tab oder gesperrtes Handy: keine Abfragen)
+  if (document.visibilityState === 'hidden') return;
   const live = data?.matches.some((m) => m.st === 'live' || m.st === 'ht');
   timer = setTimeout(load, live ? LIVE_POLL_MS : IDLE_POLL_MS);
 }
@@ -276,7 +278,9 @@ document.addEventListener('click', (e) => {
     if (m && open.has(id) && m.st !== 'pre' && !m.goals) loadGoals(m);
   }
 });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') load(); else clearTimeout(timer);
+});
 themeUi();
 renderMenu();
 load();
