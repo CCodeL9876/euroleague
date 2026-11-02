@@ -10,11 +10,12 @@
 //     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, Neuaufsteiger dort ergänzen). Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
+//   GET ?bbprobe=1 → Test von bigballsdata.com (Secret BIGBALLS_KEY): Rohform von Spielen, Live-Feed, Toren, Tabelle, Statistik (≈7 Abfragen), höchstens alle 30 Min.
 //   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
 //   GET ?lfprobe=1 → Test von live-football-api.com (Secret LIVEFOOTBALL_KEY): Rohform von Spielplan/Spieldetails, höchstens alle 30 Min. neu
 //   GET ?fbgame=sr-123 | lf-123 | af-123456 → Torschützen eines live-football-api- bzw. API-Football-Spiels → { goals: [{ m, s, n }] } (nach Spielende dauerhaft gespeichert)
 //
-// Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): SPORTRADAR_KEY, SPORTRADAR_LEVEL, SPORTRADAR_DAILY, LIVEFOOTBALL_KEY, LIVEFOOTBALL_DAILY, APIFOOTBALL_KEY;
+// Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): BIGBALLS_KEY, SPORTRADAR_KEY, SPORTRADAR_LEVEL, SPORTRADAR_DAILY, LIVEFOOTBALL_KEY, LIVEFOOTBALL_DAILY, APIFOOTBALL_KEY;
 // SUPABASE_SERVICE_ROLE_KEY stellt Supabase selbst bereit (für die Tabelle el_fb_cache).
 
 const ALLOWED_ORIGINS = ['https://ccodel9876.github.io'];
@@ -329,6 +330,47 @@ async function srLeagues(list, now) {
   for (const i of changed) await cacheSet(`sr:${list[i].key}`, res[i]);
   return res;
 }
+// Test von bigballsdata.com: Rohform der wichtigsten Antworten, gekürzt (≈7 Abfragen); dazu eine Sportradar-Aufstellung (1 Abfrage)
+let bbProbe = null;
+async function bbProbeRun(now) {
+  const key = Deno.env.get('BIGBALLS_KEY') || '';
+  if (!key) return { error: 'Secret BIGBALLS_KEY fehlt' };
+  if (bbProbe && now - bbProbe.at < 30 * 60 * 1000) return bbProbe.data;
+  const get = async (path) => {
+    const res = await fetch(`https://api.bigballsdata.com/v1/${path}`, { headers: { 'x-api-key': key }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
+    const text = await res.text();
+    let body; try { body = JSON.parse(text); } catch { body = text.slice(0, 400); }
+    return { status: res.status, body };
+  };
+  const cut = (r, n = 3) => ({ status: r.status, meta: r.body?.meta, pagination: r.body?.pagination, count: Array.isArray(r.body?.data) ? r.body.data.length : undefined,
+    data: Array.isArray(r.body?.data) ? r.body.data.slice(0, n) : r.body?.data ?? r.body });
+  const day = (d) => new Date(now - d * 864e5).toISOString().slice(0, 10);
+  const out = {};
+  const past = await get(`matches?league=epl&date=${day(2)}&limit=20`);
+  out.eplPast = cut(past);
+  out.eplSeason = cut(await get('matches?league=epl&season=2026&limit=200'), 2);
+  out.scores = cut(await get('scores?sport=football&date=today&limit=200'), 4);
+  const fin = (past.body?.data || []).find((m) => m.status === 'finished');
+  if (fin) {
+    out.events = cut(await get(`matches/${fin.id}/events?type=goals`), 6);
+    out.stats = cut(await get(`matches/${fin.id}/statistics`), 2);
+  }
+  const st = await get('standings?league=epl');
+  out.standings = { status: st.status, first: st.body?.data?.standings?.[0] && { ...st.body.data.standings[0], rows: st.body.data.standings[0].rows?.slice(0, 3) } };
+  out.topScorers = cut(await get('leagues/epl/top-scorers?limit=5'), 5);
+  out.leagues = cut(await get('leagues?sport=football'), 80);
+  // Sportradar: Aufstellung des letzten beendeten Premier-League-Spiels
+  try {
+    const sr = (await cacheGet('sr:sr:competition:17'))?.data?.matches || [];
+    const last = sr.filter((m) => m.st === 'ft').sort((a, b) => b.utc.localeCompare(a.utc))[0];
+    if (last && Deno.env.get('SPORTRADAR_KEY')) {
+      const lu = await srGet(`sport_events/${srUrn(last.id)}/lineups`);
+      out.srLineups = { match: `${last.h} – ${last.a}`, keys: Object.keys(lu || {}), home: (lu?.lineups?.competitors || lu?.competitors || [])[0] };
+    }
+  } catch (err) { out.srLineups = { error: String(err?.message || err) }; }
+  bbProbe = { data: out, at: now };
+  return out;
+}
 // Test: Saisons der drei Wettbewerbe (prüft Schlüssel und Wettbewerbs-IDs)
 let srProbe = null;
 async function srProbeRun(now) {
@@ -573,6 +615,10 @@ async function handle(req) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers });
   const params = new URL(req.url).searchParams;
+  if (params.has('bbprobe')) {
+    try { return new Response(JSON.stringify(await bbProbeRun(Date.now())), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
+  }
   if (params.has('srprobe')) {
     try { return new Response(JSON.stringify(await srProbeRun(Date.now())), { headers }); }
     catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
