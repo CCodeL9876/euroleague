@@ -147,7 +147,8 @@ if (unlocked()) {
   boot();
 } else {
   const key = new URLSearchParams(location.search).get('key');
-  if (!key && document.body.dataset.app) location.replace('../');   // Unterbereich ohne Anmeldung: zur Startseite
+  // Unterbereich ohne Anmeldung: zur Startseite, nach der Anmeldung zurück (el-next, siehe app.js enterApp)
+  if (!key && document.body.dataset.app) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../'); }
   else if (key) showPrompt(key);
   else if (sessionStorage.getItem('el-gate-relogin') === '1') { sessionStorage.removeItem('el-gate-relogin'); showRelinkNotice('Abgemeldet'); }
   // Als Homebildschirm-App gespeichert, aber (noch) nicht angemeldet: Link + Code direkt hier eingeben lassen –

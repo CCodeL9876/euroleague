@@ -15,7 +15,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* privates Fenster */ } },
 };
 // Ohne Profil zurück zum Basketball-Bereich (dort Anmeldung)
-if (!store.get('el-profile-name', '')) location.replace('../');
+if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../'); }
 
 // Lieblingsteams: genaue Teamnamen (lokal gespeichert, im Profilmenü wählbar). Ältere Geräte haben nur Stichwörter
 // (el-fb-fav) – die werden beim ersten Laden der Spiele in Teamnamen umgewandelt.
@@ -625,3 +625,8 @@ renderMenu();
 load();
 pullFav();
 setupPullToRefresh();
+
+// Eigene Web-App „Fussball“ (fussball/manifest.webmanifest): derselbe Offline-Speicher wie der Basketball-Bereich
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
+}

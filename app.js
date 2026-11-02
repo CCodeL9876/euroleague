@@ -189,6 +189,11 @@ function renderIntro() {
 }
 
 function enterApp() {
+  // Kam man aus einem Unterbereich (z. B. Fussball-App ohne Anmeldung): nach der Anmeldung dorthin zurück
+  let next = '';
+  try { next = sessionStorage.getItem('el-next') || ''; sessionStorage.removeItem('el-next'); } catch { /* privates Fenster */ }
+  const base = location.pathname.replace(/[^/]*$/, '');
+  if (next && next !== location.pathname && next.startsWith(base) && /^[\w\-/.]+$/.test(next)) { location.replace(next); return; }
   document.body.classList.remove('needs-profile');
   document.getElementById('profileGate')?.remove();
   boot();

@@ -2,13 +2,13 @@
 // aktuell ist); ohne Netz kommt der letzte Stand – bei den Spieldaten mit Kopfzeile „x-offline“, damit die Seite
 // „Offline – Stand von …“ anzeigt. Logos und Spielerfotos: zuerst aus dem Zwischenspeicher (ändern sich kaum).
 
-const CACHE = 'euroleague-v73';
+const CACHE = 'euroleague-v74';
 const IMAGES = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//;
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 const DATA = /\/functions\/v1\/euroleague/;
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', 'index.html', 'gate.js', 'app.js', 'style.css', 'config.js', 'theme-boot.js', 'news.json', 'icon.svg', 'manifest.webmanifest', 'fussball/', 'fussball/fussball.js', 'fussball/fussball.css'])).catch(() => {}));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', 'index.html', 'gate.js', 'app.js', 'style.css', 'config.js', 'theme-boot.js', 'news.json', 'icon.svg', 'manifest.webmanifest', 'fussball/', 'fussball/fussball.js', 'fussball/fussball.css', 'fussball/manifest.webmanifest', 'fussball/icon.svg'])).catch(() => {}));
   self.skipWaiting();
 });
 
