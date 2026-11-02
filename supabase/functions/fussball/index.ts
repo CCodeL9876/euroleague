@@ -5,13 +5,16 @@
 //   → { updated, season, leagues: [{ id, name, country, short, color, status: 'ok'|'nokey'|'error', message }],
 //       matches: [{ id, l, utc, round, h, a, hl, al, hs, as, st: 'pre'|'live'|'ht'|'ft'|'off', min, ht, goals? }] }
 //     Champions League, Bundesliga/2. Bundesliga: OpenLigaDB (frei, mit Torschützen). Premier League, Super League, Challenge League:
-//     live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
+//     Sportradar Soccer v4 (Secrets SPORTRADAR_KEY, SPORTRADAR_LEVEL = trial|production, SPORTRADAR_DAILY = Tagesgrenze, sonst 60):
+//     Saison-Spielplan pro Liga alle 12 Std., während Spielen alle 5 Min. die Live-Timelines (eine Abfrage, mit Torschützen),
+//     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
+//   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
 //   GET ?lfprobe=1 → Test von live-football-api.com (Secret LIVEFOOTBALL_KEY): Rohform von Spielplan/Spieldetails, höchstens alle 30 Min. neu
-//   GET ?fbgame=lf-123 | af-123456 → Torschützen eines live-football-api- bzw. API-Football-Spiels → { goals: [{ m, s, n }] } (nach Spielende dauerhaft gespeichert)
+//   GET ?fbgame=sr-123 | lf-123 | af-123456 → Torschützen eines live-football-api- bzw. API-Football-Spiels → { goals: [{ m, s, n }] } (nach Spielende dauerhaft gespeichert)
 //
-// Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): LIVEFOOTBALL_KEY, LIVEFOOTBALL_DAILY, APIFOOTBALL_KEY;
+// Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): SPORTRADAR_KEY, SPORTRADAR_LEVEL, SPORTRADAR_DAILY, LIVEFOOTBALL_KEY, LIVEFOOTBALL_DAILY, APIFOOTBALL_KEY;
 // SUPABASE_SERVICE_ROLE_KEY stellt Supabase selbst bereit (für die Tabelle el_fb_cache).
 
 const ALLOWED_ORIGINS = ['https://ccodel9876.github.io'];
@@ -35,11 +38,11 @@ async function getJson(url) {
 
 const FB_LEAGUES = [
   { id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', src: 'oldb', key: 'ucl' },
-  { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'lf', key: 1008 },
+  { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'sr', key: 'sr:competition:17', lf: 1008 },
   { id: 'bl1', name: 'Bundesliga', country: 'Deutschland', short: 'BL', color: '#D20515', src: 'oldb', key: 'bl1' },
   { id: 'bl2', name: '2. Bundesliga', country: 'Deutschland', short: '2B', color: '#5B6170', src: 'oldb', key: 'bl2' },
-  { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'lf', key: 8571 },
-  { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'lf', key: 8565 },
+  { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'sr', key: 'sr:competition:215', lf: 8571 },
+  { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'sr', key: 'sr:competition:216', lf: 8565 },
 ];
 const FB_IMG = /^https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|(www\.)?live-football-api\.com|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com)\//;
 // Wappen: bekannte Bild-Server (http wird zu https), kleine eingebettete Bilder (OpenLigaDB liefert manche als data:-Adresse)
@@ -123,7 +126,172 @@ async function afLeague(lg, season, now) {
     return data;
   }
 }
-// ---------- live-football-api.com (Premier League, Schweizer Ligen) ----------
+// ---------- Sportradar Soccer v4 (Premier League, Schweizer Ligen) ----------
+const srBase = () => `https://api.sportradar.com/soccer/${Deno.env.get('SPORTRADAR_LEVEL') || 'trial'}/v4/en`;
+const srDailyMax = () => Number(Deno.env.get('SPORTRADAR_DAILY')) || 60;
+const SR_LIVE_MS = 5 * 60 * 1000;
+async function srAllowed() {
+  const k = `srcount:${new Date().toISOString().slice(0, 10)}`;
+  const n = Number((await cacheGet(k))?.data) || 0;
+  if (n >= srDailyMax()) return false;
+  await cacheSet(k, n + 1);
+  return true;
+}
+// Test-Zugang: höchstens 1 Abfrage pro Sekunde, darum nacheinander mit Abstand
+let srLast = 0;
+async function srGet(path, params = {}) {
+  const wait = srLast + 1100 - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  srLast = Date.now();
+  const q = new URLSearchParams({ ...params, api_key: Deno.env.get('SPORTRADAR_KEY') || '' });
+  const res = await fetch(`${srBase()}/${path}.json?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
+  const d = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(String(d?.message || `HTTP ${res.status}`));
+  return d;
+}
+const srId = (urn) => `sr-${String(urn || '').split(':').pop()}`;
+const srUrn = (id) => `sr:sport_event:${String(id).replace(/^sr-/, '')}`;
+// Status: closed/ended = Ende, live mit match_status halftime = Pause, abgesagt/verschoben = off
+function srState(es) {
+  const st = String(es?.status || ''), ms = String(es?.match_status || '');
+  if (st === 'closed' || st === 'ended') return 'ft';
+  if (['postponed', 'cancelled', 'abandoned', 'suspended'].includes(st)) return 'off';
+  if (st === 'live' || st === 'started' || st === 'interrupted') return ms === 'halftime' || ms === 'extra_time_halftime' ? 'ht' : 'live';
+  return 'pre';
+}
+const srMin = (es) => { const p = /^(\d+)/.exec(String(es?.clock?.played || '')); return p ? Number(p[1]) || null : null; };
+// Tore aus einer Timeline (score_change), mit Torschütze, Elfmeter/Eigentor
+function srGoals(timeline) {
+  return (timeline || []).filter((e) => e.type === 'score_change').map((e) => {
+    const sc = (e.players || []).find((p) => p.type === 'scorer');
+    const extra = e.stoppage_time ? `+${e.stoppage_time}` : '';
+    return { m: `${e.match_time ?? ''}${extra}`, s: e.competitor === 'away' ? 2 : 1,
+      n: `${String(sc?.name || '').replace(/^(.+), (.+)$/, '$2 $1')}${e.method === 'penalty' ? ' (Pen.)' : e.method === 'own_goal' ? ' (Eigentor)' : ''}` };
+  });
+}
+export function mapSr(lg, sum) {
+  const ev = sum.sport_event || {}, es = sum.sport_event_status || {};
+  const comp = ev.competitors || [];
+  const home = comp.find((c) => c.qualifier === 'home') || comp[0] || {}, away = comp.find((c) => c.qualifier === 'away') || comp[1] || {};
+  const st = srState(es);
+  const p1 = (es.period_scores || []).find((p) => p.number === 1);
+  const rnd = ev.sport_event_context?.round;
+  return { id: srId(ev.id), l: lg.id, utc: new Date(ev.start_time).toISOString(), round: rnd?.number ? String(rnd.number) : String(rnd?.name || ''),
+    h: String(home.short_name || home.name || ''), a: String(away.short_name || away.name || ''), hl: '', al: '',
+    hs: st === 'pre' ? null : es.home_score ?? null, as: st === 'pre' ? null : es.away_score ?? null,
+    st, min: st === 'live' ? srMin(es) : null, ht: p1 ? `${p1.home_score}:${p1.away_score}` : '', note: st === 'off' ? String(es.status || '') : '' };
+}
+// Laufende (oder als nächste anstehende) Saison eines Wettbewerbs, einmal am Tag
+async function srSeason(lg, now) {
+  const ck = `srseason:${lg.key}`;
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < 24 * 3600 * 1000) return hit.data;
+  if (!(await srAllowed())) return hit?.data || null;
+  const d = await srGet(`competitions/${lg.key}/seasons`);
+  const today = new Date(now).toISOString().slice(0, 10);
+  const list = (d?.seasons || []).filter((x) => x.start_date && x.start_date <= today).sort((a, b) => b.start_date.localeCompare(a.start_date));
+  const cur = list.find((x) => !x.end_date || x.end_date >= today) || list[0];
+  const id = cur?.id || null;
+  if (id) await cacheSet(ck, id);
+  return id;
+}
+// Spielplan der Saison (bis 200 Spiele pro Abfrage), alle 12 Std.; Fehler nur 30 Min. merken
+async function srFixtures(lg, now) {
+  const ck = `sr:${lg.key}`;
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < (hit.data.status === 'ok' ? 12 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
+  try {
+    const season = await srSeason(lg, now);
+    if (!season) throw new Error('Keine laufende Saison gefunden');
+    const all = [];
+    for (let start = 0; start < 1000; start += 200) {
+      if (!(await srAllowed())) { if (!all.length) return hit?.data || { status: 'error', message: 'Tagesgrenze für Sportradar erreicht', matches: [] }; break; }
+      const d = await srGet(`seasons/${season}/summaries`, { start: String(start), limit: '200' });
+      const sums = d?.summaries || [];
+      all.push(...sums.map((x) => mapSr(lg, x)));
+      if (sums.length < 200) break;
+    }
+    // Bekannte Torschützen und Schlussstände aus dem alten Stand übernehmen
+    const old = new Map((hit?.data?.matches || []).map((m) => [m.id, m]));
+    for (const m of all) { const o = old.get(m.id); if (o?.goals && !m.goals) m.goals = o.goals; }
+    const data = { status: all.length ? 'ok' : 'error', message: all.length ? '' : 'Kein Spielplan erhalten', matches: all };
+    await cacheSet(ck, data);
+    return data;
+  } catch (err) {
+    const data = { status: 'error', message: String(err?.message || err).slice(0, 160), matches: hit?.data?.matches || [] };
+    await cacheSet(ck, data);
+    return data;
+  }
+}
+// Live-Timelines aller laufenden Spiele weltweit (eine Abfrage): Stand, Minute und Tore
+async function srLive(now) {
+  const ck = 'srlive';
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < SR_LIVE_MS) return hit.data;
+  if (!(await srAllowed())) return hit?.data || null;
+  try {
+    const d = await srGet('schedules/live/timelines');
+    const data = { list: (d?.sport_event_timelines || []).map((t) => ({ id: srId(t.id), es: t.sport_event_status || {}, goals: srGoals(t.timeline) })) };
+    await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || null; }
+}
+// Timeline eines Spiels: Torschützen; nach Spielende dauerhaft gespeichert
+async function srTimeline(id, now = Date.now()) {
+  const ck = `srev:${id}`;
+  const hit = await cacheGet(ck);
+  if (hit && (hit.data.final || now - hit.at < SR_LIVE_MS)) return hit.data;
+  if (!Deno.env.get('SPORTRADAR_KEY') || !(await srAllowed())) return hit?.data || null;
+  const d = await srGet(`sport_events/${srUrn(id)}/timeline`);
+  const es = d?.sport_event_status || {};
+  const data = { goals: srGoals(d?.timeline), final: srState(es) === 'ft', es };
+  await cacheSet(ck, data);
+  return data;
+}
+async function srLeagues(list, now) {
+  if (!Deno.env.get('SPORTRADAR_KEY')) return list.map(() => ({ status: 'nokey', message: 'Sportradar-Schlüssel fehlt', matches: [] }));
+  const res = [];
+  for (const lg of list) res.push(await srFixtures(lg, now)); // nacheinander (1 Abfrage/Sek.)
+  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) < now && now - Date.parse(m.utc) < 12 * 3600e3;
+  if (!res.some((r) => r.matches.some(open))) return res;
+  const live = res.some((r) => liveWindow(r.matches, now)) ? await srLive(now) : null;
+  const byId = new Map((live?.list || []).map((x) => [x.id, x]));
+  const changed = new Set();
+  for (let i = 0; i < res.length; i++) {
+    const arr = res[i].matches;
+    for (let j = 0; j < arr.length; j++) {
+      const m = arr[j];
+      if (!open(m)) continue;
+      let x = byId.get(m.id);
+      // Nicht (mehr) in der Live-Liste und seit über 100 Min. angepfiffen: wohl beendet, einmal die Timeline holen
+      if (!x && now - Date.parse(m.utc) > 100 * 60 * 1000) { const t = await srTimeline(m.id, now).catch(() => null); if (t) x = { es: t.es, goals: t.goals }; }
+      if (!x) continue;
+      const st = srState(x.es);
+      const p1 = (x.es.period_scores || []).find((p) => p.number === 1);
+      arr[j] = { ...m, st, hs: st === 'pre' ? null : x.es.home_score ?? m.hs, as: st === 'pre' ? null : x.es.away_score ?? m.as,
+        min: st === 'live' ? srMin(x.es) : null, ht: p1 ? `${p1.home_score}:${p1.away_score}` : m.ht, goals: x.goals };
+      if (st === 'ft') changed.add(i);
+    }
+  }
+  // Schlussresultate samt Torschützen in den Spielplan übernehmen
+  for (const i of changed) await cacheSet(`sr:${list[i].key}`, res[i]);
+  return res;
+}
+// Test: Saisons der drei Wettbewerbe (prüft Schlüssel und Wettbewerbs-IDs)
+let srProbe = null;
+async function srProbeRun(now) {
+  if (!Deno.env.get('SPORTRADAR_KEY')) return { error: 'Secret SPORTRADAR_KEY fehlt' };
+  if (srProbe && now - srProbe.at < 30 * 60 * 1000) return srProbe.data;
+  const out = {};
+  for (const lg of FB_LEAGUES.filter((l) => l.src === 'sr')) {
+    try { const d = await srGet(`competitions/${lg.key}/seasons`); out[lg.id] = (d?.seasons || []).slice(-3); }
+    catch (err) { out[lg.id] = { error: String(err?.message || err) }; }
+  }
+  srProbe = { data: out, at: now };
+  return out;
+}
+
+// ---------- live-football-api.com (Reserve) ----------
 const LF_BASE = 'https://live-football-api.com/api/v1';
 const lfDailyMax = () => Number(Deno.env.get('LIVEFOOTBALL_DAILY')) || 150;
 async function lfAllowed() {
@@ -171,7 +339,7 @@ async function lfFixtures(lg, now) {
   if (hit && now - hit.at < (hit.data.status === 'ok' ? 6 * 3600 * 1000 : 15 * 60 * 1000)) return hit.data;
   if (!(await lfAllowed())) return hit?.data || { status: 'error', message: 'Tagesgrenze für live-football-api erreicht', matches: [] };
   try {
-    const d = await lfGet('league_fixtures', { league_id: String(lg.key) });
+    const d = await lfGet('league_fixtures', { league_id: String(lg.lf ?? lg.key) });
     const weeks = Array.isArray(d?.weeks) ? d.weeks : [];
     const matches = weeks.flatMap((w) => (w.matches || []).map((m) => mapLf(lg, { week: w.week ?? w.name, ...m }, w.date))).filter((m) => m.utc);
     const data = { status: matches.length ? 'ok' : 'error', message: matches.length ? '' : 'Kein Spielplan erhalten', matches };
@@ -192,7 +360,7 @@ async function lfToday(now, ttl) {
   if (!(await lfAllowed())) return hit?.data || null;
   try {
     const d = await lfGet('matches', { date: day });
-    const ids = new Set(FB_LEAGUES.filter((lg) => lg.src === 'lf').map((lg) => Number(lg.key)));
+    const ids = new Set(FB_LEAGUES.filter((lg) => lg.src === 'lf').map((lg) => Number(lg.lf ?? lg.key)));
     const data = { day, matches: (d?.matches || []).filter((m) => ids.has(Number(m.league?.id))) };
     await cacheSet(ck, data);
     return data;
@@ -207,7 +375,7 @@ async function lfLeagues(list, now) {
     const today = await lfToday(now, res.some((r) => liveWindow(r.matches, now)) ? 60 * 1000 : 10 * 60 * 1000);
     const changed = new Set();
     for (const m of today?.matches || []) {
-      const i = list.findIndex((lg) => Number(lg.key) === Number(m.league?.id));
+      const i = list.findIndex((lg) => Number(lg.lf ?? lg.key) === Number(m.league?.id));
       if (i < 0) continue;
       const fresh = mapLf(list[i], m, today.day);
       const arr = res[i].matches;
@@ -278,18 +446,20 @@ async function oldbLeague(lg, season, now) {
 async function fbOverview(now) {
   const season = fbSeason(new Date(now));
   const fail = () => ({ status: 'error', message: 'Fehler', matches: [] });
-  const lfList = FB_LEAGUES.filter((lg) => lg.src === 'lf');
-  const [other, lfRes] = await Promise.all([
+  const lfList = FB_LEAGUES.filter((lg) => lg.src === 'lf'), srList = FB_LEAGUES.filter((lg) => lg.src === 'sr');
+  const [other, lfRes, srRes] = await Promise.all([
     Promise.all(FB_LEAGUES.map((lg) => (lg.src === 'af' ? afLeague(lg, season, now) : lg.src === 'oldb' ? oldbLeague(lg, season, now) : null)).map((p) => p && p.catch(fail))),
-    lfLeagues(lfList, now).catch(() => lfList.map(fail)),
+    lfList.length ? lfLeagues(lfList, now).catch(() => lfList.map(fail)) : [],
+    srList.length ? srLeagues(srList, now).catch(() => srList.map(fail)) : [],
   ]);
-  const res = FB_LEAGUES.map((lg, i) => (lg.src === 'lf' ? lfRes[lfList.indexOf(lg)] : other[i]));
+  const res = FB_LEAGUES.map((lg, i) => (lg.src === 'lf' ? lfRes[lfList.indexOf(lg)] : lg.src === 'sr' ? srRes[srList.indexOf(lg)] : other[i]));
   const from = now - 14 * 864e5, to = now + 15 * 864e5;
   return { updated: new Date(now).toISOString(), season,
     leagues: FB_LEAGUES.map((lg, i) => ({ id: lg.id, name: lg.name, country: lg.country, short: lg.short, color: lg.color, status: res[i].status, message: res[i].message })),
     matches: res.flatMap((r) => r.matches.filter((m) => { const t = Date.parse(m.utc); return t >= from && t <= to; })) };
 }
 async function fbGame(id) {
+  if (/^sr-\d+$/.test(String(id))) { const t = await srTimeline(String(id)); return { goals: t?.goals || [], final: !!t?.final }; }
   if (/^lf-[\w-]+$/.test(String(id))) return lfGame(String(id).slice(3));
   const fx = Number(String(id).replace(/^af-/, ''));
   if (!Number.isInteger(fx) || fx <= 0) throw new Error('ungültig');
@@ -338,6 +508,10 @@ async function handle(req) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers });
   const params = new URL(req.url).searchParams;
+  if (params.has('srprobe')) {
+    try { return new Response(JSON.stringify(await srProbeRun(Date.now())), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
+  }
   if (params.has('lfprobe')) {
     try { return new Response(JSON.stringify(await lfProbeRun(Date.now())), { headers }); }
     catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }

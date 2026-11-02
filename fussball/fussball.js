@@ -1,6 +1,6 @@
 // Fussball-Bereich: Spielübersicht (Resultate und anstehende Spiele) pro Tag, nach Liga gruppiert, eigene Teams oben.
 // Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): Champions League und Bundesligen aus OpenLigaDB, Premier League und
-// Schweizer Ligen aus live-football-api.com. Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
+// Schweizer Ligen aus Sportradar. Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 
@@ -155,7 +155,7 @@ function render() {
   list.innerHTML = liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
-  $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Champions League und Bundesligen: OpenLigaDB · Premier League und Schweiz: live-football-api.com`;
+  $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Champions League und Bundesligen: OpenLigaDB · Premier League und Schweiz: Sportradar`;
 }
 
 async function load() {
