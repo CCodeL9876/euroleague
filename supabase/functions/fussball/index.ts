@@ -7,6 +7,7 @@
 //     Champions League, Bundesliga/2. Bundesliga: OpenLigaDB (frei, mit Torschützen). Premier League, Super League, Challenge League:
 //     API-Football (Secret APIFOOTBALL_KEY; Gratis-Plan 100 Abfragen/Tag) – eine Abfrage pro Liga und ganze Saison,
 //     zwischengespeichert in der Tabelle el_fb_cache (alle 15 Min. während Spielen, sonst alle 6 Std.).
+//   GET ?lfprobe=1 → Test von live-football-api.com (Secret LIVEFOOTBALL_KEY): passende Ligen + Beispielspiele, höchstens alle 30 Min. neu
 //   GET ?fbgame=af-123456 → Torschützen eines API-Football-Spiels → { goals: [{ m, s, n }] } (nach Spielende dauerhaft gespeichert)
 //
 // Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): APIFOOTBALL_KEY;
@@ -181,12 +182,40 @@ async function fbGame(id) {
   return data;
 }
 
+// Test von live-football-api.com: welche Ligen (England, Schweiz, Champions League) gibt es, wie sehen Spiele aus? (3 Abfragen)
+let lfProbe = null;
+async function lfProbeRun(now) {
+  const key = Deno.env.get('LIVEFOOTBALL_KEY') || '';
+  if (!key) return { error: 'Secret LIVEFOOTBALL_KEY fehlt' };
+  if (lfProbe && now - lfProbe.at < 30 * 60 * 1000) return lfProbe.data;
+  const get = async (path) => {
+    const res = await fetch(`https://live-football-api.com/api/v1/${path}${path.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
+    const text = await res.text();
+    try { return { status: res.status, body: JSON.parse(text) }; } catch { return { status: res.status, body: text.slice(0, 500) }; }
+  };
+  const want = /switzerland|swiss|schweiz|super league|challenge league|premier league|england|champions league|uefa/i;
+  const leagues = await get('leagues');
+  const list = Array.isArray(leagues.body) ? leagues.body : leagues.body?.data || leagues.body?.leagues || leagues.body?.response || [];
+  const found = Array.isArray(list) ? list.filter((l) => want.test(JSON.stringify(l).slice(0, 400))).slice(0, 40) : [];
+  const day = (d) => new Date(now - d * 864e5).toISOString().slice(0, 10);
+  const [past, today] = await Promise.all([get(`matches?date=${day(2)}`), get(`matches?date=${day(0)}`)]);
+  const sample = (r) => { const b = r.body; const arr = Array.isArray(b) ? b : b?.data || b?.matches || b?.response; return { status: r.status, count: Array.isArray(arr) ? arr.length : null, first: Array.isArray(arr) ? arr.slice(0, 2) : b }; };
+  const data = { leaguesStatus: leagues.status, leaguesTotal: Array.isArray(list) ? list.length : null, leaguesFound: found, leaguesRaw: Array.isArray(list) ? undefined : leagues.body,
+    matchesPast: sample(past), matchesToday: sample(today) };
+  lfProbe = { data, at: now };
+  return data;
+}
+
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers });
   const params = new URL(req.url).searchParams;
+  if (params.has('lfprobe')) {
+    try { return new Response(JSON.stringify(await lfProbeRun(Date.now())), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
+  }
   if (params.has('fbgame')) {
     try {
       return new Response(JSON.stringify(await fbGame(params.get('fbgame'))), { headers });
