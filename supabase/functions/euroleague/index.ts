@@ -49,7 +49,7 @@
 //   GET ?videos=1 → Videos des offiziellen YouTube-Kanals «EUROLEAGUE BASKETBALL», den Spielen zugeordnet:
 //   → { updated, games: { "86": [{ id, t: Titel, k: 'main'|'last5'|'player'|'pre'|'other', d: Sekunden, at }] } }
 //     Braucht das Secret YOUTUBE_KEY (YouTube Data API v3); ohne Schlüssel { games: {} }. Liest die Uploads-Liste
-//     des Kanals (1 Einheit pro 50 Videos) und hält die Zuordnung in der Tabelle el_fb_cache (wie die Funktion fussball),
+//     des Kanals (1 Einheit pro 50 Videos, nur bis zum zuletzt gesehenen Upload) und hält die Zuordnung in der Tabelle el_fb_cache (wie die Funktion fussball),
 //     damit auch ältere Spieltage ihre Videos behalten.
 //
 // Quelle sind die öffentlichen Schnittstellen der EuroLeague: der Spielplan der Saison (api-live.euroleague.net) und
@@ -601,15 +601,18 @@ async function videosOf(season, now) {
   // Gleichzeitige Aufrufe teilen sich einen Abruf
   videoLoading ||= (async () => {
     try {
-      // Beim ersten Mal 200 Uploads (rund zwei Wochen), danach reichen die neusten 50
-      const pages = stored ? 1 : 4;
+      // Neuste Uploads zuerst; weiterblättern, bis ein schon bekanntes Video kommt (seen = jüngster Upload beim letzten
+      // Abruf), höchstens 4 Seiten = 200 Uploads (rund zwei Wochen). So fehlt auch nach Tagen ohne Aufruf nichts.
+      const seen = Date.parse(stored?.seen || '') || 0;
+      const uploadAt = (it) => Date.parse(it.contentDetails?.videoPublishedAt || it.snippet?.publishedAt || '') || 0;
       const items = [];
       let token = '';
-      for (let i = 0; i < pages; i++) {
+      for (let i = 0; i < 4; i++) {
         const d = await ytGet(`playlistItems?part=contentDetails,snippet&maxResults=50&playlistId=${YT_UPLOADS}${token ? `&pageToken=${token}` : ''}`, key);
-        items.push(...(d.items || []));
+        const page = d.items || [];
+        items.push(...page.filter((it) => uploadAt(it) > seen));
         token = d.nextPageToken || '';
-        if (!token) break;
+        if (!token || page.some((it) => uploadAt(it) <= seen)) break;
       }
       const ids = items.map((it) => it.contentDetails?.videoId).filter(Boolean);
       const dur = new Map();
@@ -621,7 +624,8 @@ async function videosOf(season, now) {
         at: Date.parse(it.contentDetails?.videoPublishedAt || it.snippet?.publishedAt || ''), d: dur.get(it.contentDetails?.videoId) || 0 }))
         .filter((v) => v.id && Number.isFinite(v.at));
       const payload = await buildPayload(await loadSchedule(season), now, async () => null);
-      const data = { updated: new Date().toISOString(), games: mergeVideos(stored?.games, matchVideos(videos, payload)) };
+      const newest = Math.max(seen, ...videos.map((v) => v.at));
+      const data = { updated: new Date().toISOString(), seen: newest ? new Date(newest).toISOString() : '', games: mergeVideos(stored?.games, matchVideos(videos, payload)) };
       await videoCacheSet(ck, data);
       return data;
     } catch (err) {
