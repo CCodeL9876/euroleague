@@ -153,10 +153,11 @@ body.fb-sheet-open{overflow:hidden;}
 .fb-tab td.pts{font-weight:700;}
 .fb-tab tr.z-cl td.pos{box-shadow:inset 3px 0 0 #3E7BFA;} .fb-tab tr.z-el td.pos{box-shadow:inset 3px 0 0 #F59E0B;}
 .fb-tab tr.z-co td.pos{box-shadow:inset 3px 0 0 var(--pitch-hi);} .fb-tab tr.z-ab td.pos{box-shadow:inset 3px 0 0 var(--coral);}
+.fb-tab tr.z-clq td.pos{box-shadow:inset 3px 0 0 #93B4FF;} .fb-tab tr.z-rel td.pos{box-shadow:inset 3px 0 0 #F2A3A8;}
 .fb-tab tr.fav .nm::after, .fb-scr.fav .who b::after{content:" ★";color:var(--gold);}
 .fb-zones{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 4px 0;font-size:0.68rem;color:var(--dim);}
 .fb-zones span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;}
-.fb-zones .z-cl::before{background:#3E7BFA;} .fb-zones .z-el::before{background:#F59E0B;} .fb-zones .z-co::before{background:var(--pitch-hi);} .fb-zones .z-ab::before{background:var(--coral);}
+.fb-zones .z-cl::before{background:#3E7BFA;} .fb-zones .z-el::before{background:#F59E0B;} .fb-zones .z-co::before{background:var(--pitch-hi);} .fb-zones .z-ab::before{background:var(--coral);} .fb-zones .z-clq::before{background:#93B4FF;} .fb-zones .z-rel::before{background:#F2A3A8;}
 .fb-sc-head, .fb-scr{display:grid;grid-template-columns:24px minmax(0,1fr) 44px 44px;gap:8px;align-items:center;}
 .fb-sc-head{font-size:0.68rem;color:var(--dim);padding:0 8px 6px;} .fb-sc-head span:nth-child(n+3){text-align:center;}
 .fb-scr{padding:8px;border-top:1px solid var(--line);font-size:0.86rem;background:var(--card);}

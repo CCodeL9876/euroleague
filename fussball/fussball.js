@@ -42,8 +42,9 @@ const goalsCache = new Map();
 const detailTab = new Map(); // Premier League aufgeklappt: 'goals' | 'lineup' | 'stats'
 const detailCache = new Map(); // `${id}|${kind}` → Antwort von ?fbdetail=
 const lastFlaps = new Map();
-// Blatt von unten mit Tabelle und Torschützen (zurzeit Premier League)
-const TABLE_LEAGUES = new Set(['pl']);
+// Blatt von unten mit Tabelle und Torschützen (grosse Ligen)
+const ZONE_NAME = { cl: 'Champions League', clq: 'CL-Qualifikation', el: 'Europa League', co: 'Conference League', rel: 'Relegation', ab: 'Abstieg' };
+const TABLE_LEAGUES = new Set(['pl', 'bl1', 'laliga', 'seriea', 'ligue1']);
 const leagueCache = new Map(); // `${id}|${kind}` → Antwort von ?fbleague=
 let sheet = null; // { id, tab: 'table' | 'scorers' } // Spielstand-Zeichen der letzten Anzeige: geänderte Blätter klappen um
 
@@ -223,7 +224,7 @@ function sheetBody(id, tab) {
   return `<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tore">Tore</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
     <tbody>${d.rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}"><td class="pos">${esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span></span></td>
       <td>${esc(r.p)}</td><td>${esc(r.gf)}:${esc(r.ga)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>
-    <p class="fb-zones"><span class="z-cl">Champions League</span><span class="z-el">Europa League</span><span class="z-co">Conference League</span><span class="z-ab">Abstieg</span></p><p class="fb-x-src">Quelle: Big Balls</p>`;
+    <p class="fb-zones">${(d.zones || []).map((z) => `<span class="z-${z[2]}">${ZONE_NAME[z[2]] || ''}</span>`).join('')}</p><p class="fb-x-src">Quelle: Big Balls</p>`;
 }
 function renderSheet() {
   let el = $('#fbSheet');

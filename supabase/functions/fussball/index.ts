@@ -13,7 +13,7 @@
 //     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, Neuaufsteiger dort ergänzen). Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
-//   GET ?fbleague=pl&kind=table|scorers → Tabelle bzw. Torschützenliste (Big Balls); Tabelle alle 30 Min. (Spieltag) bzw. 3 Std., Torschützen alle 6 Std.
+//   GET ?fbleague=pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste (Big Balls); Tabelle alle 30 Min. (Spieltag) bzw. 3 Std., Torschützen alle 6 Std.
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Sportradar) bzw. Teamstatistik (Big Balls) eines Premier-League-Spiels
 //   GET ?bbprobe=1 → Test von bigballsdata.com (Secret BIGBALLS_KEY): Rohform von Spielen, Live-Feed, Toren, Tabelle, Statistik (≈7 Abfragen), höchstens alle 30 Min.
 //   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
@@ -256,7 +256,14 @@ async function bbGame(id) {
   return data;
 }
 // Tabelle und Torschützen einer Big-Balls-Liga (zurzeit Premier League)
-const BB_TABLE = { pl: { key: 'epl', scorers: 'epl', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] } };
+// Zonen: [von, bis, Art] – cl/el/co = Europacup-Plätze, rel = Relegation, ab = Abstieg (Stand Saison 26/27, ohne Sonderfälle wie Pokalsieger)
+const BB_TABLE = {
+  pl: { key: 'epl', scorers: 'epl', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
+  bl1: { key: 'bundesliga', scorers: 'bundesliga', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [16, 16, 'rel'], [17, 18, 'ab']] },
+  laliga: { key: 'laliga', scorers: 'laliga', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
+  seriea: { key: 'seriea', scorers: 'serie-a', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
+  ligue1: { key: 'ligue1', scorers: 'ligue-1', zones: [[1, 3, 'cl'], [4, 4, 'clq'], [5, 5, 'el'], [6, 6, 'co'], [16, 16, 'rel'], [17, 18, 'ab']] },
+};
 async function fbLeague(id, kind, now = Date.now()) {
   const cfg = BB_TABLE[id];
   if (!cfg || !Deno.env.get('BIGBALLS_KEY')) return { available: false };
