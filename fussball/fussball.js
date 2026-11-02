@@ -82,7 +82,8 @@ const zDate = (d) => { const o = zParts(d, { year: 'numeric', month: '2-digit', 
 const zTime = (d) => { const o = zParts(d, { hour: '2-digit', minute: '2-digit' }); return `${o.hour}:${o.minute}`; };
 const isFavName = (n) => { const k = String(n ?? '').toLowerCase(); return FAV ? FAV.has(k) : LEGACY_FAV.some((w) => k.includes(w)); };
 const isFav = (m) => isFavName(m.h) || isFavName(m.a);
-const logo = (u) => `<span class="fb-logo">${/^(https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|(www\.)?live-football-api\.com|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com|api\.bigballsdata\.com\/v1\/assets)\/|data:image\/(png|jpeg|gif|webp);base64,)/.test(u || '') ? `<img src="${esc(u)}" alt="" loading="lazy">` : ''}</span>`;
+const LOGO_OK = /^(https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|(www\.)?live-football-api\.com|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com|api\.bigballsdata\.com\/v1\/assets)\/|data:image\/(png|jpeg|gif|webp);base64,)/;
+const logo = (u) => `<span class="fb-logo">${LOGO_OK.test(u || '') ? `<img src="${esc(u)}" alt="" loading="lazy">` : ''}</span>`;
 
 let data = null, error = '', sel = '', mineOnly = false, timer = 0;
 const open = new Set();
@@ -144,7 +145,9 @@ function pitchHtml(m, d) {
       return `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"><span class="sh">${esc(p.no)}</span><span class="nm">${esc(lastName(p.n))}</span></div>`;
     }).join('');
   }).join('');
-  return `<div class="fb-pitch" role="img" aria-label="Aufstellung ${esc(m.h)} ${esc(d.home.formation)} gegen ${esc(m.a)} ${esc(d.away.formation)}">
+  // Vereinswappen als Wasserzeichen in der jeweiligen Hälfte
+  const wm = (u, pos) => (LOGO_OK.test(u || '') ? `<span class="wm ${pos}" aria-hidden="true"><img src="${esc(u)}" alt=""></span>` : '');
+  return `<div class="fb-pitch" role="img" aria-label="Aufstellung ${esc(m.h)} ${esc(d.home.formation)} gegen ${esc(m.a)} ${esc(d.away.formation)}">${wm(m.al, 'top')}${wm(m.hl, 'bot')}
     <svg class="lines" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="75" x2="100" y2="75"/><circle cx="50" cy="75" r="11"/>
       <rect x="22" y="0" width="56" height="20"/><rect x="36" y="0" width="28" height="7"/><rect x="22" y="130" width="56" height="20"/><rect x="36" y="143" width="28" height="7"/></svg>
     <span class="fm top">${logo(m.al)}${esc(d.away.formation)}</span><span class="fm bot">${logo(m.hl)}${esc(d.home.formation)}</span>
