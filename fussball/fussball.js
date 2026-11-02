@@ -1,6 +1,6 @@
 // Fussball-Bereich: Spielübersicht (Resultate und anstehende Spiele) pro Tag, nach Liga gruppiert, eigene Teams oben.
-// Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): Champions League und Bundesligen aus OpenLigaDB, Premier League und
-// Schweizer Ligen aus Sportradar. Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
+// Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): grosse Ligen, Champions League und Nationalteams aus Big Balls,
+// 2. Bundesliga aus OpenLigaDB, Schweizer Ligen aus Sportradar. Premier League mit Aufstellung und Teamstatistik (?fbdetail=). Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 
@@ -34,11 +34,13 @@ const zDate = (d) => { const o = zParts(d, { year: 'numeric', month: '2-digit', 
 const zTime = (d) => { const o = zParts(d, { hour: '2-digit', minute: '2-digit' }); return `${o.hour}:${o.minute}`; };
 const isFavName = (n) => FAV.some((k) => String(n).toLowerCase().includes(k));
 const isFav = (m) => isFavName(m.h) || isFavName(m.a);
-const logo = (u) => `<span class="fb-logo">${/^(https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|(www\.)?live-football-api\.com|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com)\/|data:image\/(png|jpeg|gif|webp);base64,)/.test(u || '') ? `<img src="${esc(u)}" alt="" loading="lazy">` : ''}</span>`;
+const logo = (u) => `<span class="fb-logo">${/^(https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|(www\.)?live-football-api\.com|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com|api\.bigballsdata\.com\/v1\/assets)\/|data:image\/(png|jpeg|gif|webp);base64,)/.test(u || '') ? `<img src="${esc(u)}" alt="" loading="lazy">` : ''}</span>`;
 
 let data = null, error = '', sel = '', mineOnly = false, timer = 0;
 const open = new Set();
 const goalsCache = new Map();
+const detailTab = new Map(); // Premier League aufgeklappt: 'goals' | 'lineup' | 'stats'
+const detailCache = new Map(); // `${id}|${kind}` → Antwort von ?fbdetail=
 const lastFlaps = new Map(); // Spielstand-Zeichen der letzten Anzeige: geänderte Blätter klappen um
 
 function dayLabel(key) {
@@ -66,6 +68,47 @@ function goalsHtml(m) {
     + (m.ht ? `<span class="fb-ht">Halbzeit ${esc(m.ht)}</span>` : '');
 }
 
+// Premier League: Reiter Tore · Aufstellung · Statistik im aufgeklappten Spiel
+const hasExtra = (m) => m.l === 'pl';
+function lineupHtml(m) {
+  const d = detailCache.get(`${m.id}|lineup`);
+  if (!d) return '<p class="fb-x-note">Lade Aufstellung …</p>';
+  if (!d.available || !d.home || !d.away) return `<p class="fb-x-note">${esc(d.message || 'Keine Aufstellung verfügbar.')}</p>`;
+  const n = Math.max(d.home.start.length, d.away.start.length);
+  const rows = Array.from({ length: n }, (_, i) => { const h = d.home.start[i], a = d.away.start[i];
+    return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${esc(h.n)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${esc(a.n)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
+  return `<div class="fb-lu"><div class="fb-lu-head"><span>${logo(m.hl)}${esc(d.home.formation)}</span><span>${esc(d.away.formation)}${logo(m.al)}</span></div>${rows}
+    <div class="fb-bench"><b>Ersatz</b><span>${esc(d.home.bench.join(', '))}</span><span class="r">${esc(d.away.bench.join(', '))}</span></div>
+    <p class="fb-x-src">${d.home.coach || d.away.coach ? `Trainer: ${esc(d.home.coach)} · ${esc(d.away.coach)} · ` : ''}Aufstellung: Sportradar</p></div>`;
+}
+function statsHtml(m) {
+  const d = detailCache.get(`${m.id}|stats`);
+  if (!d) return '<p class="fb-x-note">Lade Statistik …</p>';
+  if (!d.available || !d.home || !d.away) return `<p class="fb-x-note">${m.st === 'pre' ? 'Die Statistik gibt es nach dem Spiel.' : 'Statistik folgt etwa 30 Minuten nach Spielende.'}</p>`;
+  const pct = (x) => (x.passes ? Math.round((x.acc / x.passes) * 100) : null);
+  const lines = [['Ballbesitz', d.home.poss, d.away.poss, '%'], ['Schüsse', d.home.shots, d.away.shots], ['Aufs Tor', d.home.on, d.away.on], ['Ecken', d.home.corners, d.away.corners],
+    ['Fouls', d.home.fouls, d.away.fouls], ['Gelbe Karten', d.home.yellow, d.away.yellow], ['Rote Karten', d.home.red, d.away.red], ['Pässe', d.home.passes, d.away.passes],
+    ['Passquote', pct(d.home), pct(d.away), '%'], ['Paraden', d.home.saves, d.away.saves]].filter((l) => l[1] != null && l[2] != null && !(l[0] === 'Rote Karten' && !l[1] && !l[2]));
+  return `<div class="fb-stats">${lines.map(([n, a, b, u = '']) => { const t = (Number(a) || 0) + (Number(b) || 0), p = t ? Math.round(((Number(a) || 0) / t) * 100) : 50;
+    return `<div class="fb-st-row"><span class="v">${esc(a)}${u ? ` ${u}` : ''}</span><span class="n">${esc(n)}</span><span class="v r">${esc(b)}${u ? ` ${u}` : ''}</span><span class="bar"><i style="width:${p}%"></i><i class="b" style="width:${100 - p}%"></i></span></div>`; }).join('')}
+    <p class="fb-x-src">Statistik: Big Balls</p></div>`;
+}
+function extraHtml(m) {
+  const tab = detailTab.get(m.id) || 'goals';
+  const seg = `<div class="fb-seg" role="tablist">${[['goals', 'Tore'], ['lineup', 'Aufstellung'], ['stats', 'Statistik']].map(([k, t]) => `<button type="button" role="tab" data-act="fb-tab" data-id="${esc(m.id)}" data-tab="${k}" aria-selected="${tab === k}">${t}</button>`).join('')}</div>`;
+  const body = tab === 'lineup' ? lineupHtml(m) : tab === 'stats' ? statsHtml(m) : `<div class="fb-detail fb-detail-in">${goalsHtml(m)}</div>`;
+  return `<div class="fb-x">${seg}${body}</div>`;
+}
+async function loadDetail(m, kind) {
+  const k = `${m.id}|${kind}`;
+  if (detailCache.has(k) && (m.st === 'ft' || detailCache.get(k)?.available)) return;
+  try {
+    const res = await fetch(`${DATA_URL}?fbdetail=${encodeURIComponent(m.id)}&kind=${kind}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(30000) });
+    detailCache.set(k, await res.json());
+  } catch { detailCache.set(k, { available: false, message: 'Gerade nicht erreichbar.' }); }
+  render();
+}
+
 function row(m) {
   const done = m.hs != null && m.as != null;
   const hw = m.st === 'ft' && m.hs > m.as, aw = m.st === 'ft' && m.as > m.hs;
@@ -75,7 +118,7 @@ function row(m) {
     <span class="fb-teams"><span class="fb-t${hw ? ' win' : aw ? ' lose' : ''}${isFavName(m.h) ? ' fav' : ''}">${logo(m.hl)}<span>${esc(m.h)}</span></span>
       <span class="fb-t${aw ? ' win' : hw ? ' lose' : ''}${isFavName(m.a) ? ' fav' : ''}">${logo(m.al)}<span>${esc(m.a)}</span></span></span>
     <span class="fb-sc">${done ? `<span class="${aw ? 'lose' : ''}">${m.hs}</span><span class="${hw ? 'lose' : ''}">${m.as}</span>` : ''}</span>
-    <span class="fb-chev" aria-hidden="true">›</span></button>${ex ? `<div class="fb-detail">${goalsHtml(m)}</div>` : ''}`;
+    <span class="fb-chev" aria-hidden="true">›</span></button>${ex ? (hasExtra(m) ? extraHtml(m) : `<div class="fb-detail">${goalsHtml(m)}</div>`) : ''}`;
 }
 
 // Live-Tafel zuoberst: alle laufenden Spiele (unabhängig vom gewählten Tag) als Fallblatt-Anzeige wie im Basketball-Bereich
@@ -155,7 +198,7 @@ function render() {
   list.innerHTML = liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
-  $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Champions League und Bundesligen: OpenLigaDB · Premier League und Schweiz: Sportradar`;
+  $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
 }
 
 async function load() {
@@ -258,6 +301,13 @@ document.addEventListener('click', (e) => {
   if (act === 'copy-link') { menuOpen = false; renderMenu(); copyLink(); return; }
   if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../'; return; }
   if (act === 'logout') { logout(); return; }
+  if (act === 'fb-tab') {
+    const el = e.target.closest('[data-tab]'), m = data?.matches.find((x) => x.id === el.dataset.id);
+    if (!m) return;
+    detailTab.set(m.id, el.dataset.tab); render();
+    if (el.dataset.tab !== 'goals') loadDetail(m, el.dataset.tab);
+    return;
+  }
   if (act === 'fb-live') {
     // Zum Spiel in der Liste springen und Torschützen aufklappen
     const m = data?.matches.find((x) => x.id === e.target.closest('[data-id]').dataset.id);

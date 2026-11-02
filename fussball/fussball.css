@@ -99,6 +99,31 @@ body:not(.unlocked) .fb{display:none;}
 .fb-tick.new{background:color-mix(in srgb, var(--pitch) 16%, transparent);}
 .fb-tick.new .fb-tick-min, .fb-tick.new .fb-tick-sc{color:var(--pitch-hi);}
 
+/* Premier League aufgeklappt: Reiter Tore · Aufstellung · Statistik */
+.fb-x{border-bottom:1px solid var(--line);padding:6px 0 12px;}
+.fb-seg{display:flex;gap:6px;margin:4px 12px 10px;padding:4px;border-radius:14px;background:color-mix(in srgb, var(--bg) 55%, var(--card));}
+.fb-seg button{flex:1;min-height:36px;border:0;border-radius:10px;background:transparent;color:var(--dim);font:inherit;font-size:0.84rem;font-weight:600;cursor:pointer;}
+.fb-seg button[aria-selected="true"]{background:var(--pitch);color:#fff;}
+.fb-detail.fb-detail-in{border-bottom:0;padding-bottom:0;}
+.fb-x-note{margin:4px 14px;color:var(--dim);font-size:0.84rem;}
+.fb-x-src{margin:8px 0 0;font-size:0.66rem;color:var(--faint);}
+.fb-lu{padding:0 12px;font-size:0.8rem;}
+.fb-lu-head{display:flex;justify-content:space-between;font-weight:600;font-size:0.78rem;color:var(--dim);margin-bottom:4px;}
+.fb-lu-head span{display:flex;align-items:center;gap:6px;} .fb-lu-head .fb-logo{width:18px;height:18px;}
+.fb-lu-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:4px 0;border-top:1px solid var(--line);}
+.fb-lu-row span{display:flex;gap:6px;align-items:baseline;white-space:nowrap;overflow:hidden;}
+.fb-lu-row span:last-child{justify-content:flex-end;}
+.fb-lu-row b{font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--dim);min-width:18px;} .fb-lu-row span:last-child b{text-align:right;}
+.fb-lu-row i{font-style:normal;font-size:0.62rem;color:var(--faint);}
+.fb-bench{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:8px;font-size:0.72rem;color:var(--dim);}
+.fb-bench b{grid-column:1 / -1;color:var(--text);font-size:0.74rem;} .fb-bench .r{text-align:right;}
+.fb-stats{padding:0 12px;}
+.fb-st-row{display:grid;grid-template-columns:56px 1fr 56px;row-gap:3px;align-items:center;padding:5px 0;font-size:0.8rem;}
+.fb-st-row .v{font-weight:700;font-variant-numeric:tabular-nums;} .fb-st-row .r{text-align:right;}
+.fb-st-row .n{text-align:center;color:var(--dim);font-size:0.74rem;}
+.fb-st-row .bar{grid-column:1 / -1;display:flex;gap:3px;height:6px;}
+.fb-st-row .bar i{height:100%;border-radius:3px;background:var(--pitch-hi);} .fb-st-row .bar i.b{background:#7DA9FF;}
+
 /* Leiste unten: Spiele | Meine | Basketball (wie die Leiste im Basketball-Bereich) */
 body{padding-bottom:calc(100px + env(safe-area-inset-bottom, 0px));}
 body:not(.unlocked) .fb-tabs{display:none;}
