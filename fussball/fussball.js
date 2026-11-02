@@ -51,7 +51,7 @@ function dayLabel(key) {
 function status(m) {
   if (m.st === 'ft') return '<span class="fb-st ft">Ende</span>';
   if (m.st === 'ht') return '<span class="fb-st live">HZ</span>';
-  if (m.st === 'live') return `<span class="fb-st live">${m.min ? `${m.min}'` : 'Live'}</span>`;
+  if (m.st === 'live') return `<span class="fb-st live">${m.min ? `${m.min}'` : '<i class="live-dot" aria-hidden="true"></i>Live'}</span>`;
   if (m.st === 'off') return `<span class="fb-st off">${esc(/postpon/i.test(m.note) ? 'Verschoben' : /cancel/i.test(m.note) ? 'Abgesagt' : 'Unterbr.')}</span>`;
   return `<span class="fb-st">${zTime(new Date(m.utc))}</span>`;
 }
@@ -105,7 +105,27 @@ function liveHtml() {
         <span class="flap-clock">${goal ? `<span class="fb-live-goal">${goal}</span>` : ''}<span class="flap-more" aria-hidden="true">›</span></span></span></button>`;
   }).join('');
   return `<section class="fb-live" aria-label="Live-Spiele"><div class="fb-live-head"><b><i class="live-dot" aria-hidden="true"></i>Live</b><small>${lives.length} ${lives.length === 1 ? 'Spiel' : 'Spiele'}</small></div>
-    <div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="fb-live">${cards}</div></section>`;
+    <div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="fb-live">${cards}</div>${tickerHtml(lives)}</section>`;
+}
+
+// Konferenz: die letzten Tore aller laufenden Spiele, neustes zuoberst (Zeit = Anpfiff + Minute, nach der Pause 15 Minuten mehr)
+function tickerHtml(lives) {
+  const rows = [];
+  for (const m of lives) {
+    const sc = [0, 0];
+    for (const g of m.goals || goalsCache.get(m.id) || []) {
+      sc[g.s === 1 ? 0 : 1] += 1;
+      const [min, extra = 0] = String(g.m).split('+').map((x) => Number(x) || 0);
+      rows.push({ m, g, sc: [...sc], at: Date.parse(m.utc) + (min + extra + (min > 45 ? 15 : 0)) * 60e3 });
+    }
+  }
+  if (!rows.length) return '';
+  rows.sort((a, b) => b.at - a.at);
+  return `<div class="fb-group fb-ticker"><div class="fb-g-head"><b>Letzte Tore</b><small>alle laufenden Spiele</small></div>${rows.slice(0, 5).map((r, i) => {
+    const team = r.g.s === 1 ? r.m.h : r.m.a;
+    return `<button type="button" class="fb-tick${i === 0 ? ' new' : ''}" data-act="fb-live" data-id="${esc(r.m.id)}"><span class="fb-tick-min">${esc(r.g.m)}'</span>${logo(r.g.s === 1 ? r.m.hl : r.m.al)}
+      <span class="fb-tick-who"><b>${esc(r.g.n || team)}</b><small>${esc(r.m.h)} – ${esc(r.m.a)}</small></span><span class="fb-tick-sc">${r.sc[0]}:${r.sc[1]}</span></button>`;
+  }).join('')}</div>`;
 }
 
 function render() {
