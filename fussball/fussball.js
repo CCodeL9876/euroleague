@@ -17,11 +17,17 @@ const store = {
 // Ohne Profil zurück zum Basketball-Bereich (dort Anmeldung)
 if (!store.get('el-profile-name', '')) location.replace('../');
 
-// Lieblingsteams: Stichwörter im Teamnamen (lokal gespeichert)
-const FAV = (() => {
-  try { const v = JSON.parse(store.get('el-fb-fav', 'null')); if (Array.isArray(v) && v.length) return v; } catch { /* kaputt */ }
+// Lieblingsteams: genaue Teamnamen (lokal gespeichert, im Profilmenü wählbar). Ältere Geräte haben nur Stichwörter
+// (el-fb-fav) – die werden beim ersten Laden der Spiele in Teamnamen umgewandelt.
+const LEGACY_FAV = (() => {
+  try { const v = JSON.parse(store.get('el-fb-fav', 'null')); if (Array.isArray(v) && v.length) return v.map(String); } catch { /* kaputt */ }
   return ['liverpool', 'chelsea', 'basel', 'mainz'];
 })();
+let FAV = (() => {
+  try { const v = JSON.parse(store.get('el-fb-fav2', 'null')); if (Array.isArray(v)) return new Map(v.map((n) => [String(n).toLowerCase(), String(n)])); } catch { /* kaputt */ }
+  return null;
+})();
+const saveFav = () => store.set('el-fb-fav2', JSON.stringify([...FAV.values()]));
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -32,7 +38,7 @@ const zParts = (d, opts) => {
 };
 const zDate = (d) => { const o = zParts(d, { year: 'numeric', month: '2-digit', day: '2-digit' }); return `${o.year}-${o.month}-${o.day}`; };
 const zTime = (d) => { const o = zParts(d, { hour: '2-digit', minute: '2-digit' }); return `${o.hour}:${o.minute}`; };
-const isFavName = (n) => FAV.some((k) => String(n).toLowerCase().includes(k));
+const isFavName = (n) => { const k = String(n ?? '').toLowerCase(); return FAV ? FAV.has(k) : LEGACY_FAV.some((w) => k.includes(w)); };
 const isFav = (m) => isFavName(m.h) || isFavName(m.a);
 const logo = (u) => `<span class="fb-logo">${/^(https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|(www\.)?live-football-api\.com|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com|api\.bigballsdata\.com\/v1\/assets)\/|data:image\/(png|jpeg|gif|webp);base64,)/.test(u || '') ? `<img src="${esc(u)}" alt="" loading="lazy">` : ''}</span>`;
 
@@ -204,8 +210,9 @@ function render() {
       ? `<button type="button" class="fb-g-head fb-g-link" data-act="fb-table" data-id="${esc(g.id)}" aria-haspopup="dialog">${inner}<span class="fb-g-more">Tabelle ›</span></button>`
       : `<div class="fb-g-head">${inner}</div>`;
   };
+  const favBar = mineOnly ? `<button type="button" class="fb-fav-edit" data-act="fb-fav" aria-haspopup="dialog">${icon('star')}<span>${FAV?.size ? `${FAV.size} ${FAV.size === 1 ? 'Team' : 'Teams'}: ${esc([...FAV.values()].join(', '))}` : 'Noch keine Teams gewählt'}</span><b>Ändern ›</b></button>` : '';
   const strip = list.querySelector('[data-keep-scroll="fb-live"]'), keep = strip ? strip.scrollLeft : 0;
-  list.innerHTML = liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
+  list.innerHTML = favBar + liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
@@ -226,9 +233,71 @@ function sheetBody(id, tab) {
       <td>${esc(r.p)}</td><td>${esc(r.gf)}:${esc(r.ga)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>
     <p class="fb-zones">${(d.zones || []).map((z) => `<span class="z-${z[2]}">${ZONE_NAME[z[2]] || ''}</span>`).join('')}</p><p class="fb-x-src">Quelle: Big Balls</p>`;
 }
+// ---------- Blatt: Teams wählen ----------
+const NATION_LEAGUES = new Set(['unl', 'wcq', 'emq', 'wc', 'em', 'fr']);
+const FAV_ORDER = ['chsl', 'chcl', 'pl', 'bl1', 'bl2', 'laliga', 'seriea', 'ligue1', 'ucl'];
+// Alle Teams aus dem Spielplan: je Name einmal, mit Wappen und der Liga, unter der es in der Auswahl erscheint
+function allTeams() {
+  const seen = new Map();
+  const rank = (l) => (NATION_LEAGUES.has(l) ? 99 : FAV_ORDER.indexOf(l) < 0 ? 50 : FAV_ORDER.indexOf(l));
+  for (const m of data?.matches || []) {
+    for (const [n, lg] of [[m.h, m.hl], [m.a, m.al]]) {
+      if (!n) continue;
+      const k = n.toLowerCase(), cur = seen.get(k);
+      if (!cur || rank(m.l) < rank(cur.l)) seen.set(k, { n, logo: lg || cur?.logo || '', l: m.l });
+      else if (!cur.logo && lg) cur.logo = lg;
+    }
+  }
+  return [...seen.values()];
+}
+function favSheetHtml() {
+  const teams = allTeams(), groups = [];
+  const name = (id) => data?.leagues.find((l) => l.id === id);
+  for (const id of [...FAV_ORDER, ...(data?.leagues || []).map((l) => l.id).filter((id) => !FAV_ORDER.includes(id) && !NATION_LEAGUES.has(id))]) {
+    const list = teams.filter((t) => t.l === id);
+    if (list.length) groups.push({ lg: name(id), title: id === 'ucl' ? 'Weitere Teams (Champions League)' : name(id)?.name, list });
+  }
+  const nat = teams.filter((t) => NATION_LEAGUES.has(t.l));
+  if (nat.length) groups.push({ lg: { short: 'NAT', color: '#64748B' }, title: 'Nationalteams', list: nat });
+  const btn = (t) => `<button type="button" class="fb-pick" data-act="fb-fav-toggle" data-team="${esc(t.n)}" aria-pressed="${isFavName(t.n)}">${logo(t.logo)}<span>${esc(t.n)}</span><i aria-hidden="true">★</i></button>`;
+  return `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
+    <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
+      <div class="fb-sheet-h"><span class="fb-lg" style="--c:var(--gold)">★</span><b id="fbSheetTitle">Meine Teams</b><small class="fb-fav-n" aria-live="polite"></small>
+        <button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Fertig">✕</button></div>
+      <div class="fb-fav-search"><input type="search" id="fbFavQ" placeholder="Team suchen" aria-label="Team suchen" autocomplete="off"></div>
+      <div class="fb-sheet-body">${groups.map((g) => `<section class="fb-pick-g"><h3><span class="fb-lg" style="--c:${esc(g.lg?.color || '#555')}">${esc(g.lg?.short || '')}</span>${esc(g.title || '')}</h3>
+        <div class="fb-pick-list">${g.list.sort((a, b) => a.n.localeCompare(b.n, 'de')).map(btn).join('')}</div></section>`).join('') || '<p class="fb-x-note">Lade …</p>'}
+        <p class="fb-x-note fb-pick-none" hidden>Kein Team gefunden.</p></div></section>`;
+}
+function favCount() { const n = FAV?.size || 0; const el = document.querySelector('.fb-fav-n'); if (el) el.textContent = n ? `${n} gewählt` : ''; }
+function filterFav(q) {
+  const k = q.trim().toLowerCase();
+  let any = false;
+  document.querySelectorAll('.fb-pick-g').forEach((g) => {
+    let vis = 0;
+    g.querySelectorAll('.fb-pick').forEach((b) => { const on = !k || b.dataset.team.toLowerCase().includes(k); b.hidden = !on; if (on) vis++; });
+    g.hidden = !vis; if (vis) any = true;
+  });
+  const none = document.querySelector('.fb-pick-none'); if (none) none.hidden = any;
+}
+function toggleFav(n) {
+  if (!FAV) FAV = new Map();
+  const k = n.toLowerCase();
+  if (FAV.has(k)) FAV.delete(k); else FAV.set(k, n);
+  saveFav();
+  document.querySelectorAll('.fb-pick').forEach((b) => { if (b.dataset.team.toLowerCase() === k) b.setAttribute('aria-pressed', String(FAV.has(k))); });
+  favCount();
+}
+
 function renderSheet() {
   let el = $('#fbSheet');
   if (!sheet) { if (el) { el.remove(); document.body.classList.remove('fb-sheet-open'); } return; }
+  if (sheet.id === 'fav') {
+    if (!el) { el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap'; document.body.appendChild(el); document.body.classList.add('fb-sheet-open'); }
+    el.innerHTML = favSheetHtml(); favCount();
+    el.querySelector('#fbFavQ').addEventListener('input', (e) => filterFav(e.target.value));
+    return;
+  }
   const lg = data?.leagues.find((l) => l.id === sheet.id);
   if (!el) {
     el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap';
@@ -254,7 +323,14 @@ async function openSheet(id, tab) {
   } catch { leagueCache.set(k, { available: false }); }
   if (sheet && sheet.id === id && sheet.tab === tab) renderSheet();
 }
-function closeSheet() { const back = sheet && document.querySelector(`[data-act="fb-table"][data-id="${sheet.id}"]`); sheet = null; renderSheet(); back?.focus(); }
+function closeSheet() {
+  const fav = sheet?.id === 'fav';
+  const back = sheet && (fav ? document.querySelector('[data-act="fb-fav"]') || $('#profileBtn') : document.querySelector(`[data-act="fb-table"][data-id="${sheet.id}"]`));
+  sheet = null; renderSheet();
+  if (fav) render();
+  back?.focus();
+}
+function openFav() { sheet = { id: 'fav' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); }
 
 async function load() {
   try {
@@ -262,6 +338,7 @@ async function load() {
     const d = await res.json();
     if (!res.ok || !Array.isArray(d?.matches)) throw new Error(d?.error || '');
     data = d; error = '';
+    if (!FAV) { FAV = new Map(allTeams().filter((t) => isFavName(t.n)).map((t) => [t.n.toLowerCase(), t.n])); saveFav(); }
   } catch (err) {
     if (!data) error = err?.message || 'Die Fussball-Daten sind gerade nicht erreichbar.';
   }
@@ -318,8 +395,8 @@ function renderMenu() {
   menu.hidden = !menuOpen;
   if (!menuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
-  menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV.map((k) => k[0].toUpperCase() + k.slice(1)).join(', '))}</small></span></div>
-    ${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
+  menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV ? [...FAV.values()].join(', ') || 'keine' : LEGACY_FAV.join(', '))}</small></span></div>
+    ${item('fb-fav', 'star', 'Teams wählen')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
   menu.querySelector('.pm-item')?.focus();
 }
 function toast(msg) {
@@ -358,6 +435,8 @@ document.addEventListener('click', (e) => {
   if (act === 'copy-link') { menuOpen = false; renderMenu(); copyLink(); return; }
   if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../'; return; }
   if (act === 'logout') { logout(); return; }
+  if (act === 'fb-fav') { menuOpen = false; renderMenu(); openFav(); return; }
+  if (act === 'fb-fav-toggle') { toggleFav(e.target.closest('[data-team]').dataset.team); return; }
   if (act === 'fb-table') { openSheet(e.target.closest('[data-id]').dataset.id, 'table'); return; }
   if (act === 'fb-sheet-close') { closeSheet(); return; }
   if (act === 'fb-sheet-tab') { openSheet(sheet.id, e.target.closest('[data-tab]').dataset.tab); return; }
