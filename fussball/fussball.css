@@ -186,3 +186,12 @@ body:not(.unlocked) .fb-tabs{display:none;}
 .fb-pl .nm{max-width:72px;font-size:0.66rem;font-weight:500;line-height:1.1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .fb-pitch .fm{position:absolute;left:8px;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:0.68rem;font-weight:700;color:var(--dim);}
 .fb-pitch .fm.top{top:8px;} .fb-pitch .fm.bot{bottom:8px;} .fb-pitch .fm .fb-logo{width:18px;height:18px;}
+/* Reihenfolge der Ligen */
+.fb-order{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.fb-order li{display:flex;align-items:center;gap:10px;min-height:48px;padding:4px 6px 4px 10px;border:1px solid var(--line);border-radius:12px;background:var(--card);}
+.fb-order .nm{flex:1;min-width:0;font-size:0.9rem;font-weight:500;}
+.fb-order-b{width:40px;height:40px;border:0;border-radius:10px;background:var(--card-2);color:var(--text);font:inherit;font-size:1rem;cursor:pointer;}
+.fb-order-b:disabled{opacity:.3;cursor:default;}
+.fb-order-reset{margin-left:auto;min-height:36px;padding:0 12px;border:0;border-radius:10px;background:var(--card);color:var(--blue-hi);font:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;}
+.fb-order-reset:disabled{color:var(--faint);cursor:default;}
+.fb-order-reset + .fb-sheet-x{margin-left:8px;}

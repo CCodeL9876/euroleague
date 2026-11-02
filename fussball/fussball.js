@@ -307,7 +307,7 @@ function render() {
   const groups = [];
   const fav = ms.filter(isFav);
   if (fav.length && !mineOnly) groups.push({ star: true, name: 'Meine Spiele', sub: `${fav.length} ${fav.length === 1 ? 'Spiel' : 'Spiele'}`, list: fav });
-  for (const lg of data.leagues) {
+  for (const lg of orderedLeagues()) {
     const l = ms.filter((m) => m.l === lg.id);
     if (l.length) groups.push({ ...lg, sub: l[0].round ? (/^\d+$/.test(l[0].round) ? `${l[0].round}. Runde` : l[0].round) : lg.country, list: l });
   }
@@ -405,6 +405,13 @@ function toggleFav(n) {
 function renderSheet() {
   let el = $('#fbSheet');
   if (!sheet) { if (el) { el.remove(); document.body.classList.remove('fb-sheet-open'); } return; }
+  if (sheet.id === 'order') {
+    if (!el) { el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap'; document.body.appendChild(el); document.body.classList.add('fb-sheet-open'); }
+    const keepScroll = el.querySelector('.fb-sheet-body')?.scrollTop || 0;
+    el.innerHTML = orderSheetHtml();
+    el.querySelector('.fb-sheet-body').scrollTop = keepScroll;
+    return;
+  }
   if (sheet.id === 'fav') {
     if (!el) { el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap'; document.body.appendChild(el); document.body.classList.add('fb-sheet-open'); }
     el.innerHTML = favSheetHtml(); favCount();
@@ -436,8 +443,36 @@ async function openSheet(id, tab) {
   } catch { leagueCache.set(k, { available: false }); }
   if (sheet && sheet.id === id && sheet.tab === tab) renderSheet();
 }
+// ---------- Blatt: Reihenfolge der Ligen (lokal gespeichert) ----------
+let leagueOrder = (() => { try { const v = JSON.parse(store.get('el-fb-order', 'null')); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } })();
+function orderedLeagues() {
+  const list = data?.leagues || [], pos = (lg, i) => { const k = leagueOrder.indexOf(lg.id); return k < 0 ? 1000 + i : k; };
+  return list.map((lg, i) => ({ lg, p: pos(lg, i) })).sort((a, b) => a.p - b.p).map((x) => x.lg);
+}
+function orderSheetHtml() {
+  const list = orderedLeagues();
+  return `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
+    <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
+      <div class="fb-sheet-h"><span class="fb-lg" style="--c:var(--blue)">≡</span><b id="fbSheetTitle">Reihenfolge der Ligen</b>
+        <button type="button" class="fb-order-reset" data-act="fb-order-reset"${leagueOrder.length ? '' : ' disabled'}>Standard</button>
+        <button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Fertig">✕</button></div>
+      <p class="fb-fav-intro">So erscheinen die Ligen in der Spielübersicht («Meine Spiele» bleibt immer zuoberst).</p>
+      <div class="fb-sheet-body"><ol class="fb-order">${list.map((lg, i) => `<li><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span><span class="nm">${esc(lg.name)}</span>
+        <button type="button" class="fb-order-b" data-act="fb-order" data-id="${esc(lg.id)}" data-dir="-1" aria-label="${esc(lg.name)} nach oben"${i ? '' : ' disabled'}>↑</button>
+        <button type="button" class="fb-order-b" data-act="fb-order" data-id="${esc(lg.id)}" data-dir="1" aria-label="${esc(lg.name)} nach unten"${i < list.length - 1 ? '' : ' disabled'}>↓</button></li>`).join('')}</ol></div></section>`;
+}
+function moveLeague(id, dir) {
+  const ids = orderedLeagues().map((lg) => lg.id), i = ids.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  leagueOrder = ids; store.set('el-fb-order', JSON.stringify(ids));
+  renderSheet(); render();
+  document.querySelector(`.fb-order-b[data-id="${CSS.escape(id)}"][data-dir="${dir}"]:not(:disabled)`)?.focus();
+}
+
 function closeSheet() {
   const fav = sheet?.id === 'fav';
+  if (sheet?.id === 'order') { sheet = null; renderSheet(); $('#profileBtn')?.focus(); return; }
   if (fav && sheet.required && !FAV?.size) return; // Pflicht-Auswahl: erst mit mindestens einem Team
   const back = sheet && (fav ? document.querySelector('[data-act="fb-fav"]') || $('#profileBtn') : document.querySelector(`[data-act="fb-table"][data-id="${sheet.id}"]`));
   sheet = null; renderSheet();
@@ -481,6 +516,7 @@ const ICON = {
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  sort: '<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
   star: '<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
 };
@@ -511,7 +547,7 @@ function renderMenu() {
   if (!menuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
   menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV ? [...FAV.values()].join(', ') || 'keine' : LEGACY_FAV.join(', ') || 'keine')}</small></span></div>
-    ${item('fb-fav', 'star', 'Teams wählen')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
+    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
   menu.querySelector('.pm-item')?.focus();
 }
 function toast(msg) {
@@ -551,6 +587,9 @@ document.addEventListener('click', (e) => {
   if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../'; return; }
   if (act === 'logout') { logout(); return; }
   if (act === 'fb-fav') { menuOpen = false; renderMenu(); openFav(); return; }
+  if (act === 'fb-order-open') { menuOpen = false; renderMenu(); sheet = { id: 'order' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); return; }
+  if (act === 'fb-order') { const b = e.target.closest('[data-id]'); moveLeague(b.dataset.id, Number(b.dataset.dir)); return; }
+  if (act === 'fb-order-reset') { leagueOrder = []; store.set('el-fb-order', '[]'); renderSheet(); render(); return; }
   if (act === 'fb-fav-toggle') { toggleFav(e.target.closest('[data-team]').dataset.team); return; }
   if (act === 'fb-table') { openSheet(e.target.closest('[data-id]').dataset.id, 'table'); return; }
   if (act === 'fb-sheet-close') { closeSheet(); return; }
