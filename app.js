@@ -270,6 +270,7 @@ async function copyAccessLink() {
 
 function profileLogout() {
   profile = null; profileError = ''; favEdit = false; onboarding = false; introStage = false;
+  renderFavSheet();
   store.set('el-profile-name', ''); store.set('el-profile-pin', '');
   document.body.classList.add('needs-profile');
   renderProfileGate();
@@ -277,10 +278,14 @@ function profileLogout() {
 
 async function toggleFav(code) {
   const i = FAV.indexOf(code);
-  if (i >= 0) { if (FAV.length <= 1) return; FAV.splice(i, 1); } else FAV.push(code);
+  if (i >= 0) { if (FAV.length <= 1) { if (FAV.length) toast('Mindestens ein Team bleibt gewählt.'); return; } FAV.splice(i, 1); } else FAV.push(code);
   if (FAV.length && !FAV.includes(sel)) sel = FAV[0];
   saveLocalFav(FAV);
-  refreshProfileUI();
+  // Kacheln direkt umschalten (Blatt und Teamwahl bleiben stehen, samt Suche und Scrollstand), Dashboard dahinter neu
+  document.querySelectorAll(`[data-act="fav-toggle"][data-c="${code}"]`).forEach((b) => b.setAttribute('aria-pressed', String(FAV.includes(code))));
+  favCount();
+  const go = document.querySelector('.onboarding-go'); if (go) go.disabled = !FAV.length;
+  if (!document.body.classList.contains('needs-profile')) render();
   if (profile) {
     const pin = store.get('el-profile-pin', '');
     if (pin) await profileCall({ kind: 'profile-save', name: profile.name, pin, favorites: FAV });
@@ -292,10 +297,33 @@ async function toggleFav(code) {
 // darunter erscheint nur noch die Teamauswahl, während man sie bearbeitet
 let profileMenuOpen = false;
 const initials = (n) => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); return (w.length > 1 ? w[0][0] + w[1][0] : (w[0] || '?').slice(0, 2)).toUpperCase(); };
-function profileHtml() {
-  return favEdit ? `<div class="profile-bar"><span class="profile-who">${icon('star', 'icon')}Lieblingsteams wählen</span>
-    <button type="button" class="profile-link" data-act="fav-edit">Fertig</button></div>${favEditHtml()}` : '';
+function profileHtml() { return ''; }
+
+// Lieblingsteams bearbeiten: Blatt von unten wie im Fussball-Bereich (Suche, Kacheln mit Wappen und Stern)
+function favCount() {
+  const el = document.querySelector('.fb-fav-n');
+  if (el) el.textContent = FAV.length ? `${FAV.length} gewählt` : '';
 }
+function renderFavSheet() {
+  let el = document.getElementById('favSheet');
+  if (!favEdit) { if (el) { el.remove(); document.body.classList.remove('fb-sheet-open'); } return; }
+  if (!el) { el = document.createElement('div'); el.id = 'favSheet'; el.className = 'fb-sheet-wrap'; document.body.appendChild(el); document.body.classList.add('fb-sheet-open'); }
+  el.innerHTML = `<div class="fb-sheet-dim" data-act="fav-close"></div>
+    <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="favSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
+      <div class="fb-sheet-h"><span class="fb-lg" style="--c:var(--gold)">★</span><b id="favSheetTitle">Meine Teams</b><small class="fb-fav-n" aria-live="polite"></small>
+        <button type="button" class="fb-sheet-x" data-act="fav-close" aria-label="Fertig">✕</button></div>
+      <div class="fb-fav-search"><input type="search" id="favQ" placeholder="Team suchen" aria-label="Team suchen" autocomplete="off"></div>
+      <div class="fb-sheet-body">${favEditHtml()}<p class="fb-x-note fb-pick-none" hidden>Kein Team gefunden.</p></div></section>`;
+  favCount();
+  el.querySelector('#favQ').addEventListener('input', (e) => {
+    const k = e.target.value.trim().toLowerCase();
+    let any = false;
+    el.querySelectorAll('.fb-pick').forEach((b) => { const on = !k || b.textContent.toLowerCase().includes(k) || b.dataset.c.toLowerCase() === k; b.hidden = !on; if (on) any = true; });
+    el.querySelector('.fb-pick-none').hidden = any;
+  });
+  el.querySelector('.fb-sheet-x').focus();
+}
+function closeFavSheet() { favEdit = false; renderFavSheet(); $('#profileBtn')?.focus(); }
 function renderProfileMenu() {
   const btn = $('#profileBtn'), menu = $('#profileMenu');
   if (!btn || !menu) return;
@@ -324,14 +352,12 @@ function profileFormHtml() {
 
 // Wappen, falls Spieldaten schon geladen sind (unabhängig vom Profilstatus, siehe loadData() ganz unten);
 // ohne Daten (z.B. offline bei der allerersten Anmeldung) einfach ohne Bild, Name reicht dann als Beschriftung
-function teamLogo(c) {
-  const crest = data?.teams?.[c]?.crest || '';
-  return /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//.test(crest) ? `<img class="fav-pick-logo" src="${esc(crest)}" alt="" loading="lazy">` : '';
-}
+const teamLogo = (c) => `<span class="fb-logo">${crestImg(data?.teams?.[c]?.crest)}</span>`;
+// Kacheln wie im Fussball-Bereich: Wappen, Name, Stern; gewählt mit goldenem Rahmen
 function favEditHtml() {
   const teams = Object.keys(SHORTNAME).sort((a, b) => SHORTNAME[a].localeCompare(SHORTNAME[b], 'de'));
-  return `<div class="fav-edit" role="group" aria-label="Lieblingsteams wählen">
-    ${teams.map((c) => `<button type="button" class="fav-pick" style="--c:${favColor(c)}" data-act="fav-toggle" data-c="${c}" aria-pressed="${FAV.includes(c)}">${teamLogo(c)}${esc(SHORTNAME[c])}</button>`).join('')}
+  return `<div class="fb-pick-list" role="group" aria-label="Lieblingsteams wählen">
+    ${teams.map((c) => `<button type="button" class="fb-pick" data-act="fav-toggle" data-c="${c}" aria-pressed="${FAV.includes(c)}">${teamLogo(c)}<span>${esc(SHORTNAME[c])}</span><i aria-hidden="true">★</i></button>`).join('')}
   </div>${profileError ? `<p class="profile-err">${esc(profileError)}</p>` : ''}`;
 }
 
@@ -714,7 +740,7 @@ function newsInfo(it) {
   return { cat, teamTxt, team, color, ic, quote: quote ? quote[1] : '', who: quote ? String(it.title).split(/\s(?:nach|vor|über)\s|:/)[0] : '' };
 }
 const newsCat = (n) => `<span class="nf-cat" style="--c:var(--${n.color})"><svg viewBox="0 0 24 24" aria-hidden="true">${NEWS_ICON[n.ic]}</svg>${esc(n.cat)}${n.teamTxt ? ` · ${esc(n.teamTxt)}` : ''}</span>`;
-const newsLogo = (n) => (n.team && teamLogo(n.team) ? `<span class="logo nf-logo">${teamLogo(n.team).replace('class="fav-pick-logo" ', '')}</span>` : '<span class="logo nf-logo none" aria-hidden="true"></span>');
+const newsLogo = (n) => (n.team && crestImg(data?.teams?.[n.team]?.crest) ? `<span class="logo nf-logo">${crestImg(data?.teams?.[n.team]?.crest)}</span>` : '<span class="logo nf-logo none" aria-hidden="true"></span>');
 const newsWhen = (it, todayCH) => { const [d, t] = String(it.time || '').split(' · '); return d === todayCH ? `Heute ${t || ''}` : d ? `${d.slice(0, 6)} ${t || ''}` : ''; };
 const newsMeta = (it, todayCH) => `<span class="nf-meta"><b>${esc(it.source)}</b><i aria-hidden="true"></i><span class="num">${esc(newsWhen(it, todayCH))}</span></span>`;
 const newsActs = (it, i) => `<span class="nf-acts"><button type="button" class="share-btn" data-act="share" data-i="${i}" aria-label="Meldung teilen: ${esc(it.title)}">${icon('share', '')}Teilen</button>
@@ -1488,7 +1514,8 @@ document.addEventListener('click', (e) => {
   else if (act === 'theme') toggleTheme();
   else if (act === 'logout') logout();
   else if (act === 'profile-menu') { profileMenuOpen = !profileMenuOpen; renderProfileMenu(); if (profileMenuOpen) $('#profileMenu .pm-item')?.focus(); }
-  else if (act === 'fav-edit') { favEdit = !favEdit; profileMenuOpen = false; profileError = ''; render(); }
+  else if (act === 'fav-edit') { favEdit = true; profileMenuOpen = false; profileError = ''; renderProfileMenu(); renderFavSheet(); }
+  else if (act === 'fav-close') closeFavSheet();
   else if (act === 'profile-logout') { profileMenuOpen = false; renderProfileMenu(); profileLogout(); }
   else if (act === 'copy-link') { profileMenuOpen = false; renderProfileMenu(); copyAccessLink(); }
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
@@ -1522,7 +1549,7 @@ document.addEventListener('keydown', (e) => {
   const t = e.target.closest?.('[data-act="box"], article[data-act="team"]');
   if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (t.dataset.act === 'box') openBox(Number(t.dataset.code)); else openTeam(t.dataset.c); }
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && profileMenuOpen) { profileMenuOpen = false; renderProfileMenu(); $('#profileBtn')?.focus(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && favEdit && document.getElementById('favSheet')) { closeFavSheet(); return; } if (e.key === 'Escape' && profileMenuOpen) { profileMenuOpen = false; renderProfileMenu(); $('#profileBtn')?.focus(); } });
 $('#newsSearch').addEventListener('input', (e) => { feedState.q = e.target.value; renderFeed(); });
 $('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxState.code = 0; boxState.playing = false; $('#box iframe')?.remove(); });
 $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
@@ -1579,7 +1606,7 @@ function setupPullToRefresh() {
   };
   const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
   window.addEventListener('touchstart', (e) => {
-    if (busy || e.touches.length !== 1 || window.scrollY > 0 || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open) return;
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open) return;
     startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
