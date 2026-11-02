@@ -219,7 +219,8 @@ const SR_NAME = { 'Young Boys Bern': 'Young Boys', 'Servette Geneva': 'Servette'
   'Neuchatel Xamax': 'Xamax', 'Etoile Carouge FC': 'Étoile Carouge', 'Stade Lausanne Ouchy': 'Lausanne-Ouchy', 'FC Stade Nyonnais': 'Stade Nyonnais',
   'Brighton & Hove Albion': 'Brighton', 'Tottenham Hotspur': 'Tottenham', 'Manchester United': 'Man United', 'Manchester City': 'Man City', 'AFC Bournemouth': 'Bournemouth' };
 const srName = (n) => SR_NAME[n] || String(n || '').replace(/ (19|18)\d\d$/, '').replace(/ A?FC$/, '');
-const srLogo = (n) => (SR_LOGO[n] ? `https://upload.wikimedia.org/wikipedia/${SR_LOGO[n]}` : '');
+const SR_LOGO_SHORT = Object.fromEntries(Object.keys(SR_LOGO).map((n) => [srName(n), SR_LOGO[n]]));
+const srLogo = (n) => { const f = SR_LOGO[n] || SR_LOGO_SHORT[n]; return f ? `https://upload.wikimedia.org/wikipedia/${f}` : ''; };
 export function mapSr(lg, sum) {
   const ev = sum.sport_event || {}, es = sum.sport_event_status || {};
   const comp = ev.competitors || [];
@@ -505,6 +506,19 @@ async function fbOverview(now) {
   ]);
   const res = FB_LEAGUES.map((lg, i) => (lg.src === 'lf' ? lfRes[lfList.indexOf(lg)] : lg.src === 'sr' ? srRes[srList.indexOf(lg)] : other[i]));
   const from = now - 14 * 864e5, to = now + 15 * 864e5;
+  // Ein Wappen pro Klub über alle Ligen (z. B. Liverpool in Premier League und Champions League):
+  // zuerst Sportradar-Ligen (Wikipedia, scharf), dann Bundesligen, zuletzt Champions League
+  // Gespeicherte Sportradar-Spielpläne von früher: Namen kürzen und Wappen nachtragen
+  FB_LEAGUES.forEach((lg, i) => { if (lg.src === 'sr') for (const m of res[i].matches || []) { m.hl = m.hl || srLogo(m.h); m.al = m.al || srLogo(m.a); m.h = srName(m.h); m.a = srName(m.a); } });
+  const crest = new Map();
+  const rank = (lg) => (lg.src === 'sr' ? 0 : lg.id === 'ucl' ? 2 : 1);
+  [...FB_LEAGUES.keys()].sort((a, b) => rank(FB_LEAGUES[a]) - rank(FB_LEAGUES[b])).forEach((i) => {
+    for (const m of res[i].matches || []) {
+      if (m.hl && !crest.has(m.h)) crest.set(m.h, m.hl);
+      if (m.al && !crest.has(m.a)) crest.set(m.a, m.al);
+    }
+  });
+  for (const r of res) for (const m of r.matches || []) { m.hl = crest.get(m.h) || m.hl; m.al = crest.get(m.a) || m.al; }
   return { updated: new Date(now).toISOString(), season,
     leagues: FB_LEAGUES.map((lg, i) => ({ id: lg.id, name: lg.name, country: lg.country, short: lg.short, color: lg.color, status: res[i].status, message: res[i].message })),
     matches: res.flatMap((r) => r.matches.filter((m) => { const t = Date.parse(m.utc); return t >= from && t <= to; })) };
