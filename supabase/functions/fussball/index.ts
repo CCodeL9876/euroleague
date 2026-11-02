@@ -4,7 +4,7 @@
 //   GET ?fb=1 → Spielübersicht: Spiele ±2 Wochen um heute aus allen Ligen
 //   → { updated, season, leagues: [{ id, name, country, short, color, status: 'ok'|'nokey'|'error', message }],
 //       matches: [{ id, l, utc, round, h, a, hl, al, hs, as, st: 'pre'|'live'|'ht'|'ft'|'off', min, ht, goals? }] }
-//     Bundesliga/2. Bundesliga: OpenLigaDB (frei, mit Torschützen). Premier League, Super League, Challenge League:
+//     Champions League, Bundesliga/2. Bundesliga: OpenLigaDB (frei, mit Torschützen). Premier League, Super League, Challenge League:
 //     API-Football (Secret APIFOOTBALL_KEY; Gratis-Plan 100 Abfragen/Tag) – eine Abfrage pro Liga und ganze Saison,
 //     zwischengespeichert in der Tabelle el_fb_cache (alle 15 Min. während Spielen, sonst alle 6 Std.).
 //   GET ?fbgame=af-123456 → Torschützen eines API-Football-Spiels → { goals: [{ m, s, n }] } (nach Spielende dauerhaft gespeichert)
@@ -32,13 +32,24 @@ async function getJson(url) {
 }
 
 const FB_LEAGUES = [
+  { id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', src: 'oldb', key: 'ucl' },
   { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'af', key: 39 },
   { id: 'bl1', name: 'Bundesliga', country: 'Deutschland', short: 'BL', color: '#D20515', src: 'oldb', key: 'bl1' },
   { id: 'bl2', name: '2. Bundesliga', country: 'Deutschland', short: '2B', color: '#5B6170', src: 'oldb', key: 'bl2' },
   { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'af', key: 207 },
   { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'af', key: 208 },
 ];
-const FB_IMG = /^https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io)\//;
+const FB_IMG = /^https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com)\//;
+// Wappen: bekannte Bild-Server (http wird zu https), kleine eingebettete Bilder (OpenLigaDB liefert manche als data:-Adresse)
+const fbImg = (u) => {
+  const v = String(u || '').trim().replace(/^http:\/\/img\.uefa\.com\//, 'https://img.uefa.com/');
+  return FB_IMG.test(v) || (/^data:image\/(png|jpeg|gif|webp);base64,[\w+/=]+$/.test(v) && v.length < 24000) ? v : '';
+};
+// OpenLigaDB-Kurznamen, die zu knapp oder schief sind (v. a. Champions League)
+const OLDB_NAME = { "Man'City": 'Man City', ManU: 'Man United', LA: 'LASK', Madrid: 'Real Madrid', Villa: 'Aston Villa', Paris: 'Paris SG', 'Villarreal CF': 'Villarreal', 'SSC Napoli': 'Napoli' };
+// Wappen, die OpenLigaDB nur von einem nicht erlaubten Server liefert
+const OLDB_LOGO = { Liverpool: 'https://media.api-sports.io/football/teams/40.png' };
+const oldbName = (t) => { const n = String(t?.shortName || '').trim() || String(t?.teamName || '').trim(); return OLDB_NAME[n] || n; };
 const AF_DAILY_MAX = 90;
 const fbSeason = (d) => (d.getUTCMonth() >= 6 ? d.getUTCFullYear() : d.getUTCFullYear() - 1);
 // Läuft gerade (oder gleich) ein Spiel dieser Liga? Dann öfter nachfragen
@@ -83,7 +94,7 @@ const AF_DONE = new Set(['FT', 'AET', 'PEN']);
 export function mapAf(lg, f) {
   const s = f?.fixture?.status?.short || 'NS';
   const st = AF_DONE.has(s) ? 'ft' : s === 'HT' ? 'ht' : AF_LIVE.has(s) ? 'live' : ['NS', 'TBD'].includes(s) ? 'pre' : 'off';
-  const img = (u) => (FB_IMG.test(u || '') ? u : '');
+  const img = fbImg;
   const ht = f?.score?.halftime;
   return { id: `af-${f.fixture.id}`, l: lg.id, utc: new Date(f.fixture.date).toISOString(), round: String(f.league?.round || '').replace(/^Regular Season - /, '') ,
     h: String(f.teams?.home?.name || ''), a: String(f.teams?.away?.name || ''), hl: img(f.teams?.home?.logo), al: img(f.teams?.away?.logo),
@@ -118,14 +129,14 @@ export function mapOldb(lg, m, now) {
   let prev = [0, 0];
   for (const g of [...(m.goals || [])].sort((x, y) => (x.matchMinute || 0) - (y.matchMinute || 0))) {
     const side = g.scoreTeam1 > prev[0] ? 1 : 2; prev = [g.scoreTeam1, g.scoreTeam2];
-    goals.push({ m: g.matchMinute ?? '', s: side, n: String(g.goalGetterName || '').trim() });
+    goals.push({ m: g.matchMinute ?? '', s: side, n: `${String(g.goalGetterName || '').trim()}${g.isPenalty ? ' (Pen.)' : g.isOwnGoal ? ' (Eigentor)' : ''}` });
   }
   const kick = Date.parse(utc), running = !m.matchIsFinished && now >= kick && now - kick < 130 * 60 * 1000;
   const fin = m.matchIsFinished && rs[2];
   const last = goals.at(-1);
-  const img = (u) => (FB_IMG.test(u || '') ? u : '');
-  return { id: `${lg.id}-${m.matchID}`, l: lg.id, utc, round: String(m.group?.groupName || ''), h: String(m.team1?.shortName || ''), a: String(m.team2?.shortName || ''),
-    hl: img(m.team1?.teamIconUrl), al: img(m.team2?.teamIconUrl),
+  const img = fbImg;
+  return { id: `${lg.id}-${m.matchID}`, l: lg.id, utc, round: String(m.group?.groupName || '').replace(/^(\d+)\.\s*/, '$1. '), h: oldbName(m.team1), a: oldbName(m.team2),
+    hl: img(m.team1?.teamIconUrl) || OLDB_LOGO[oldbName(m.team1)] || '', al: img(m.team2?.teamIconUrl) || OLDB_LOGO[oldbName(m.team2)] || '',
     hs: fin ? rs[2].pointsTeam1 : running ? (last ? prev[0] : 0) : null, as: fin ? rs[2].pointsTeam2 : running ? (last ? prev[1] : 0) : null,
     // OpenLigaDB kennt keine Spielminute: während des Spiels nur „Live“
     st: fin || m.matchIsFinished ? 'ft' : running ? 'live' : 'pre', min: null, ht: rs[1] ? `${rs[1].pointsTeam1}:${rs[1].pointsTeam2}` : '', goals };

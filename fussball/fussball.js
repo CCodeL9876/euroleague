@@ -1,5 +1,5 @@
 // Fussball-Bereich: Spielübersicht (Resultate und anstehende Spiele) pro Tag, nach Liga gruppiert, eigene Teams oben.
-// Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): Bundesliga/2. Bundesliga aus OpenLigaDB, Premier League und
+// Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): Champions League und Bundesligen aus OpenLigaDB, Premier League und
 // Schweizer Ligen aus API-Football. Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
@@ -34,7 +34,7 @@ const zDate = (d) => { const o = zParts(d, { year: 'numeric', month: '2-digit', 
 const zTime = (d) => { const o = zParts(d, { hour: '2-digit', minute: '2-digit' }); return `${o.hour}:${o.minute}`; };
 const isFavName = (n) => FAV.some((k) => String(n).toLowerCase().includes(k));
 const isFav = (m) => isFavName(m.h) || isFavName(m.a);
-const logo = (u) => `<span class="fb-logo">${/^https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io)\//.test(u || '') ? `<img src="${esc(u)}" alt="" loading="lazy">` : ''}</span>`;
+const logo = (u) => `<span class="fb-logo">${/^(https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com)\/|data:image\/(png|jpeg|gif|webp);base64,)/.test(u || '') ? `<img src="${esc(u)}" alt="" loading="lazy">` : ''}</span>`;
 
 let data = null, error = '', sel = '', mineOnly = false, timer = 0;
 const open = new Set();
@@ -155,7 +155,7 @@ function render() {
   list.innerHTML = liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
-  $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Bundesligen: OpenLigaDB · Premier League und Schweiz: API-Football`;
+  $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Champions League und Bundesligen: OpenLigaDB · Premier League und Schweiz: API-Football`;
 }
 
 async function load() {
