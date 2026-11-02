@@ -162,6 +162,37 @@ async function loadDetail(m, kind) {
   render();
 }
 
+// TV: Rechteinhaber in der Schweiz und in Deutschland, Saison 2026/27 (keine Quelle liefert den Sender pro Spiel).
+// Bundesliga und 2. Bundesliga nach Anstosszeit (Sky Einzelspiele, DAZN Konferenz und Sonntag). Länderspiele nur mit
+// Schweiz (SRF) bzw. Deutschland (Heimspiel ARD/ZDF, auswärts RTL). Bei Rechtewechseln hier anpassen.
+const NAT_LEAGUES = new Set(['unl', 'wcq', 'emq', 'wc', 'em', 'fr']);
+function tvOf(m) {
+  const z = zParts(new Date(m.utc), { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  const wd = z.weekday || '', hm = `${z.hour}:${z.minute}`;
+  if (NAT_LEAGUES.has(m.l)) {
+    const sui = /^(switzerland|schweiz)$/i, ger = /^(germany|deutschland)$/i;
+    return { ch: sui.test(m.h) || sui.test(m.a) ? 'SRF' : '', de: ger.test(m.h) ? 'ARD/ZDF' : ger.test(m.a) ? 'RTL' : '' };
+  }
+  switch (m.l) {
+    case 'ucl': return { ch: 'blue Sport', de: /^Di/.test(wd) ? 'DAZN · Prime' : 'DAZN' };
+    case 'chsl': case 'chcl': return { ch: 'blue Sport', de: '' };
+    case 'pl': return { ch: 'Sky · blue Sport', de: 'Sky' };
+    case 'laliga': case 'seriea': case 'ligue1': return { ch: 'DAZN', de: 'DAZN' };
+    case 'bl1': {
+      const de = /^So/.test(wd) ? 'DAZN' : (/^Sa/.test(wd) && hm === '15:30') || /^(Di|Mi)/.test(wd) ? 'Sky · DAZN Konferenz' : 'Sky';
+      return { ch: de, de };
+    }
+    case 'bl2': return { ch: 'Sky', de: /^Sa/.test(wd) && hm === '20:30' ? 'Sky · RTL' : 'Sky' };
+    default: return { ch: '', de: '' };
+  }
+}
+function tvHtml(m) {
+  if (m.st !== 'pre' && !isLive(m)) return '';
+  const t = tvOf(m);
+  if (!t.ch && !t.de) return '';
+  return `<small class="fb-tv"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M9 2l3 4 3-4"/></svg>${t.ch ? `<span><abbr title="Schweiz">CH</abbr> ${esc(t.ch)}</span>` : ''}${t.de ? `<span><abbr title="Deutschland">D</abbr> ${esc(t.de)}</span>` : ''}</small>`;
+}
+
 function row(m) {
   const done = m.hs != null && m.as != null;
   const hw = m.st === 'ft' && m.hs > m.as, aw = m.st === 'ft' && m.as > m.hs;
@@ -169,7 +200,7 @@ function row(m) {
   const live = m.st === 'live' || m.st === 'ht';
   return `<button type="button" class="fb-match${live ? ' is-live' : ''}" data-id="${esc(m.id)}" aria-expanded="${ex}">${status(m)}
     <span class="fb-teams"><span class="fb-t${hw ? ' win' : aw ? ' lose' : ''}${isFavName(m.h) ? ' fav' : ''}">${logo(m.hl)}<span>${esc(m.h)}</span></span>
-      <span class="fb-t${aw ? ' win' : hw ? ' lose' : ''}${isFavName(m.a) ? ' fav' : ''}">${logo(m.al)}<span>${esc(m.a)}</span></span></span>
+      <span class="fb-t${aw ? ' win' : hw ? ' lose' : ''}${isFavName(m.a) ? ' fav' : ''}">${logo(m.al)}<span>${esc(m.a)}</span></span>${tvHtml(m)}</span>
     <span class="fb-sc">${done ? `<span class="${aw ? 'lose' : ''}">${m.hs}</span><span class="${hw ? 'lose' : ''}">${m.as}</span>` : ''}</span>
     <span class="fb-chev" aria-hidden="true">›</span></button>${ex ? (hasExtra(m) ? extraHtml(m) : `<div class="fb-detail">${goalsHtml(m)}</div>`) : ''}`;
 }

@@ -168,4 +168,7 @@ body:not(.unlocked) .fb-tabs{display:none;}
 .fb-tab-bb::before{content:"";position:absolute;left:-3px;top:12px;bottom:12px;width:1px;background:var(--line);}
 .fb-tab-bb:active{background:color-mix(in srgb, var(--euroleague) 18%, transparent);}
 .toast{bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
-
+/* TV-Sender (Rechteinhaber CH / D) unter den Teams */
+.fb-tv{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:0.72rem;color:var(--dim);}
+.fb-tv .icon{width:13px;height:13px;color:var(--faint);flex:none;}
+.fb-tv abbr{text-decoration:none;font-family:var(--mono);font-size:0.62rem;font-weight:700;padding:1px 4px;border-radius:4px;background:var(--card-2);color:var(--dim);margin-right:2px;}
