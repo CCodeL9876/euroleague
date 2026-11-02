@@ -60,6 +60,9 @@ body:not(.unlocked) .fb{display:none;}
 @media (max-width:820px){
   /* Wie im Basketball-Bereich: ganze Breite, Kopf unter der Statusleiste (Uhr, Akku) */
   .fb{border-radius:0;max-width:none;}
+  /* Kurze Tage (z. B. «Heute» mit einem Spiel): Seite trotzdem etwas scrollbar, damit Safari seine Leiste unten einklappt
+     und die eigene Leiste gleich tief sitzt wie im Basketball-Bereich */
+  .fb{min-height:100lvh;}
   .fb-top{padding-top:calc(14px + env(safe-area-inset-top, 0px));}
   .fb-top .profile-menu{top:calc(62px + env(safe-area-inset-top, 0px));}
 }
