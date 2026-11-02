@@ -30,6 +30,7 @@ const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const LIVE_POLL_MS = 60 * 1000;
 const IDLE_POLL_MS = 10 * 60 * 1000;
 const NEWS_POLL_MS = 30 * 60 * 1000;
+const VIDEO_POLL_MS = 15 * 60 * 1000;
 
 // Zum Testen auf dem eigenen Rechner: ?data=datei.json statt der Supabase-Funktion
 const params = new URLSearchParams(location.search);
@@ -85,6 +86,7 @@ let sel = FAV.includes(store.get('el-team')) ? store.get('el-team') : FAV[0];
 let tab = ['spiel', 'news', 'teams'].includes(store.get('el-tab')) ? store.get('el-tab') : 'spiel';
 const open = { table: false, next: false, leaders: false };
 let players = null;     // Saisonwerte aller Spieler (?players=1), erst bei Bedarf geladen
+let videos = {};        // Spielcode → Videos des EuroLeague-Kanals (?videos=1)
 const leaderState = { cat: 'pts', fav: false };
 const feedState = { q: '', src: '', cat: '', expanded: new Set() };
 
@@ -403,7 +405,9 @@ function gameRow(m, g, hl) {
   const mid = g.status === 'final' ? `<span class="result num${hl ? ' hl' : ''}">${g.hs} : ${g.as}</span>`
     : g.status === 'live' ? `<span class="result live num"><small><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')}</small>${g.hs} : ${g.as}</span>`
     : `<span class="result open num"><small>${esc(rel(g.date))}</small>${esc(g.time)}</span>`;
-  const row = el('div', `game${g.status === 'live' ? ' is-live' : ''}`, side(g.home, g.hs > g.as, false) + mid + side(g.away, g.as > g.hs, true));
+  const v = done ? mainVideo(g.code) : null;
+  const midCol = v ? `<div class="g-mid">${mid}<button type="button" class="g-video" data-act="box-video" data-code="${g.code}" aria-label="Highlights ansehen, ${mmss(v.d)}">${PLAY_SVG}<span class="num">${mmss(v.d)}</span></button></div>` : mid;
+  const row = el('div', `game${g.status === 'live' ? ' is-live' : ''}`, side(g.home, g.hs > g.as, false) + midCol + side(g.away, g.as > g.hs, true));
   boxTarget(row, m, g);
   return row;
 }
@@ -665,6 +669,15 @@ function renderCenter(m) {
       <div class="facts num"><span title="Gespielte Spiele">${icon('ball')}${pl.length}<span class="sr-only"> Spiele</span></span>
       ${avg ? `<span title="Punkte pro Spiel">${icon('bars')}Ø ${avg}<span class="sr-only"> Punkte pro Spiel</span></span>` : ''}
       ${big ? `<span title="Höchster Sieg">${icon('trend')}+${Math.abs(big.hs - big.as)}<span class="sr-only"> höchster Sieg</span></span>` : ''}</div>`));
+    const withVideo = gs.filter((g) => g.status === 'final' && mainVideo(g.code));
+    if (withVideo.length) {
+      center.appendChild(el('section', 'vstrip', `<h3>Highlights</h3><div class="vstrip-list" data-keep-scroll="videos">${withVideo.map((g) => {
+        const v = mainVideo(g.code);
+        return `<button type="button" class="vcard" data-act="box-video" data-code="${g.code}" aria-label="Highlights ${esc(name(m, g.home))} gegen ${esc(name(m, g.away))}, ${mmss(v.d)}">
+          <span class="vposter"><img src="${ytThumb(v.id)}" alt="" loading="lazy"><span class="vplay">${PLAY_SVG}</span><span class="vdur num">${mmss(v.d)}</span></span>
+          <b>${esc(short(g.home))} – ${esc(short(g.away))}</b><small class="num">${g.hs}:${g.as}</small></button>`;
+      }).join('')}</div>`));
+    }
     const list = el('div', 'games');
     gs.forEach((g) => list.appendChild(gameRow(m, g, g === big)));
     center.appendChild(list);
@@ -816,7 +829,7 @@ function toast(msg) {
 }
 
 // ---------- Spielbericht ----------
-const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '' };
+const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', view: 'stats', vid: '', playing: false };
 const pct = (a) => (a[1] ? `${Math.round(a[0] / a[1] * 100)}%` : '–');
 const ratio = (a) => `${a[0]}/${a[1]}`;
 
@@ -833,9 +846,10 @@ async function loadBox(code) {
   }
 }
 
-function openBox(code) {
+function openBox(code, view = 'stats') {
   const dlg = $('#box');
   boxState.code = code; boxState.data = null; boxState.error = ''; boxState.team = 0; boxState.shooter = '';
+  boxState.view = view; boxState.vid = ''; boxState.playing = false;
   clearInterval(boxState.timer);
   renderBox();
   if (!dlg.open) dlg.showModal();
@@ -871,7 +885,16 @@ function renderBox() {
     if (duel) m.games.filter((x) => x.status === 'final' && ((x.home === g.home && x.away === g.away) || (x.home === g.away && x.away === g.home))).forEach((x) => duel.appendChild(gameRow(m, x, false)));
     return;
   }
-  if (!b) { setBox(dlg, `${head}<p class="box-note">${esc(boxState.error || 'Lade Statistik …')}</p>`); return; }
+  // Nach Spielende: Videos des EuroLeague-Kanals als eigener Reiter
+  const vids = g.status === 'final' ? videosOf(g.code) : [];
+  const view = vids.length ? boxState.view : 'stats';
+  const seg = vids.length ? `<div class="seg box-view" role="group" aria-label="Ansicht"><button type="button" data-act="box-view" data-v="stats" aria-pressed="${view === 'stats'}">Statistik</button><button type="button" data-act="box-view" data-v="videos" aria-pressed="${view === 'videos'}">Videos <span class="num">${vids.length}</span></button></div>` : '';
+  if (view === 'videos') {
+    // Läuft das gewählte Video schon, nicht neu zeichnen (sonst beginnt es von vorne)
+    if (boxState.playing && $('iframe', dlg)?.dataset.id === (boxState.vid || vids[0].id)) return;
+    setBox(dlg, `${head}${seg}${videosHtml(m, g, vids)}`); return;
+  }
+  if (!b) { setBox(dlg, `${head}${seg}<p class="box-note">${esc(boxState.error || 'Lade Statistik …')}</p>`); return; }
   const [th, ta] = b.teams;
   if (!th || !ta) { setBox(dlg, `${head}<p class="box-note">Für dieses Spiel gibt es noch keine Statistik.</p>`); return; }
 
@@ -906,7 +929,7 @@ function renderBox() {
       <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
       <td>${esc(p.min || '–')}</td><td class="${p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`).join('');
-  setBox(dlg, `${head}${quarters}
+  setBox(dlg, `${head}${seg}${quarters}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
     <h3>Spieler</h3>
     <div class="seg" role="group" aria-label="Team wählen">${b.teams.map((t, i) => `<button type="button" data-act="box-team" data-i="${i}" aria-pressed="${i === boxState.team}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>
@@ -915,6 +938,29 @@ function renderBox() {
     <div class="pl-wrap"><table class="pl-table num"><thead><tr><th scope="col">#</th><th scope="col" class="pl">Spieler</th><th scope="col">Min</th><th scope="col">Pkt</th><th scope="col"><abbr title="Rebounds">Reb</abbr></th><th scope="col"><abbr title="Assists">Ass</abbr></th><th scope="col"><abbr title="2-Punkte-Würfe">2P</abbr></th><th scope="col"><abbr title="3-Punkte-Würfe">3P</abbr></th><th scope="col"><abbr title="Freiwürfe">FW</abbr></th><th scope="col"><abbr title="Steals">St</abbr></th><th scope="col"><abbr title="Ballverluste">BV</abbr></th><th scope="col"><abbr title="Blocks">Bl</abbr></th><th scope="col"><abbr title="Fouls">F</abbr></th><th scope="col"><abbr title="Effizienz">PIR</abbr></th><th scope="col">+/-</th></tr></thead>
     <tbody>${players}</tbody></table></div>
     <p class="box-note small">Quelle: EuroLeague. S5 = Startformation${b.live ? ', roter Punkt = gerade auf dem Feld. Aktualisiert sich alle 30 Sekunden' : ''}.</p>`);
+}
+
+// Reiter „Videos“: gewähltes Video gross (lädt den Player von youtube-nocookie.com erst beim Antippen), die übrigen als Liste
+function videosHtml(m, g, vids) {
+  const cur = vids.find((v) => v.id === boxState.vid) || vids[0];
+  const label = `${VIDEO_KIND[cur.k] || 'Video'} · ${name(m, g.home)} – ${name(m, g.away)}`;
+  const stage = boxState.playing
+    ? `<div class="vstage"><iframe data-id="${esc(cur.id)}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(cur.id)}?autoplay=1&playsinline=1&rel=0" title="${esc(label)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
+    : `<button type="button" class="vstage" data-act="video-play" data-id="${esc(cur.id)}" aria-label="${esc(label)} abspielen, ${mmss(cur.d)}">
+        <img src="${ytThumb(cur.id)}" alt=""><span class="vplay lg">${PLAY_SVG}</span><span class="vstage-title">${esc(label)}</span><span class="vdur num">${mmss(cur.d)}</span></button>`;
+  const rest = vids.filter((v) => v !== cur).map((v) => `<button type="button" class="vrow" data-act="video-play" data-id="${esc(v.id)}" aria-label="${esc(VIDEO_KIND[v.k] || 'Video')} abspielen, ${mmss(v.d)}">
+      <span class="vposter"><img src="${ytThumb(v.id)}" alt="" loading="lazy"><span class="vplay">${PLAY_SVG}</span><span class="vdur num">${mmss(v.d)}</span></span>
+      <span class="vrow-txt"><span class="vkind">${esc(VIDEO_KIND[v.k] || 'Video')}</span><b>${esc(v.t)}</b><small>${esc(cap(relAgo(v.at)))}</small></span></button>`).join('');
+  return `${stage}<p class="vstage-meta">${esc(cur.t)}</p>${rest ? `<div class="vlist">${rest}</div>` : ''}
+    <p class="box-note small">Videos: <a href="https://www.youtube.com/watch?v=${encodeURIComponent(cur.id)}" target="_blank" rel="noopener">EuroLeague auf YouTube</a>. Der Player lädt erst beim Antippen.</p>`;
+}
+function relAgo(iso) {
+  const h = Math.round((Date.now() - Date.parse(iso)) / 3600e3);
+  if (!Number.isFinite(h)) return '';
+  if (h < 1) return 'gerade eben';
+  if (h < 24) return `vor ${h} Std.`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'vor 1 Tag' : `vor ${d} Tagen`;
 }
 
 // Vorschau: Tabelle, Form, Heim/Auswärts, Duelle dieser Saison und Top-Spieler beider Teams
@@ -1328,6 +1374,24 @@ async function loadData() {
   }
 }
 
+// Highlights-Videos (YouTube-Kanal der EuroLeague, von der Funktion den Spielen zugeordnet); ohne Antwort weiter ohne
+let videosAt = 0;
+async function loadVideos() {
+  if (testData) return;
+  videosAt = Date.now();
+  try {
+    const res = await fetch(`${DATA_URL}?videos=1`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) });
+    const d = await res.json();
+    if (res.ok && d?.games && typeof d.games === 'object') videos = d.games;
+  } catch { /* Videos sind nur eine Beigabe */ }
+}
+const videosOf = (code) => (Array.isArray(videos[code]) ? videos[code] : []);
+const mainVideo = (code) => videosOf(code).find((v) => v.k === 'main') || null;
+const ytThumb = (id) => `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`;
+const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const VIDEO_KIND = { main: 'Highlights', last5: 'Letzte 5 Minuten', player: 'Spieler', pre: 'Vor dem Spiel', other: 'Video' };
+const PLAY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
+
 // Verletzte Spieler (injuries.json, von der täglichen News-Aufgabe gepflegt): id → Eintrag
 let injuries = new Map();
 async function loadInjuries() {
@@ -1368,7 +1432,8 @@ function liveSoon() {
 let dataTimer, newsAt = 0;
 async function refresh({ withNews = false } = {}) {
   clearTimeout(dataTimer);
-  const [, newsChanged] = await Promise.all([loadData(), withNews || Date.now() - newsAt > NEWS_POLL_MS ? loadNews() : Promise.resolve(false)]);
+  const [, newsChanged] = await Promise.all([loadData(), withNews || Date.now() - newsAt > NEWS_POLL_MS ? loadNews() : Promise.resolve(false),
+    Date.now() - videosAt > VIDEO_POLL_MS ? loadVideos() : null]);
   if (withNews || newsChanged) { newsAt = Date.now(); renderFeed(); }
   render();
   if ($('#teamDlg').open) renderTeamPage();
@@ -1398,6 +1463,9 @@ document.addEventListener('click', (e) => {
     renderFeed();
   } else if (act === 'share') share(Number(t.dataset.i));
   else if (act === 'box') openBox(Number(t.dataset.code));
+  else if (act === 'box-video') openBox(Number(t.dataset.code), 'videos');
+  else if (act === 'box-view') { boxState.view = t.dataset.v; boxState.playing = false; renderBox(); }
+  else if (act === 'video-play') { boxState.vid = t.dataset.id; boxState.playing = true; renderBox(); $('#box .vstage')?.scrollIntoView({ block: 'nearest' }); }
   else if (act === 'box-close') $('#box').close();
   else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; renderBox(); }
   else if (act === 'team') openTeam(t.dataset.c);
@@ -1453,7 +1521,7 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && profileMenuOpen) { profileMenuOpen = false; renderProfileMenu(); $('#profileBtn')?.focus(); } });
 $('#newsSearch').addEventListener('input', (e) => { feedState.q = e.target.value; renderFeed(); });
-$('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxState.code = 0; });
+$('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxState.code = 0; boxState.playing = false; $('#box iframe')?.remove(); });
 $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
 $('#playerDlg').addEventListener('close', () => { playerState.id = ''; });
 $('#factsDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });

@@ -13,6 +13,7 @@ Läuft auf GitHub Pages, ohne Build-Schritt (reines HTML/CSS/JavaScript).
 | Bestenlisten, Kader, Top-Spieler der Vorschau | Supabase-Funktion `euroleague` mit `?players=1` (Saisonwerte pro Spiel aller Spieler) | höchstens alle 30 Minuten neu |
 | Spielerseite (Antippen eines Spielernamens: Steckbrief, Stationen, Formkurve, Spiel für Spiel, Karriere) | Supabase-Funktion `euroleague` mit `?player=…&team=…` (Personen-, Kader-, Statistik- und Wurfdaten der EuroLeague; alle früheren Vereine aus der englischen Wikipedia, Liga/Land aus Wikidata) | beim Öffnen, höchstens alle 10 Minuten neu |
 | Statistiken & Fakten (Kachel „Fakten“: NBA-Erfahrung, ewige Bestenlisten, Kader-Fakten) | Supabase-Funktion `euroleague` mit `?facts=1` (Kader und ewige Statistik der EuroLeague, Vereinsgeschichten aus Wikipedia/Wikidata) | höchstens alle 12 Stunden neu; der erste Abruf dauert bis ~30 s |
+| Highlights-Videos (Leiste über den Resultaten, ▶ in der Spielzeile, Reiter „Videos“ im Spielbericht) | Supabase-Funktion `euroleague` mit `?videos=1` (Uploads des YouTube-Kanals «EUROLEAGUE BASKETBALL», über die Teamnamen im Titel den Spielen zugeordnet; Secret `YOUTUBE_KEY`) | höchstens alle 30 Minuten neu |
 | News (16 Meldungen) | `news.json` in diesem Repository | täglich um 07:15 durch eine Claude-Aufgabe |
 | Lieblingsteams | ohne Profil: nur lokal auf dem Gerät (`localStorage`); mit Profil (Name+PIN): Tabelle `el_profiles`, über die Funktion `euroleague` | bei jeder Änderung |
 
@@ -134,3 +135,20 @@ Einrichtung (einmalig):
    `supabase/functions/fussball/index.ts` einfügen, **„Verify JWT“ ausschalten** (wie bei `euroleague`) und deployen.
 
 Lieblingsteams (vorerst lokal, Stichwörter im Teamnamen): Liverpool, Chelsea, Basel, Mainz.
+
+## 7. Highlights-Videos (YouTube)
+
+Nach Spielende zeigt die Seite die Videos des offiziellen Kanals «EUROLEAGUE BASKETBALL»: Highlights, letzte 5 Minuten,
+Spieler-Highlights, Stimmung vor dem Spiel. Der Player kommt von `youtube-nocookie.com` und lädt erst beim Antippen.
+Die Funktion `euroleague` liest dafür die Uploads-Liste des Kanals über die YouTube Data API v3 (1 Einheit pro 50 Videos,
+alle 30 Minuten; das Gratis-Kontingent liegt bei 10'000 Einheiten pro Tag) und speichert die Zuordnung in `el_fb_cache`
+(siehe Abschnitt 6), damit auch ältere Spieltage ihre Videos behalten.
+
+Einrichtung (einmalig):
+1. console.cloud.google.com → Projekt anlegen → **APIs & Dienste** → **Bibliothek** → «YouTube Data API v3» aktivieren.
+2. **Anmeldedaten** → **Anmeldedaten erstellen** → **API-Schlüssel**; den Schlüssel auf «YouTube Data API v3» beschränken.
+3. Supabase → Edge Functions → Secrets: `YOUTUBE_KEY` = dieser Schlüssel.
+4. Die Funktion `euroleague` mit dem aktuellen Code neu deployen.
+
+Ohne Schlüssel bleibt alles wie bisher, nur ohne Videos.
+

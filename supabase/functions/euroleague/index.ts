@@ -46,6 +46,12 @@
 //   mit dem Secret SUPABASE_SERVICE_ROLE_KEY (Tabelle selbst bleibt per RLS für alle anderen gesperrt).
 //   Einrichtung: README.md.
 //
+//   GET ?videos=1 → Videos des offiziellen YouTube-Kanals «EUROLEAGUE BASKETBALL», den Spielen zugeordnet:
+//   → { updated, games: { "86": [{ id, t: Titel, k: 'main'|'last5'|'player'|'pre'|'other', d: Sekunden, at }] } }
+//     Braucht das Secret YOUTUBE_KEY (YouTube Data API v3); ohne Schlüssel { games: {} }. Liest die Uploads-Liste
+//     des Kanals (1 Einheit pro 50 Videos) und hält die Zuordnung in der Tabelle el_fb_cache (wie die Funktion fussball),
+//     damit auch ältere Spieltage ihre Videos behalten.
+//
 // Quelle sind die öffentlichen Schnittstellen der EuroLeague: der Spielplan der Saison (api-live.euroleague.net) und
 // pro laufendem Spiel der aktuelle Stand (live.euroleague.net). Nur öffentliche Daten, keine Anmeldung nötig.
 // Speichert und protokolliert nichts; der Spielplan bleibt 2 Minuten, ein Spielstand 20 Sekunden im Arbeitsspeicher,
@@ -501,6 +507,133 @@ async function liveOf(season, code) {
   }
 }
 
+// ---------- Videos (YouTube-Kanal der EuroLeague) ----------
+const YT_UPLOADS = 'UUGr3nR_XH9r6E5b09ZJAT9w'; // Uploads-Liste des Kanals UCGr3nR_XH9r6E5b09ZJAT9w
+const VIDEOS_MS = 30 * 60 * 1000;
+const KIND_ORDER = { main: 0, last5: 1, player: 2, pre: 3, other: 4 };
+// Wörter in Vereinsnamen, die mehrere Teams teilen oder in Titeln sonst vorkommen
+const NAME_STOP = new Set(['basketball', 'basket', 'club', 'istanbul', 'belgrade', 'aviv', 'real']);
+// Titel/Namen vergleichbar machen, mit Ziffern (für „R9“, „last 5“) und Leerzeichen an beiden Enden
+const words = (s) => ` ${String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+
+export function videoKind(title) {
+  const t = words(title);
+  if (/ (last|ultimi|ultimos) 5 /.test(t)) return 'last5';
+  if (/ player highlights | highlights giocatore | jugador /.test(t)) return 'player';
+  if (/ pregame | atmosphere | warm up /.test(t)) return 'pre';
+  if (/ highlights /.test(t) && / r\d+ | round /.test(t)) return 'main';
+  return 'other';
+}
+
+// ISO-8601-Dauer („PT8M27S“) → Sekunden
+export function isoSeconds(s) {
+  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(String(s || ''));
+  return m ? ((Number(m[1]) || 0) * 86400) + ((Number(m[2]) || 0) * 3600) + ((Number(m[3]) || 0) * 60) + (Number(m[4]) || 0) : 0;
+}
+
+// Videos ({ id, title, at: ms, d }) → { Spielcode: [Video] }. Ein Video gehört zu einem Spiel, wenn im Titel beide
+// Teams vorkommen und es zwischen 6 Stunden vor und 6 Tagen nach dem Beginn erschien (bei zwei Duellen derselben
+// Teams entscheidet das nähere). Kurzvideos (bis 60 s) bleiben weg.
+export function matchVideos(videos, payload) {
+  const tokens = {};
+  for (const [code, t] of Object.entries(payload?.teams || {})) {
+    tokens[code] = [...new Set(words(`${t.name} ${t.short}`).trim().split(' ').filter((w) => w.length >= 4 && !NAME_STOP.has(w)))];
+  }
+  const has = (title, code) => (tokens[code] || []).some((w) => title.includes(` ${w}`));
+  const games = (payload?.games || []).map((g) => ({ ...g, at: Date.parse(g.utc) }));
+  const out = {};
+  for (const v of videos) {
+    if (!v.id || v.d <= 60) continue;
+    const title = words(v.title);
+    let best = null;
+    for (const g of games) {
+      if (v.at < g.at - 6 * 3600e3 || v.at > g.at + 6 * 864e5) continue;
+      if (!has(title, g.home) || !has(title, g.away)) continue;
+      if (!best || Math.abs(v.at - g.at) < Math.abs(v.at - best.at)) best = g;
+    }
+    if (!best) continue;
+    (out[best.code] ||= []).push({ id: v.id, t: v.title, k: videoKind(v.title), d: v.d, at: new Date(v.at).toISOString() });
+  }
+  return out;
+}
+
+// Neue Zuordnung in die gespeicherte einfügen (ein Video nur einmal), pro Spiel nach Art und Zeit sortiert
+export function mergeVideos(old, add) {
+  const games = { ...(old || {}) };
+  for (const [code, list] of Object.entries(add || {})) {
+    const byId = new Map((games[code] || []).map((v) => [v.id, v]));
+    for (const v of list) byId.set(v.id, v);
+    games[code] = [...byId.values()].sort((a, b) => (KIND_ORDER[a.k] ?? 9) - (KIND_ORDER[b.k] ?? 9) || a.at.localeCompare(b.at)).slice(0, 8);
+  }
+  return games;
+}
+
+async function ytGet(path, key) {
+  const res = await fetch(`https://www.googleapis.com/youtube/v3/${path}&key=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`YouTube ${res.status}`);
+  return res.json();
+}
+
+const videoMem = new Map();
+async function videoCacheGet(key) {
+  if (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/el_fb_cache?key=eq.${encodeURIComponent(key)}&select=data`, { headers: serviceHeaders(), signal: AbortSignal.timeout(TIMEOUT_MS) });
+      if (r.ok) return (await r.json())[0]?.data || null;
+    } catch { /* Tabelle fehlt: Arbeitsspeicher */ }
+  }
+  return videoMem.get(key) || null;
+}
+async function videoCacheSet(key, data) {
+  videoMem.set(key, data);
+  if (!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) return;
+  await fetch(`${SUPABASE_URL}/rest/v1/el_fb_cache?on_conflict=key`, { method: 'POST', headers: { ...serviceHeaders(), Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ key, data, at: new Date().toISOString() }), signal: AbortSignal.timeout(TIMEOUT_MS) }).catch(() => {});
+}
+
+let videoLoading = null;
+async function videosOf(season, now) {
+  const key = Deno.env.get('YOUTUBE_KEY') || '';
+  if (!key) return { updated: now.toISOString(), games: {} };
+  const ck = `el-videos:${season}`;
+  const stored = await videoCacheGet(ck);
+  if (stored && Date.now() - Date.parse(stored.updated) < VIDEOS_MS) return stored;
+  // Gleichzeitige Aufrufe teilen sich einen Abruf
+  videoLoading ||= (async () => {
+    try {
+      // Beim ersten Mal 200 Uploads (rund zwei Wochen), danach reichen die neusten 50
+      const pages = stored ? 1 : 4;
+      const items = [];
+      let token = '';
+      for (let i = 0; i < pages; i++) {
+        const d = await ytGet(`playlistItems?part=contentDetails,snippet&maxResults=50&playlistId=${YT_UPLOADS}${token ? `&pageToken=${token}` : ''}`, key);
+        items.push(...(d.items || []));
+        token = d.nextPageToken || '';
+        if (!token) break;
+      }
+      const ids = items.map((it) => it.contentDetails?.videoId).filter(Boolean);
+      const dur = new Map();
+      for (let i = 0; i < ids.length; i += 50) {
+        const d = await ytGet(`videos?part=contentDetails&id=${ids.slice(i, i + 50).join(',')}`, key);
+        for (const v of d.items || []) dur.set(v.id, isoSeconds(v.contentDetails?.duration));
+      }
+      const videos = items.map((it) => ({ id: it.contentDetails?.videoId, title: String(it.snippet?.title || ''),
+        at: Date.parse(it.contentDetails?.videoPublishedAt || it.snippet?.publishedAt || ''), d: dur.get(it.contentDetails?.videoId) || 0 }))
+        .filter((v) => v.id && Number.isFinite(v.at));
+      const payload = await buildPayload(await loadSchedule(season), now, async () => null);
+      const data = { updated: new Date().toISOString(), games: mergeVideos(stored?.games, matchVideos(videos, payload)) };
+      await videoCacheSet(ck, data);
+      return data;
+    } catch (err) {
+      if (stored) return stored;
+      throw err;
+    } finally {
+      videoLoading = null;
+    }
+  })();
+  return videoLoading;
+}
+
 // Nur die eigene Seite (und zum Testen localhost) darf die Antwort lesen
 function corsFor(req) {
   const origin = req.headers.get('origin') || '';
@@ -612,6 +745,14 @@ async function handle(req) {
       return new Response(JSON.stringify(await playersOf(season)), { headers: { ...headers, 'Cache-Control': 'public, max-age=600' } });
     } catch {
       return new Response(JSON.stringify({ error: 'Die Spielerstatistik ist gerade nicht erreichbar.' }), { status: 502, headers });
+    }
+  }
+  if (params.has('videos')) {
+    const headers = { ...cors, 'Content-Type': 'application/json' };
+    try {
+      return new Response(JSON.stringify(await videosOf(season, now)), { headers: { ...headers, 'Cache-Control': 'public, max-age=600' } });
+    } catch {
+      return new Response(JSON.stringify({ error: 'Die Videos sind gerade nicht erreichbar.' }), { status: 502, headers });
     }
   }
   if (params.has('facts')) {
