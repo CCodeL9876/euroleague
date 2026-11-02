@@ -554,6 +554,8 @@ function renderCenter(m) {
   const now = Date.now();
   const today = zDate(new Date());
   const nx = m.upcoming[0];
+  const parts = [];
+
   // Oben: alle Spiele der nächsten (oder gerade laufenden) Runde, je mit Tag und Datum
   const liveGame = m.games.find((g) => g.status === 'live');
   const round = liveGame ? liveGame.round : nx ? nx.round : m.lastPlayed;
