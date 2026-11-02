@@ -554,23 +554,22 @@ function renderCenter(m) {
   const now = Date.now();
   const today = zDate(new Date());
   const nx = m.upcoming[0];
-  const day = m.games.some((g) => g.date === today) ? today : (nx ? nx.date : '');
-  const dayGames = m.games.filter((g) => g.date === day);
-  const parts = [];
-
-  // Heute
-  const label = day ? (day === today ? 'Heute' : cap(rel(day))) : 'Keine Spiele angesetzt';
+  // Oben: alle Spiele der nächsten (oder gerade laufenden) Runde, je mit Tag und Datum
+  const liveGame = m.games.find((g) => g.status === 'live');
+  const round = liveGame ? liveGame.round : nx ? nx.round : m.lastPlayed;
+  const roundGames = round ? [...m.rounds[round]].sort((a, b) => a.at - b.at) : [];
+  const running = roundGames.some((g) => g.status !== 'pre');
+  const dayLabel = (key) => { const [y, mo, d] = key.split('-'); return `${WD[new Date(Date.UTC(+y, +mo - 1, +d, 12)).getUTCDay()]} ${+d}.${+mo}.`; };
   // Laufende Spiele stehen gross in den Live-Boxen darunter, oben nur die übrigen
-  const chips = dayGames.filter((g) => g.status !== 'live').map((g) => {
-    const mid = g.status === 'final' ? `${g.hs}:${g.as}` : g.status === 'live' ? `${g.hs}:${g.as}` : g.time;
-    const sub = g.status === 'live' ? `<small><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')}</small>` : '';
+  const chips = roundGames.filter((g) => g.status !== 'live').map((g) => {
+    const mid = g.status === 'final' ? `${g.hs}:${g.as}` : g.time;
     const fav = FAV.includes(g.home) || FAV.includes(g.away);
-    return `<div class="day-game${g.status === 'final' ? ' done' : ''}${g.status === 'live' ? ' live' : ''}${fav ? ' fav' : ''}" ${boxAttrs(m, g)} title="${esc(fullName(m, g.home))} – ${esc(fullName(m, g.away))}">
-      <span class="t">${logo(m, g.home, 'xs')}<b>${esc(short(g.home))}</b></span><span class="mid num">${sub}${esc(mid)}</span><span class="t away"><b>${esc(short(g.away))}</b>${logo(m, g.away, 'xs')}</span></div>`;
+    return `<div class="day-game${g.status === 'final' ? ' done' : ''}${g.date === today ? ' is-today' : ''}${fav ? ' fav' : ''}" ${boxAttrs(m, g)} title="${esc(fullName(m, g.home))} – ${esc(fullName(m, g.away))}">
+      <span class="t">${logo(m, g.home, 'xs')}<b>${esc(short(g.home))}</b></span><span class="mid num"><small class="when">${g.date === today ? 'Heute' : esc(dayLabel(g.date))}</small>${esc(mid)}</span><span class="t away"><b>${esc(short(g.away))}</b>${logo(m, g.away, 'xs')}</span></div>`;
   }).join('');
-  const liveNow = dayGames.some((g) => g.status === 'live');
-  parts.push(`<section class="today" aria-label="Spiele ${day === today ? 'von heute' : 'am nächsten Spieltag'}">
-    <div class="today-head"><h2>${esc(label)}${dayGames.length ? ` <span>· Spieltag ${dayGames[0].round} · ${dayGames.length} ${dayGames.length === 1 ? 'Spiel' : 'Spiele'}</span>` : ''}</h2>
+  const liveNow = !!liveGame;
+  parts.push(`<section class="today" aria-label="Spiele von Spieltag ${round || ''}">
+    <div class="today-head"><h2>${round ? `Spieltag ${round} <span>· ${running ? 'läuft' : 'nächste Runde'} · ${roundGames.length} ${roundGames.length === 1 ? 'Spiel' : 'Spiele'}</span>` : 'Keine Spiele angesetzt'}</h2>
       ${data ? `<span class="stand${liveNow ? ' is-live' : ''}">${liveNow ? 'Live · ' : ''}Stand ${esc(zTime(new Date(data.updated)))}</span>` : ''}</div>
     ${chips ? `<div class="day-games" data-keep-scroll="today">${chips}</div>` : ''}</section>`);
 
@@ -632,7 +631,7 @@ function renderCenter(m) {
     <button type="button" class="tile t-blue" data-act="toggle-table" aria-expanded="${open.table}" aria-controls="tableBox"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M34 18h52v22c0 18-12 30-26 30S34 58 34 40z" fill="#8FA6FF"/><path d="M34 26H18c0 16 8 24 18 26M86 26h16c0 16-8 24-18 26" fill="none" stroke="#8FA6FF" stroke-width="8" stroke-linecap="round"/><rect x="52" y="68" width="16" height="18" fill="#7D96FF"/><rect x="36" y="86" width="48" height="14" rx="5" fill="#A9BBFF"/></svg><strong>Tabelle</strong><p>${tabTxt}</p></button>
     <button type="button" class="tile t-violet" data-act="toggle-next" aria-expanded="${open.next}" aria-controls="nextBox"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="58" r="44" fill="#9C78FF"/><path d="M16 58h88M60 14v88M30 26c14 16 14 48 0 64M90 26c-14 16-14 48 0 64" fill="none" stroke="#5A2BD6" stroke-width="6" stroke-linecap="round"/></svg><strong>Nächste Spiele</strong><p>${nextTxt}</p></button>
     <button type="button" class="tile t-coral" data-act="toggle-leaders" aria-expanded="${open.leaders}" aria-controls="leadersBox"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="18" y="62" width="20" height="38" rx="6" fill="#FF9AA0"/><rect x="50" y="40" width="20" height="60" rx="6" fill="#FFB4B8"/><rect x="82" y="18" width="20" height="82" rx="6" fill="#FF9AA0"/></svg><strong>Bestenlisten</strong><p>${esc(leaderTeaser(m))}</p></button>
-    <button type="button" class="tile t-teal tile-wide" data-act="facts" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="#6FD6C9"/><path d="M60 34v4M60 52v32" stroke="#0E5E57" stroke-width="10" stroke-linecap="round"/><circle cx="60" cy="40" r="2" fill="#0E5E57"/></svg><strong>Nice things to know</strong><p>${esc(factsTeaser())}</p><span class="tile-go" aria-hidden="true">›</span></button>
+    <button type="button" class="tile t-teal tile-wide" data-act="facts" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M60 4v7M24 18l5 5M96 18l-5 5M10 50h7M103 50h7" stroke="#6FD6C9" stroke-width="6" stroke-linecap="round"/><path d="M41 75.7A32 32 0 1 1 79 75.7c-4 3-6 7-6 11.3v3H47v-3c0-4.3-2-8.3-6-11.3z" fill="#6FD6C9"/><path d="M50 58l10 9 10-9M60 67v21" fill="none" stroke="#0E5E57" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="46" y="94" width="28" height="8" rx="4" fill="#3FB5A7"/><rect x="51" y="105" width="18" height="7" rx="3.5" fill="#3FB5A7"/></svg><strong>Nice things to know</strong><p>${esc(factsTeaser())}</p><span class="tile-go" aria-hidden="true">›</span></button>
   </div>`);
   center.innerHTML = parts.join('');
 
@@ -665,18 +664,20 @@ function renderCenter(m) {
   if (m.lastPlayed) {
     const gs = m.rounds[m.lastPlayed];
     const pl = gs.filter((g) => g.status === 'final');
-    center.appendChild(el('div', 'stats-head', `<h2>Spieltag ${m.lastPlayed} · Resultate</h2>
+    center.appendChild(el('div', 'stats-head', `<h2>Spieltag ${m.lastPlayed} · Highlights &amp; Resultate</h2>
       <div class="facts num"><span title="Gespielte Spiele">${icon('ball')}${pl.length}<span class="sr-only"> Spiele</span></span>
       ${avg ? `<span title="Punkte pro Spiel">${icon('bars')}Ø ${avg}<span class="sr-only"> Punkte pro Spiel</span></span>` : ''}
       ${big ? `<span title="Höchster Sieg">${icon('trend')}+${Math.abs(big.hs - big.as)}<span class="sr-only"> höchster Sieg</span></span>` : ''}</div>`));
     const withVideo = gs.filter((g) => g.status === 'final' && mainVideo(g.code));
     if (withVideo.length) {
-      center.appendChild(el('section', 'vstrip', `<h3>Highlights</h3><div class="vstrip-list" data-keep-scroll="videos">${withVideo.map((g) => {
+      const strip = el('section', 'vstrip', `<div class="vstrip-list" data-keep-scroll="videos">${withVideo.map((g) => {
         const v = mainVideo(g.code);
         return `<button type="button" class="vcard" data-act="box-video" data-code="${g.code}" aria-label="Highlights ${esc(name(m, g.home))} gegen ${esc(name(m, g.away))}, ${mmss(v.d)}">
           <span class="vposter"><img src="${ytThumb(v.id)}" alt="" loading="lazy"><span class="vplay">${PLAY_SVG}</span><span class="vdur num">${mmss(v.d)}</span></span>
           <b>${esc(short(g.home))} – ${esc(short(g.away))}</b><small class="num">${g.hs}:${g.as}</small></button>`;
-      }).join('')}</div>`));
+      }).join('')}</div>`);
+      strip.setAttribute('aria-label', 'Highlights');
+      center.appendChild(strip);
     }
     const list = el('div', 'games');
     gs.forEach((g) => list.appendChild(gameRow(m, g, g === big)));

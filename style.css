@@ -396,6 +396,8 @@
 .day-game .mid small{font-family:var(--font);font-size:0.66rem;font-weight:500;color:var(--green);white-space:nowrap;}
 .day-game.live{border-color:var(--green);}
 .day-game.live .mid{color:var(--text);}
+.day-game .mid small.when{color:var(--dim);font-weight:600;margin-bottom:2px;}
+.day-game.is-today .mid small.when{color:var(--blue-hi);}
 .logo.xxs{width:22px;height:22px;display:inline-flex;vertical-align:middle;margin-right:8px;}
 .standings-table tr.fav td.team .team-link::after{content:" ★";color:var(--gold);white-space:pre;}
 .brand h1{font-size:1.1rem;}
