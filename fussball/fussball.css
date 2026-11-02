@@ -68,6 +68,16 @@ body:not(.unlocked) .fb{display:none;}
   .fb-detail{padding-left:66px;}
 }
 
+/* Live-Tafel zuoberst (Fallblatt-Stil aus style.css) */
+.fb-live{display:flex;flex-direction:column;gap:10px;min-width:0;}
+.fb-live-head{display:flex;align-items:baseline;gap:8px;padding:0 4px;}
+.fb-live-head b{font-size:0.92rem;}
+.fb-live-head small{font-size:0.75rem;color:var(--dim);}
+.fb-live-card{font:inherit;text-align:left;width:100%;}
+.fb-logo.fb-logo-lg{width:40px;height:40px;}
+.fb-live-goal{font-size:0.74rem;color:var(--flap-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw;}
+@media (max-width:520px){ .fb-logo.fb-logo-lg{width:34px;height:34px;} }
+
 /* Leiste unten: Spiele | Meine | Basketball (wie die Leiste im Basketball-Bereich) */
 body{padding-bottom:calc(110px + env(safe-area-inset-bottom, 0px));}
 body:not(.unlocked) .fb-tabs{display:none;}

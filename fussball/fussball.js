@@ -39,6 +39,7 @@ const logo = (u) => `<span class="fb-logo">${/^https:\/\/(upload\.wikimedia\.org
 let data = null, error = '', sel = '', mineOnly = false, timer = 0;
 const open = new Set();
 const goalsCache = new Map();
+const lastFlaps = new Map(); // Spielstand-Zeichen der letzten Anzeige: geänderte Blätter klappen um
 
 function dayLabel(key) {
   const today = zDate(new Date());
@@ -77,6 +78,36 @@ function row(m) {
     <span class="fb-chev" aria-hidden="true">›</span></button>${ex ? `<div class="fb-detail">${goalsHtml(m)}</div>` : ''}`;
 }
 
+// Live-Tafel zuoberst: alle laufenden Spiele (unabhängig vom gewählten Tag) als Fallblatt-Anzeige wie im Basketball-Bereich
+const isLive = (m) => m.st === 'live' || m.st === 'ht';
+function liveHtml() {
+  const lives = data.matches.filter((m) => isLive(m) && (!mineOnly || isFav(m)))
+    .sort((a, b) => isFav(b) - isFav(a) || a.utc.localeCompare(b.utc) || a.h.localeCompare(b.h));
+  if (!lives.length) return '';
+  const cards = lives.map((m) => {
+    const hs = String(m.hs ?? 0), as = String(m.as ?? 0);
+    const chars = [...hs, '|', ...as];
+    const before = lastFlaps.get(m.id) || [];
+    lastFlaps.set(m.id, chars);
+    let i = 0;
+    const tiles = (str) => `<span class="flaps">${[...str].map((ch) => {
+      const flip = before.length && before[i] !== ch; i += 1;
+      return `<span class="flap${flip ? ' flip' : ''}">${ch === ' ' ? '' : esc(ch)}</span>`;
+    }).join('')}</span>`;
+    const lg = data.leagues.find((l) => l.id === m.l);
+    const state = m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft';
+    const last = (m.goals || goalsCache.get(m.id) || []).at(-1);
+    const goal = last ? `Tor ${esc(last.n || (last.s === 1 ? m.h : m.a))}${last.m !== '' ? ` ${esc(last.m)}'` : ''}` : '';
+    return `<button type="button" class="live-hero fb-live-card" data-act="fb-live" data-id="${esc(m.id)}" aria-label="${esc(m.h)} ${esc(hs)}, ${esc(m.a)} ${esc(as)}, ${esc(state)}">
+      <span class="flap-row">${logo(m.hl).replace('fb-logo', 'fb-logo fb-logo-lg')}<span class="flap-name">${esc(m.h)}</span>${tiles(hs)}</span>
+      <span class="flap-row">${logo(m.al).replace('fb-logo', 'fb-logo fb-logo-lg')}<span class="flap-name">${esc(m.a)}</span>${(i += 1, tiles(as))}</span>
+      <span class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)}${lg ? `<span class="flap-round">&nbsp;· ${esc(lg.name)}</span>` : ''}</span>
+        <span class="flap-clock">${goal ? `<span class="fb-live-goal">${goal}</span>` : ''}<span class="flap-more" aria-hidden="true">›</span></span></span></button>`;
+  }).join('');
+  return `<section class="fb-live" aria-label="Live-Spiele"><div class="fb-live-head"><b><i class="live-dot" aria-hidden="true"></i>Live</b><small>${lives.length} ${lives.length === 1 ? 'Spiel' : 'Spiele'}</small></div>
+    <div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="fb-live">${cards}</div></section>`;
+}
+
 function render() {
   const days = $('#fbDays'), list = $('#fbList');
   if (!data) { days.innerHTML = ''; list.innerHTML = `<p class="fb-empty">${esc(error || 'Lade Spiele …')}</p>`; return; }
@@ -100,8 +131,10 @@ function render() {
     if (l.length) groups.push({ ...lg, sub: l[0].round ? (/^\d+$/.test(l[0].round) ? `${l[0].round}. Runde` : l[0].round) : lg.country, list: l });
   }
   const head = (g) => `<div class="fb-g-head"><span class="fb-lg" style="--c:${g.star ? 'var(--gold)' : esc(g.color)}">${g.star ? '★' : esc(g.short)}</span><b>${esc(g.name)}</b><small>${esc(g.sub || '')}</small></div>`;
-  list.innerHTML = (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
+  const strip = list.querySelector('[data-keep-scroll="fb-live"]'), keep = strip ? strip.scrollLeft : 0;
+  list.innerHTML = liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
+  const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Bundesligen: OpenLigaDB · Premier League und Schweiz: API-Football`;
 }
 
@@ -203,6 +236,17 @@ document.addEventListener('click', (e) => {
   if (act === 'copy-link') { menuOpen = false; renderMenu(); copyLink(); return; }
   if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../'; return; }
   if (act === 'logout') { logout(); return; }
+  if (act === 'fb-live') {
+    // Zum Spiel in der Liste springen und Torschützen aufklappen
+    const m = data?.matches.find((x) => x.id === e.target.closest('[data-id]').dataset.id);
+    if (!m) return;
+    mineOnly = false; sel = zDate(new Date(m.utc)); open.add(m.id);
+    document.querySelectorAll('.fb-tabs [data-view]').forEach((x) => { if (x.dataset.view === 'all') x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
+    render();
+    if (!m.goals) loadGoals(m);
+    document.querySelector(`.fb-match[data-id="${CSS.escape(m.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   const b = e.target.closest('.fb-match');
   if (b) {
     const id = b.dataset.id;
