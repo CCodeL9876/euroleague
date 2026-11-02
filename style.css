@@ -594,9 +594,9 @@ button.box-team:hover{background:var(--card-2);}
 .court .shot.miss{fill:none;stroke:var(--coral);stroke-width:8;stroke-opacity:0.85;}
 .shots-sum{display:flex;gap:6px 16px;flex-wrap:wrap;margin:0;font-size:0.8rem;color:var(--dim);}
 .shots-sum span{display:inline-flex;align-items:center;gap:6px;}
-.lg{width:11px;height:11px;border-radius:50%;display:inline-block;}
-.lg.made{background:var(--green);}
-.lg.miss{border:2px solid var(--coral);}
+.shot-key{width:11px;height:11px;border-radius:50%;display:inline-block;}
+.shot-key.made{background:var(--green);}
+.shot-key.miss{border:2px solid var(--coral);}
 
 /* Teamseite */
 .team-hero{display:flex;align-items:center;gap:16px;background:var(--card);border-radius:20px;padding:16px;}

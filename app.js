@@ -1014,7 +1014,7 @@ function playerShotsHtml(d) {
   return `<div class="pc-court"><h4>Wurfkarte der Saison <small class="num">${made}/${all.length} getroffen</small></h4>
     ${courtSvg(dots, `Wurfkarte der Saison: ${made} von ${all.length} Würfen getroffen`)}
     <div class="pc-zones">${zt('Korbnähe', z.paint)}${zt('Mitteldistanz', z.mid)}${zt('Dreier', z.three)}</div>
-    <p class="shots-sum"><span><i class="lg made"></i>Treffer</span><span><i class="lg miss"></i>Fehlwurf</span><span>ohne Freiwürfe</span></p></div>`;
+    <p class="shots-sum"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>ohne Freiwürfe</span></p></div>`;
 }
 
 function shotsHtml(b, team) {
@@ -1030,7 +1030,7 @@ function shotsHtml(b, team) {
       <label class="sr-only" for="shotPlayer">Spieler</label>
       <select id="shotPlayer"><option value="">Alle Spieler</option>${shooters.map((p) => `<option value="${esc(p)}"${p === boxState.shooter ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
     ${courtSvg(dots, `Wurfkarte: ${c2[0] + c3[0]} von ${c2[1] + c3[1]} Würfen getroffen`)}
-    <p class="shots-sum num"><span><i class="lg made"></i>Treffer</span><span><i class="lg miss"></i>Fehlwurf</span><span>2P ${c2[0]}/${c2[1]} (${pct(c2)})</span><span>3P ${c3[0]}/${c3[1]} (${pct(c3)})</span></p></div>`;
+    <p class="shots-sum num"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>2P ${c2[0]}/${c2[1]} (${pct(c2)})</span><span>3P ${c3[0]}/${c3[1]} (${pct(c3)})</span></p></div>`;
 }
 
 // ---------- Teamseite ----------
