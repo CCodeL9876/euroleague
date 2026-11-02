@@ -21,7 +21,7 @@ if (!store.get('el-profile-name', '')) location.replace('../');
 // (el-fb-fav) – die werden beim ersten Laden der Spiele in Teamnamen umgewandelt.
 const LEGACY_FAV = (() => {
   try { const v = JSON.parse(store.get('el-fb-fav', 'null')); if (Array.isArray(v) && v.length) return v.map(String); } catch { /* kaputt */ }
-  return ['liverpool', 'chelsea', 'basel', 'mainz'];
+  return [];
 })();
 let FAV = (() => {
   try { const v = JSON.parse(store.get('el-fb-fav2', 'null')); if (Array.isArray(v)) return new Map(v.map((n) => [String(n).toLowerCase(), String(n)])); } catch { /* kaputt */ }
@@ -48,17 +48,27 @@ function pushFav() {
     if (!res.ok) toast('Teams nur auf diesem Gerät gespeichert – Profil gerade nicht erreichbar.');
   }, 800);
 }
+// Stand der Teams im Profil: undefined = Antwort steht aus, 'none' = keine gespeichert, 'offline' = nicht erreichbar, 'ok'
+let profileFav;
 async function pullFav() {
   const a = profileAuth();
-  if (!a.name || !a.pin) return;
-  const res = await profileCall({ kind: 'profile-login', ...a });
-  if (!res.ok) return;
-  if (Array.isArray(res.fbFavorites)) {
+  const res = a.name && a.pin ? await profileCall({ kind: 'profile-login', ...a }) : { ok: false };
+  if (!res.ok) profileFav = 'offline';
+  else if (Array.isArray(res.fbFavorites) && res.fbFavorites.length) {
+    profileFav = 'ok';
+    if (sheet?.id === 'fav') return; // gerade am Wählen: nicht dazwischenfunken
     FAV = new Map(res.fbFavorites.map((n) => [String(n).toLowerCase(), String(n)])); saveFav();
-    if (sheet?.id !== 'fav') render();
+    render();
     if (menuOpen) renderMenu();
-  } else if (res.fbFavorites === null && FAV) pushFav(); // Profil hat noch keine Fussball-Teams: die vom Gerät übernehmen
-  else if (res.fbFavorites === null) pullFav.pending = true; // erst nach dem Umwandeln der alten Stichwörter hochladen
+  } else profileFav = 'none';
+  settleFav();
+}
+// Nach Profil-Antwort und Spielplan: Teams vom Gerät ins leere Profil übernehmen – oder, wenn es nirgends Teams gibt,
+// die Auswahl öffnen (Pflicht, mindestens ein Team)
+function settleFav() {
+  if (!data || profileFav === undefined || profileFav === 'ok') return;
+  if (FAV?.size) { if (profileFav === 'none') { pushFav(); profileFav = 'ok'; } return; }
+  if (!sheet) openFav(true);
 }
 
 const $ = (sel) => document.querySelector(sel);
@@ -294,14 +304,19 @@ function favSheetHtml() {
   const btn = (t) => `<button type="button" class="fb-pick" data-act="fb-fav-toggle" data-team="${esc(t.n)}" aria-pressed="${isFavName(t.n)}">${logo(t.logo)}<span>${esc(t.n)}</span><i aria-hidden="true">★</i></button>`;
   return `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
     <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
-      <div class="fb-sheet-h"><span class="fb-lg" style="--c:var(--gold)">★</span><b id="fbSheetTitle">Meine Teams</b><small class="fb-fav-n" aria-live="polite"></small>
-        <button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Fertig">✕</button></div>
+      <div class="fb-sheet-h"><span class="fb-lg" style="--c:var(--gold)">★</span><b id="fbSheetTitle">${sheet?.required ? 'Deine Teams' : 'Meine Teams'}</b><small class="fb-fav-n" aria-live="polite"></small>
+        ${sheet?.required ? '<button type="button" class="fb-fav-done" data-act="fb-sheet-close">Fertig</button>' : '<button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Fertig">✕</button>'}</div>
+      ${sheet?.required ? '<p class="fb-fav-intro">Wähle mindestens ein Team. Seine Spiele erscheinen zuoberst unter «Meine Spiele» und in der Ansicht «Meine». Ändern kannst du die Auswahl jederzeit im Profilmenü.</p>' : ''}
       <div class="fb-fav-search"><input type="search" id="fbFavQ" placeholder="Team suchen" aria-label="Team suchen" autocomplete="off"></div>
       <div class="fb-sheet-body">${groups.map((g) => `<section class="fb-pick-g"><h3><span class="fb-lg" style="--c:${esc(g.lg?.color || '#555')}">${esc(g.lg?.short || '')}</span>${esc(g.title || '')}</h3>
         <div class="fb-pick-list">${g.list.sort((a, b) => a.n.localeCompare(b.n, 'de')).map(btn).join('')}</div></section>`).join('') || '<p class="fb-x-note">Lade …</p>'}
         <p class="fb-x-note fb-pick-none" hidden>Kein Team gefunden.</p></div></section>`;
 }
-function favCount() { const n = FAV?.size || 0; const el = document.querySelector('.fb-fav-n'); if (el) el.textContent = n ? `${n} gewählt` : ''; }
+function favCount() {
+  const n = FAV?.size || 0, el = document.querySelector('.fb-fav-n'), done = document.querySelector('.fb-fav-done');
+  if (el) el.textContent = n ? `${n} gewählt` : '';
+  if (done) done.disabled = !n;
+}
 function filterFav(q) {
   const k = q.trim().toLowerCase();
   let any = false;
@@ -315,6 +330,7 @@ function filterFav(q) {
 function toggleFav(n) {
   if (!FAV) FAV = new Map();
   const k = n.toLowerCase();
+  if (FAV.has(k) && FAV.size <= 1) { toast('Mindestens ein Team bleibt gewählt.'); return; }
   if (FAV.has(k)) FAV.delete(k); else FAV.set(k, n);
   saveFav(); pushFav();
   document.querySelectorAll('.fb-pick').forEach((b) => { if (b.dataset.team.toLowerCase() === k) b.setAttribute('aria-pressed', String(FAV.has(k))); });
@@ -357,12 +373,13 @@ async function openSheet(id, tab) {
 }
 function closeSheet() {
   const fav = sheet?.id === 'fav';
+  if (fav && sheet.required && !FAV?.size) return; // Pflicht-Auswahl: erst mit mindestens einem Team
   const back = sheet && (fav ? document.querySelector('[data-act="fb-fav"]') || $('#profileBtn') : document.querySelector(`[data-act="fb-table"][data-id="${sheet.id}"]`));
   sheet = null; renderSheet();
   if (fav) render();
   back?.focus();
 }
-function openFav() { sheet = { id: 'fav' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); }
+function openFav(required = false) { sheet = { id: 'fav', required }; renderSheet(); if (!required) document.querySelector('.fb-sheet-x')?.focus(); }
 
 async function load() {
   try {
@@ -370,7 +387,8 @@ async function load() {
     const d = await res.json();
     if (!res.ok || !Array.isArray(d?.matches)) throw new Error(d?.error || '');
     data = d; error = '';
-    if (!FAV) { FAV = new Map(allTeams().filter((t) => isFavName(t.n)).map((t) => [t.n.toLowerCase(), t.n])); saveFav(); if (pullFav.pending) pushFav(); }
+    if (!FAV) { FAV = new Map(allTeams().filter((t) => isFavName(t.n)).map((t) => [t.n.toLowerCase(), t.n])); saveFav(); }
+    settleFav();
   } catch (err) {
     if (!data) error = err?.message || 'Die Fussball-Daten sind gerade nicht erreichbar.';
   }
@@ -427,7 +445,7 @@ function renderMenu() {
   menu.hidden = !menuOpen;
   if (!menuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
-  menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV ? [...FAV.values()].join(', ') || 'keine' : LEGACY_FAV.join(', '))}</small></span></div>
+  menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV ? [...FAV.values()].join(', ') || 'keine' : LEGACY_FAV.join(', ') || 'keine')}</small></span></div>
     ${item('fb-fav', 'star', 'Teams wählen')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
   menu.querySelector('.pm-item')?.focus();
 }

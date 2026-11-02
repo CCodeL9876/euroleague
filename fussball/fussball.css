@@ -201,3 +201,6 @@ body:not(.unlocked) .fb-tabs{display:none;}
 .fb-pick i{font-style:normal;color:var(--faint);}
 .fb-pick[aria-pressed="true"]{border-color:var(--gold);background:color-mix(in srgb, var(--gold) 14%, var(--card));}
 .fb-pick[aria-pressed="true"] i{color:var(--gold);}
+.fb-fav-done{margin-left:10px;min-height:36px;padding:0 16px;border:0;border-radius:10px;background:var(--pitch, #2ea043);color:#fff;font:inherit;font-weight:600;cursor:pointer;}
+.fb-fav-done:disabled{background:var(--card);color:var(--faint);cursor:default;}
+.fb-fav-intro{margin:0 16px 10px;font-size:0.85rem;line-height:1.45;color:var(--dim);}
