@@ -683,8 +683,15 @@ function cleanFavorites(favorites) {
   return [...new Set(favorites.map((f) => String(f || '').trim().toUpperCase()).filter((f) => TEAM_CODE_RE.test(f)))].slice(0, 14);
 }
 
+// Fussball-Lieblingsteams: genaue Teamnamen (Spalte fb_favorites, jsonb; null = noch nie gespeichert)
+function cleanFbFavorites(list) {
+  if (!Array.isArray(list)) return [];
+  return [...new Set(list.map((n) => String(n || '').trim().slice(0, 60)).filter(Boolean))].slice(0, 40);
+}
+
 async function findProfile(key) {
-  const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}&select=key,name,pin_hash,favorites`, { headers: serviceHeaders() });
+  // select=* statt fester Spalten: funktioniert auch, solange die Spalte fb_favorites noch nicht angelegt ist
+  const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}&select=*`, { headers: serviceHeaders() });
   if (!res.ok) throw new Error(`profiles ${res.status}`);
   const rows = await res.json();
   return rows[0] || null;
@@ -712,7 +719,17 @@ async function handleProfile(body, cors) {
       if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
       const pin_hash = await sha256Hex(`${pin}:${key}`);
       if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
-      return new Response(JSON.stringify({ ok: true, name: row.name, favorites: row.favorites || [] }), { headers });
+      return new Response(JSON.stringify({ ok: true, name: row.name, favorites: row.favorites || [], fbFavorites: Array.isArray(row.fb_favorites) ? row.fb_favorites : null }), { headers });
+    }
+    if (body.kind === 'profile-fbsave') {
+      const row = await findProfile(key);
+      if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
+      const pin_hash = await sha256Hex(`${pin}:${key}`);
+      if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
+      const fb_favorites = cleanFbFavorites(body.fbFavorites);
+      const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}`, { method: 'PATCH', headers: { ...serviceHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify({ fb_favorites, updated_at: new Date().toISOString() }) });
+      if (!res.ok) throw new Error(`fbsave ${res.status}`);
+      return new Response(JSON.stringify({ ok: true, fbFavorites: fb_favorites }), { headers });
     }
     if (body.kind === 'profile-save') {
       const row = await findProfile(key);

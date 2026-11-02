@@ -29,6 +29,38 @@ let FAV = (() => {
 })();
 const saveFav = () => store.set('el-fb-fav2', JSON.stringify([...FAV.values()]));
 
+// Wie im Basketball-Bereich: Teams hängen am Profil (Funktion „euroleague“), damit sie auf allen Geräten gelten.
+// Lokal bleibt eine Kopie, damit die Seite sofort und auch ohne Netz die richtigen Teams zeigt.
+async function profileCall(body) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/euroleague`, { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+    return (await res.json().catch(() => null)) || { ok: false };
+  } catch { return { ok: false }; }
+}
+const profileAuth = () => ({ name: store.get('el-profile-name', ''), pin: store.get('el-profile-pin', '') });
+let favSaveTimer = 0;
+function pushFav() {
+  clearTimeout(favSaveTimer);
+  favSaveTimer = setTimeout(async () => {
+    const a = profileAuth();
+    if (!a.name || !a.pin || !FAV) return;
+    const res = await profileCall({ kind: 'profile-fbsave', ...a, fbFavorites: [...FAV.values()] });
+    if (!res.ok) toast('Teams nur auf diesem Gerät gespeichert – Profil gerade nicht erreichbar.');
+  }, 800);
+}
+async function pullFav() {
+  const a = profileAuth();
+  if (!a.name || !a.pin) return;
+  const res = await profileCall({ kind: 'profile-login', ...a });
+  if (!res.ok) return;
+  if (Array.isArray(res.fbFavorites)) {
+    FAV = new Map(res.fbFavorites.map((n) => [String(n).toLowerCase(), String(n)])); saveFav();
+    if (sheet?.id !== 'fav') render();
+    if (menuOpen) renderMenu();
+  } else if (res.fbFavorites === null && FAV) pushFav(); // Profil hat noch keine Fussball-Teams: die vom Gerät übernehmen
+  else if (res.fbFavorites === null) pullFav.pending = true; // erst nach dem Umwandeln der alten Stichwörter hochladen
+}
+
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const zParts = (d, opts) => {
@@ -284,7 +316,7 @@ function toggleFav(n) {
   if (!FAV) FAV = new Map();
   const k = n.toLowerCase();
   if (FAV.has(k)) FAV.delete(k); else FAV.set(k, n);
-  saveFav();
+  saveFav(); pushFav();
   document.querySelectorAll('.fb-pick').forEach((b) => { if (b.dataset.team.toLowerCase() === k) b.setAttribute('aria-pressed', String(FAV.has(k))); });
   favCount();
 }
@@ -338,7 +370,7 @@ async function load() {
     const d = await res.json();
     if (!res.ok || !Array.isArray(d?.matches)) throw new Error(d?.error || '');
     data = d; error = '';
-    if (!FAV) { FAV = new Map(allTeams().filter((t) => isFavName(t.n)).map((t) => [t.n.toLowerCase(), t.n])); saveFav(); }
+    if (!FAV) { FAV = new Map(allTeams().filter((t) => isFavName(t.n)).map((t) => [t.n.toLowerCase(), t.n])); saveFav(); if (pullFav.pending) pushFav(); }
   } catch (err) {
     if (!data) error = err?.message || 'Die Fussball-Daten sind gerade nicht erreichbar.';
   }
@@ -468,7 +500,7 @@ document.addEventListener('click', (e) => {
   }
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') load(); else clearTimeout(timer);
+  if (document.visibilityState === 'visible') { load(); pullFav(); } else clearTimeout(timer);
 });
 // Ganz oben nach unten ziehen lädt die Seite neu (wie im Basketball-Bereich)
 function setupPullToRefresh() {
@@ -511,4 +543,5 @@ function setupPullToRefresh() {
 themeUi();
 renderMenu();
 load();
+pullFav();
 setupPullToRefresh();
