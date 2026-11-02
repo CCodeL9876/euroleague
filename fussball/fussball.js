@@ -289,6 +289,7 @@ const ICON = {
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
   star: '<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
 };
 const icon = (n) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
@@ -390,6 +391,45 @@ document.addEventListener('click', (e) => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') load(); else clearTimeout(timer);
 });
+// Ganz oben nach unten ziehen lädt die Seite neu (wie im Basketball-Bereich)
+function setupPullToRefresh() {
+  const THRESHOLD = 70, MAX = 110;
+  const ind = document.createElement('div');
+  ind.className = 'ptr'; ind.innerHTML = icon('refresh'); ind.setAttribute('aria-hidden', 'true');
+  document.body.append(ind);
+  let startY = null, startX = 0, dy = 0, busy = false;
+  const show = (d) => {
+    const pos = Math.min(d, MAX);
+    ind.style.transform = `translate(-50%, ${pos - 50}px) rotate(${pos * 3}deg)`;
+    ind.style.opacity = String(Math.min(pos / THRESHOLD, 1));
+    ind.classList.toggle('is-ready', d >= THRESHOLD);
+  };
+  const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
+  window.addEventListener('touchstart', (e) => {
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || sheet) return;
+    startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (startY == null) return;
+    const y = e.touches[0].clientY - startY, x = e.touches[0].clientX - startX;
+    // Seitwärts wischen (Tage, Fallblätter) oder nach oben scrollen: kein Aktualisieren
+    if (y <= 0 || Math.abs(x) > y || window.scrollY > 0) { startY = null; reset(); return; }
+    dy = y * 0.6;
+    show(dy);
+  }, { passive: true });
+  window.addEventListener('touchend', () => {
+    if (startY == null) return;
+    startY = null;
+    if (dy < THRESHOLD) return reset();
+    busy = true;
+    ind.classList.add('is-loading');
+    ind.style.transform = 'translate(-50%, 20px)';
+    ind.style.opacity = '1';
+    location.reload();
+  });
+  window.addEventListener('touchcancel', () => { startY = null; reset(); });
+}
 themeUi();
 renderMenu();
 load();
+setupPullToRefresh();
