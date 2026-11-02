@@ -41,7 +41,11 @@ const open = new Set();
 const goalsCache = new Map();
 const detailTab = new Map(); // Premier League aufgeklappt: 'goals' | 'lineup' | 'stats'
 const detailCache = new Map(); // `${id}|${kind}` → Antwort von ?fbdetail=
-const lastFlaps = new Map(); // Spielstand-Zeichen der letzten Anzeige: geänderte Blätter klappen um
+const lastFlaps = new Map();
+// Blatt von unten mit Tabelle und Torschützen (zurzeit Premier League)
+const TABLE_LEAGUES = new Set(['pl']);
+const leagueCache = new Map(); // `${id}|${kind}` → Antwort von ?fbleague=
+let sheet = null; // { id, tab: 'table' | 'scorers' } // Spielstand-Zeichen der letzten Anzeige: geänderte Blätter klappen um
 
 function dayLabel(key) {
   const today = zDate(new Date());
@@ -193,13 +197,63 @@ function render() {
     const l = ms.filter((m) => m.l === lg.id);
     if (l.length) groups.push({ ...lg, sub: l[0].round ? (/^\d+$/.test(l[0].round) ? `${l[0].round}. Runde` : l[0].round) : lg.country, list: l });
   }
-  const head = (g) => `<div class="fb-g-head"><span class="fb-lg" style="--c:${g.star ? 'var(--gold)' : esc(g.color)}">${g.star ? '★' : esc(g.short)}</span><b>${esc(g.name)}</b><small>${esc(g.sub || '')}</small></div>`;
+  const head = (g) => {
+    const inner = `<span class="fb-lg" style="--c:${g.star ? 'var(--gold)' : esc(g.color)}">${g.star ? '★' : esc(g.short)}</span><b>${esc(g.name)}</b><small>${esc(g.sub || '')}</small>`;
+    return !g.star && TABLE_LEAGUES.has(g.id)
+      ? `<button type="button" class="fb-g-head fb-g-link" data-act="fb-table" data-id="${esc(g.id)}" aria-haspopup="dialog">${inner}<span class="fb-g-more">Tabelle ›</span></button>`
+      : `<div class="fb-g-head">${inner}</div>`;
+  };
   const strip = list.querySelector('[data-keep-scroll="fb-live"]'), keep = strip ? strip.scrollLeft : 0;
   list.innerHTML = liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
 }
+
+// ---------- Blatt: Tabelle / Torschützen ----------
+function sheetBody(id, tab) {
+  const d = leagueCache.get(`${id}|${tab}`);
+  if (!d) return '<p class="fb-x-note">Lade …</p>';
+  if (!d.available) return '<p class="fb-x-note">Gerade nicht verfügbar.</p>';
+  if (tab === 'scorers') {
+    return `<div class="fb-sc-head"><span></span><span>Spieler</span><span>Tore</span><span>Vorl.</span></div><div class="fb-sc-list">${d.rows.map((r) => `<div class="fb-scr${isFavName(r.team) ? ' fav' : ''}"><span class="pos">${esc(r.rank)}</span>
+      <span class="who"><b>${esc(r.n)}</b><small>${esc(r.team)}</small></span><span class="g">${esc(r.g)}</span><span class="a">${esc(r.a)}</span></div>`).join('')}</div><p class="fb-x-src">Quelle: Big Balls</p>`;
+  }
+  const zone = (rank) => (d.zones || []).find(([a, b]) => rank >= a && rank <= b)?.[2] || '';
+  return `<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tore">Tore</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
+    <tbody>${d.rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}"><td class="pos">${esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span></span></td>
+      <td>${esc(r.p)}</td><td>${esc(r.gf)}:${esc(r.ga)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>
+    <p class="fb-zones"><span class="z-cl">Champions League</span><span class="z-el">Europa League</span><span class="z-co">Conference League</span><span class="z-ab">Abstieg</span></p><p class="fb-x-src">Quelle: Big Balls</p>`;
+}
+function renderSheet() {
+  let el = $('#fbSheet');
+  if (!sheet) { if (el) { el.remove(); document.body.classList.remove('fb-sheet-open'); } return; }
+  const lg = data?.leagues.find((l) => l.id === sheet.id);
+  if (!el) {
+    el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap';
+    document.body.appendChild(el); document.body.classList.add('fb-sheet-open');
+  }
+  const keep = el.querySelector('.fb-sheet-body')?.scrollTop || 0;
+  el.innerHTML = `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
+    <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
+      <div class="fb-sheet-h"><span class="fb-lg" style="--c:${esc(lg?.color || '#555')}">${esc(lg?.short || '')}</span><b id="fbSheetTitle">${esc(lg?.name || '')}</b>
+        <button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Schliessen">✕</button></div>
+      <div class="fb-seg" role="tablist">${[['table', 'Tabelle'], ['scorers', 'Torschützen']].map(([k, t]) => `<button type="button" role="tab" data-act="fb-sheet-tab" data-tab="${k}" aria-selected="${sheet.tab === k}">${t}</button>`).join('')}</div>
+      <div class="fb-sheet-body">${sheetBody(sheet.id, sheet.tab)}</div></section>`;
+  el.querySelector('.fb-sheet-body').scrollTop = keep;
+}
+async function openSheet(id, tab) {
+  sheet = { id, tab }; renderSheet();
+  document.querySelector('.fb-sheet-x')?.focus();
+  const k = `${id}|${tab}`;
+  if (leagueCache.has(k)) return;
+  try {
+    const res = await fetch(`${DATA_URL}?fbleague=${encodeURIComponent(id)}&kind=${tab}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(30000) });
+    leagueCache.set(k, await res.json());
+  } catch { leagueCache.set(k, { available: false }); }
+  if (sheet && sheet.id === id && sheet.tab === tab) renderSheet();
+}
+function closeSheet() { const back = sheet && document.querySelector(`[data-act="fb-table"][data-id="${sheet.id}"]`); sheet = null; renderSheet(); back?.focus(); }
 
 async function load() {
   try {
@@ -283,6 +337,7 @@ function logout() {
   try { key = localStorage.getItem('el-gate-key') || ''; localStorage.removeItem('el-gate-ok'); localStorage.removeItem('el-gate-key'); if (!key) sessionStorage.setItem('el-gate-relogin', '1'); } catch { /* privates Fenster */ }
   location.href = `../${key ? `?key=${encodeURIComponent(key)}` : ''}`;
 }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet) closeSheet(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && menuOpen) { menuOpen = false; renderMenu(); $('#profileBtn')?.focus(); } });
 
 document.addEventListener('click', (e) => {
@@ -301,6 +356,9 @@ document.addEventListener('click', (e) => {
   if (act === 'copy-link') { menuOpen = false; renderMenu(); copyLink(); return; }
   if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../'; return; }
   if (act === 'logout') { logout(); return; }
+  if (act === 'fb-table') { openSheet(e.target.closest('[data-id]').dataset.id, 'table'); return; }
+  if (act === 'fb-sheet-close') { closeSheet(); return; }
+  if (act === 'fb-sheet-tab') { openSheet(sheet.id, e.target.closest('[data-tab]').dataset.tab); return; }
   if (act === 'fb-tab') {
     const el = e.target.closest('[data-tab]'), m = data?.matches.find((x) => x.id === el.dataset.id);
     if (!m) return;

@@ -13,6 +13,7 @@
 //     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, Neuaufsteiger dort ergänzen). Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
+//   GET ?fbleague=pl&kind=table|scorers → Tabelle bzw. Torschützenliste (Big Balls); Tabelle alle 30 Min. (Spieltag) bzw. 3 Std., Torschützen alle 6 Std.
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Sportradar) bzw. Teamstatistik (Big Balls) eines Premier-League-Spiels
 //   GET ?bbprobe=1 → Test von bigballsdata.com (Secret BIGBALLS_KEY): Rohform von Spielen, Live-Feed, Toren, Tabelle, Statistik (≈7 Abfragen), höchstens alle 30 Min.
 //   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
@@ -254,6 +255,37 @@ async function bbGame(id) {
   await cacheSet(ck, data);
   return data;
 }
+// Tabelle und Torschützen einer Big-Balls-Liga (zurzeit Premier League)
+const BB_TABLE = { pl: { key: 'epl', scorers: 'epl', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] } };
+async function fbLeague(id, kind, now = Date.now()) {
+  const cfg = BB_TABLE[id];
+  if (!cfg || !Deno.env.get('BIGBALLS_KEY')) return { available: false };
+  if (kind === 'scorers') {
+    const ck = `bbsc:${cfg.key}`;
+    const hit = await cacheGet(ck);
+    if (hit && now - hit.at < 6 * 3600 * 1000) return hit.data;
+    if (!(await bbAllowed())) return hit?.data || { available: false };
+    const d = await bbGet(`leagues/${cfg.scorers}/top-scorers`, { limit: '20' });
+    const data = { available: true, rows: (d?.data || []).map((r) => ({ rank: r.rank, n: String(r.player_name || ''), team: String(r.team || ''), g: r.goals ?? 0, a: r.assists ?? 0, mp: r.matches ?? null })) };
+    await cacheSet(ck, data);
+    return data;
+  }
+  const ck = `bbtab:${cfg.key}`;
+  const hit = await cacheGet(ck);
+  const today = new Date(now).toISOString().slice(0, 10);
+  const ov = hit && now - hit.at < 30 * 60 * 1000 ? null : await fbOverview(now).catch(() => null);
+  const playsToday = ov ? ov.matches.some((m) => m.l === id && zurichDay(m.utc) === zurichDay(today + 'T12:00:00Z')) : false;
+  if (hit && now - hit.at < (playsToday ? 30 * 60 * 1000 : 3 * 3600 * 1000)) return hit.data;
+  if (!(await bbAllowed())) return hit?.data || { available: false };
+  const d = await bbGet('standings', { league: cfg.key });
+  const t = d?.data?.standings?.[0];
+  const rows = (t?.rows || []).map((r) => ({ rank: r.rank, team: String(r.team_name || ''), logo: fbImg(r.logo_url), p: r.games_played ?? 0, w: r.wins ?? 0, d: r.ties ?? 0, l: r.losses ?? 0,
+    gf: r.points_for ?? 0, ga: r.points_against ?? 0, pts: (r.wins ?? 0) * 3 + (r.ties ?? 0) })).sort((a, b) => a.rank - b.rank);
+  const data = { available: rows.length > 0, season: String(t?.season || ''), zones: cfg.zones, rows };
+  await cacheSet(ck, data);
+  return data;
+}
+const zurichDay = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich' }).format(new Date(iso));
 // Premier League im Detail: Aufstellung von Sportradar (Spiel über Anstoss und Heimteam zugeordnet), Teamstatistik von Big Balls
 const nameKey = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\b(fc|afc|cf)\b/g, '').replace(/[^a-z]/g, '').slice(0, 6);
 async function srMatchFor(m, now) {
@@ -793,6 +825,10 @@ async function handle(req) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers });
   const params = new URL(req.url).searchParams;
+  if (params.has('fbleague')) {
+    try { return new Response(JSON.stringify(await fbLeague(String(params.get('fbleague')), params.get('kind') === 'scorers' ? 'scorers' : 'table')), { headers }); }
+    catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
+  }
   if (params.has('fbdetail')) {
     try { return new Response(JSON.stringify(await fbDetail(String(params.get('fbdetail')), params.get('kind') === 'stats' ? 'stats' : 'lineup')), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
