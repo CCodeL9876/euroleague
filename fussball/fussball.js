@@ -123,14 +123,45 @@ function goalsHtml(m) {
 
 // Premier League: Reiter Tore · Aufstellung · Statistik im aufgeklappten Spiel
 const hasExtra = (m) => m.l === 'pl';
+// Aufstellung als Spielfeld: Heim unten (spielt nach oben), Gast oben. Sportradar liefert die Startelf in Reihenfolge
+// Torwart, dann Linie für Linie von hinten nach vorne, innerhalb der Linie von rechts nach links (aus Sicht des Teams).
+function formationRows(t) {
+  const sizes = String(t.formation || '').split('-').map(Number);
+  if (t.start.length !== 11 || sizes.some((x) => !x) || sizes.reduce((a, b) => a + b, 0) !== 10) return null;
+  const out = [[t.start[0]]]; let i = 1;
+  for (const n of sizes) { out.push(t.start.slice(i, i + n)); i += n; }
+  return out;
+}
+const lastName = (n) => { const w = String(n || '').trim().split(/\s+/); return w.length > 1 ? w.slice(1).join(' ') : w[0] || ''; };
+function pitchHtml(m, d) {
+  const hr = formationRows(d.home), ar = formationRows(d.away);
+  if (!hr || !ar) return '';
+  // yGoal: Torlinie, yMid: Mittellinie (in % der Feldhöhe); Gast gespiegelt
+  const place = (rows, side, yGoal, yMid) => rows.map((line, li) => {
+    const y = yGoal + (yMid - yGoal) * (li === 0 ? 0 : 0.26 + (li - 1) * (0.6 / Math.max(1, rows.length - 2)));
+    return line.map((p, k) => {
+      const f = (k + 1) * 100 / (line.length + 1), x = side === 'h' ? 100 - f : f;
+      return `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"><span class="sh">${esc(p.no)}</span><span class="nm">${esc(lastName(p.n))}</span></div>`;
+    }).join('');
+  }).join('');
+  return `<div class="fb-pitch" role="img" aria-label="Aufstellung ${esc(m.h)} ${esc(d.home.formation)} gegen ${esc(m.a)} ${esc(d.away.formation)}">
+    <svg class="lines" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="75" x2="100" y2="75"/><circle cx="50" cy="75" r="11"/>
+      <rect x="22" y="0" width="56" height="20"/><rect x="36" y="0" width="28" height="7"/><rect x="22" y="130" width="56" height="20"/><rect x="36" y="143" width="28" height="7"/></svg>
+    <span class="fm top">${logo(m.al)}${esc(d.away.formation)}</span><span class="fm bot">${logo(m.hl)}${esc(d.home.formation)}</span>
+    ${place(hr, 'h', 93, 53)}${place(ar, 'a', 7, 47)}</div>`;
+}
 function lineupHtml(m) {
   const d = detailCache.get(`${m.id}|lineup`);
   if (!d) return '<p class="fb-x-note">Lade Aufstellung …</p>';
   if (!d.available || !d.home || !d.away) return `<p class="fb-x-note">${esc(d.message || 'Keine Aufstellung verfügbar.')}</p>`;
-  const n = Math.max(d.home.start.length, d.away.start.length);
-  const rows = Array.from({ length: n }, (_, i) => { const h = d.home.start[i], a = d.away.start[i];
-    return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${esc(h.n)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${esc(a.n)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
-  return `<div class="fb-lu"><div class="fb-lu-head"><span>${logo(m.hl)}${esc(d.home.formation)}</span><span>${esc(d.away.formation)}${logo(m.al)}</span></div>${rows}
+  const pitch = pitchHtml(m, d);
+  let body = pitch;
+  if (!pitch) { // ohne brauchbare Formation: Liste wie bisher
+    const n = Math.max(d.home.start.length, d.away.start.length);
+    body = `<div class="fb-lu-head"><span>${logo(m.hl)}${esc(d.home.formation)}</span><span>${esc(d.away.formation)}${logo(m.al)}</span></div>` + Array.from({ length: n }, (_, i) => { const h = d.home.start[i], a = d.away.start[i];
+      return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${esc(h.n)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${esc(a.n)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
+  }
+  return `<div class="fb-lu">${body}
     <div class="fb-bench"><b>Ersatz</b><span>${esc(d.home.bench.join(', '))}</span><span class="r">${esc(d.away.bench.join(', '))}</span></div>
     <p class="fb-x-src">${d.home.coach || d.away.coach ? `Trainer: ${esc(d.home.coach)} · ${esc(d.away.coach)} · ` : ''}Aufstellung: Sportradar</p></div>`;
 }
