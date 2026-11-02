@@ -63,8 +63,8 @@ body:not(.unlocked) .fb{display:none;}
   /* Kurze Tage (z. B. «Heute» mit einem Spiel): Seite trotzdem etwas scrollbar, damit Safari seine Leiste unten einklappt
      und die eigene Leiste gleich tief sitzt wie im Basketball-Bereich */
   .fb{min-height:100lvh;}
-  .fb-top{padding-top:calc(28px + env(safe-area-inset-top, 0px));}
-  .fb-top .profile-menu{top:calc(76px + env(safe-area-inset-top, 0px));}
+  .fb-top{padding-top:calc(42px + env(safe-area-inset-top, 0px));}
+  .fb-top .profile-menu{top:calc(90px + env(safe-area-inset-top, 0px));}
 }
 @media (max-width:520px){
   .fb-top, .fb-days{padding-inline:14px;}
