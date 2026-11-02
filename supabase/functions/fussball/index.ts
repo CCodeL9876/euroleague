@@ -5,12 +5,13 @@
 //   → { updated, season, leagues: [{ id, name, country, short, color, status: 'ok'|'nokey'|'error', message }],
 //       matches: [{ id, l, utc, round, h, a, hl, al, hs, as, st: 'pre'|'live'|'ht'|'ft'|'off', min, ht, goals? }] }
 //     Champions League, Bundesliga/2. Bundesliga: OpenLigaDB (frei, mit Torschützen). Premier League, Super League, Challenge League:
-//     API-Football (Secret APIFOOTBALL_KEY; Gratis-Plan 100 Abfragen/Tag) – eine Abfrage pro Liga und ganze Saison,
-//     zwischengespeichert in der Tabelle el_fb_cache (alle 15 Min. während Spielen, sonst alle 6 Std.).
-//   GET ?lfprobe=1 → Test von live-football-api.com (Secret LIVEFOOTBALL_KEY): passende Ligen + Beispielspiele, höchstens alle 30 Min. neu
-//   GET ?fbgame=af-123456 → Torschützen eines API-Football-Spiels → { goals: [{ m, s, n }] } (nach Spielende dauerhaft gespeichert)
+//     live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
+//     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
+//     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
+//   GET ?lfprobe=1 → Test von live-football-api.com (Secret LIVEFOOTBALL_KEY): Rohform von Spielplan/Spieldetails, höchstens alle 30 Min. neu
+//   GET ?fbgame=lf-123 | af-123456 → Torschützen eines live-football-api- bzw. API-Football-Spiels → { goals: [{ m, s, n }] } (nach Spielende dauerhaft gespeichert)
 //
-// Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): APIFOOTBALL_KEY;
+// Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): LIVEFOOTBALL_KEY, LIVEFOOTBALL_DAILY, APIFOOTBALL_KEY;
 // SUPABASE_SERVICE_ROLE_KEY stellt Supabase selbst bereit (für die Tabelle el_fb_cache).
 
 const ALLOWED_ORIGINS = ['https://ccodel9876.github.io'];
@@ -34,13 +35,13 @@ async function getJson(url) {
 
 const FB_LEAGUES = [
   { id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', src: 'oldb', key: 'ucl' },
-  { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'af', key: 39 },
+  { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'lf', key: 1008 },
   { id: 'bl1', name: 'Bundesliga', country: 'Deutschland', short: 'BL', color: '#D20515', src: 'oldb', key: 'bl1' },
   { id: 'bl2', name: '2. Bundesliga', country: 'Deutschland', short: '2B', color: '#5B6170', src: 'oldb', key: 'bl2' },
-  { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'af', key: 207 },
-  { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'af', key: 208 },
+  { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'lf', key: 8571 },
+  { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'lf', key: 8565 },
 ];
-const FB_IMG = /^https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com)\//;
+const FB_IMG = /^https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|(www\.)?live-football-api\.com|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com)\//;
 // Wappen: bekannte Bild-Server (http wird zu https), kleine eingebettete Bilder (OpenLigaDB liefert manche als data:-Adresse)
 const fbImg = (u) => {
   const v = String(u || '').trim().replace(/^http:\/\/img\.uefa\.com\//, 'https://img.uefa.com/');
@@ -122,6 +123,125 @@ async function afLeague(lg, season, now) {
     return data;
   }
 }
+// ---------- live-football-api.com (Premier League, Schweizer Ligen) ----------
+const LF_BASE = 'https://live-football-api.com/api/v1';
+const lfDailyMax = () => Number(Deno.env.get('LIVEFOOTBALL_DAILY')) || 150;
+async function lfAllowed() {
+  const k = `lfcount:${new Date().toISOString().slice(0, 10)}`;
+  const n = Number((await cacheGet(k))?.data) || 0;
+  if (n >= lfDailyMax()) return false;
+  await cacheSet(k, n + 1);
+  return true;
+}
+async function lfGet(path, params = {}) {
+  const q = new URLSearchParams({ ...params, api_key: Deno.env.get('LIVEFOOTBALL_KEY') || '' });
+  const res = await fetch(`${LF_BASE}/${path}?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
+  const d = await res.json().catch(() => null);
+  if (!res.ok || d?.success === false) throw new Error(String(d?.message || `HTTP ${res.status}`));
+  return d?.data ?? d;
+}
+const lfNum = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+// Anstoss: volles Datum im Spiel, sonst Tagesdatum + „HH:MM“ (Antworten in UTC)
+function lfUtc(m, day) {
+  for (const v of [m.utc, m.datetime, m.date_time, m.start_time, m.starting_at, m.date]) {
+    if (typeof v === 'number') return new Date(v > 1e12 ? v : v * 1000).toISOString();
+    if (typeof v === 'string' && /^\d{4}-\d\d-\d\d[T ]\d\d:\d\d/.test(v)) return new Date(/[Zz]|[+-]\d\d:?\d\d$/.test(v) ? v.replace(' ', 'T') : `${v.replace(' ', 'T')}Z`).toISOString();
+  }
+  const d = (typeof m.date === 'string' && /^\d{4}-\d\d-\d\d$/.test(m.date) ? m.date : day) || '';
+  const t = /^\d\d:\d\d$/.test(m.kickoff || '') ? m.kickoff : '00:00';
+  return d ? new Date(`${d}T${t}:00Z`).toISOString() : '';
+}
+export function mapLf(lg, m, day) {
+  const s = m.status || {};
+  const raw = String(s.status || s || '').toLowerCase(), disp = String(s.display || ''), state = String(s.state || '');
+  const live = s.is_live === true || state === 'inPlay' || raw === 'live';
+  const st = raw === 'finished' || state === 'postGame' || /^(FT|AET|PEN|MS)$/i.test(disp) ? 'ft'
+    : live ? (/^(HT|HZ|Pause|Halftime)/i.test(disp) || raw === 'halftime' ? 'ht' : 'live')
+    : /cancel|postpon|abandon|suspend|interrupt/.test(raw) ? 'off' : 'pre';
+  const ht = m.halftime && m.halftime.home != null ? `${m.halftime.home}:${m.halftime.away}` : '';
+  return { id: `lf-${m.id}`, l: lg.id, utc: lfUtc(m, day), round: String(m.week || m.round || '').replace(/^Regular Season( - )?/i, ''),
+    h: String(m.home?.name || ''), a: String(m.away?.name || ''), hl: fbImg(m.home?.logo), al: fbImg(m.away?.logo),
+    hs: st === 'pre' ? null : lfNum(m.home?.score), as: st === 'pre' ? null : lfNum(m.away?.score),
+    st, min: st === 'live' ? lfNum(String(disp).replace(/\D.*$/, '')) : null, ht, note: st === 'off' ? raw : '' };
+}
+// Spielplan einer Liga (ganze laufende Saison), alle 6 Std.; Fehler nur 15 Min. merken
+async function lfFixtures(lg, now) {
+  const ck = `lf:${lg.key}`;
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < (hit.data.status === 'ok' ? 6 * 3600 * 1000 : 15 * 60 * 1000)) return hit.data;
+  if (!(await lfAllowed())) return hit?.data || { status: 'error', message: 'Tagesgrenze für live-football-api erreicht', matches: [] };
+  try {
+    const d = await lfGet('league_fixtures', { league_id: String(lg.key) });
+    const weeks = Array.isArray(d?.weeks) ? d.weeks : [];
+    const matches = weeks.flatMap((w) => (w.matches || []).map((m) => mapLf(lg, { week: w.week ?? w.name, ...m }, w.date))).filter((m) => m.utc);
+    const data = { status: matches.length ? 'ok' : 'error', message: matches.length ? '' : 'Kein Spielplan erhalten', matches };
+    await cacheSet(ck, data);
+    return data;
+  } catch (err) {
+    const data = { status: 'error', message: String(err?.message || err).slice(0, 160), matches: hit?.data?.matches || [] };
+    await cacheSet(ck, data);
+    return data;
+  }
+}
+// Tagesliste (alle Ligen weltweit, eine Abfrage) für Live-Stände: während Spielen jede Minute, danach alle 10 Min.
+async function lfToday(now, ttl) {
+  const day = new Date(now).toISOString().slice(0, 10);
+  const ck = `lfday:${day}`;
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < ttl) return hit.data;
+  if (!(await lfAllowed())) return hit?.data || null;
+  try {
+    const d = await lfGet('matches', { date: day });
+    const ids = new Set(FB_LEAGUES.filter((lg) => lg.src === 'lf').map((lg) => Number(lg.key)));
+    const data = { day, matches: (d?.matches || []).filter((m) => ids.has(Number(m.league?.id))) };
+    await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || null; }
+}
+async function lfLeagues(list, now) {
+  if (!Deno.env.get('LIVEFOOTBALL_KEY')) return list.map(() => ({ status: 'nokey', message: 'live-football-api-Schlüssel fehlt', matches: [] }));
+  const res = await Promise.all(list.map((lg) => lfFixtures(lg, now)));
+  // Angepfiffene, im Spielplan noch nicht beendete Spiele (letzte 12 Std.): Stand aus der Tagesliste holen
+  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) < now && now - Date.parse(m.utc) < 12 * 3600e3;
+  if (res.some((r) => r.matches.some(open))) {
+    const today = await lfToday(now, res.some((r) => liveWindow(r.matches, now)) ? 60 * 1000 : 10 * 60 * 1000);
+    const changed = new Set();
+    for (const m of today?.matches || []) {
+      const i = list.findIndex((lg) => Number(lg.key) === Number(m.league?.id));
+      if (i < 0) continue;
+      const fresh = mapLf(list[i], m, today.day);
+      const arr = res[i].matches;
+      const j = arr.findIndex((x) => x.id === fresh.id || (x.h === fresh.h && x.a === fresh.a && Math.abs(Date.parse(x.utc) - Date.parse(fresh.utc)) < 36 * 3600e3));
+      if (j < 0) continue;
+      if (fresh.st === 'ft' && arr[j].st !== 'ft') changed.add(i);
+      arr[j] = { ...arr[j], hs: fresh.hs, as: fresh.as, st: fresh.st, min: fresh.min, ht: fresh.ht || arr[j].ht, note: fresh.note };
+    }
+    // Schlussresultate in den Spielplan übernehmen, damit danach keine Tagesabfragen mehr nötig sind
+    for (const i of changed) await cacheSet(`lf:${list[i].key}`, res[i]);
+  }
+  return res;
+}
+// Torschützen eines Spiels (/live_match_details); nach Spielende dauerhaft, sonst 2 Min. gespeichert
+async function lfGame(id) {
+  const ck = `lfev:${id}`;
+  const hit = await cacheGet(ck);
+  if (hit && (hit.data.final || Date.now() - hit.at < 2 * 60 * 1000)) return hit.data;
+  if (!Deno.env.get('LIVEFOOTBALL_KEY') || !(await lfAllowed())) return hit?.data || { goals: [] };
+  const d = await lfGet('live_match_details', { match_id: id });
+  const prev = [0, 0];
+  const goals = (d?.events || []).filter((e) => e.type === 'goal' || e.type === 'own_goal').map((e) => {
+    const sc = /^(\d+)\s*[-:]\s*(\d+)$/.exec(String(e.detail?.score || ''));
+    let side = e.side === 'away' ? 2 : 1;
+    if (sc) { side = Number(sc[1]) > prev[0] ? 1 : 2; prev[0] = Number(sc[1]); prev[1] = Number(sc[2]); }
+    else if (e.type === 'own_goal') side = side === 1 ? 2 : 1;
+    const n = String(e.detail?.player?.name || '');
+    return { m: String(e.time ?? ''), s: side, n: `${n}${e.detail?.is_penalty ? ' (Pen.)' : e.type === 'own_goal' ? ' (Eigentor)' : ''}` };
+  });
+  const hs = d?.header?.status || {};
+  const data = { goals, final: hs.state === 'postGame' || String(hs.status || '').toLowerCase() === 'finished' };
+  await cacheSet(ck, data);
+  return data;
+}
 // OpenLigaDB (Bundesligen): ganze Saison mit Torschützen
 export function mapOldb(lg, m, now) {
   const rs = {}; for (const r of m.matchResults || []) rs[r.resultTypeID] = r;
@@ -157,13 +277,20 @@ async function oldbLeague(lg, season, now) {
 }
 async function fbOverview(now) {
   const season = fbSeason(new Date(now));
-  const res = await Promise.all(FB_LEAGUES.map((lg) => (lg.src === 'af' ? afLeague(lg, season, now) : oldbLeague(lg, season, now)).catch(() => ({ status: 'error', message: 'Fehler', matches: [] }))));
+  const fail = () => ({ status: 'error', message: 'Fehler', matches: [] });
+  const lfList = FB_LEAGUES.filter((lg) => lg.src === 'lf');
+  const [other, lfRes] = await Promise.all([
+    Promise.all(FB_LEAGUES.map((lg) => (lg.src === 'af' ? afLeague(lg, season, now) : lg.src === 'oldb' ? oldbLeague(lg, season, now) : null)).map((p) => p && p.catch(fail))),
+    lfLeagues(lfList, now).catch(() => lfList.map(fail)),
+  ]);
+  const res = FB_LEAGUES.map((lg, i) => (lg.src === 'lf' ? lfRes[lfList.indexOf(lg)] : other[i]));
   const from = now - 14 * 864e5, to = now + 15 * 864e5;
   return { updated: new Date(now).toISOString(), season,
     leagues: FB_LEAGUES.map((lg, i) => ({ id: lg.id, name: lg.name, country: lg.country, short: lg.short, color: lg.color, status: res[i].status, message: res[i].message })),
     matches: res.flatMap((r) => r.matches.filter((m) => { const t = Date.parse(m.utc); return t >= from && t <= to; })) };
 }
 async function fbGame(id) {
+  if (/^lf-[\w-]+$/.test(String(id))) return lfGame(String(id).slice(3));
   const fx = Number(String(id).replace(/^af-/, ''));
   if (!Number.isInteger(fx) || fx <= 0) throw new Error('ungültig');
   const ck = `afev:${fx}`;
@@ -182,7 +309,7 @@ async function fbGame(id) {
   return data;
 }
 
-// Test von live-football-api.com: welche Ligen (England, Schweiz, Champions League) gibt es, wie sehen Spiele aus? (3 Abfragen)
+// Test von live-football-api.com: Rohform von Spielplan und Spieldetails (2 Abfragen)
 let lfProbe = null;
 async function lfProbeRun(now) {
   const key = Deno.env.get('LIVEFOOTBALL_KEY') || '';
@@ -193,15 +320,14 @@ async function lfProbeRun(now) {
     const text = await res.text();
     try { return { status: res.status, body: JSON.parse(text) }; } catch { return { status: res.status, body: text.slice(0, 500) }; }
   };
-  const want = /switzerland|swiss|schweiz|super league|challenge league|premier league|england|champions league|uefa/i;
-  const leagues = await get('leagues');
-  const list = Array.isArray(leagues.body) ? leagues.body : leagues.body?.data || leagues.body?.leagues || leagues.body?.response || [];
-  const found = Array.isArray(list) ? list.filter((l) => want.test(JSON.stringify(l).slice(0, 400))).slice(0, 40) : [];
-  const day = (d) => new Date(now - d * 864e5).toISOString().slice(0, 10);
-  const [past, today] = await Promise.all([get(`matches?date=${day(2)}`), get(`matches?date=${day(0)}`)]);
-  const sample = (r) => { const b = r.body; const arr = Array.isArray(b) ? b : b?.data || b?.matches || b?.response; return { status: r.status, count: Array.isArray(arr) ? arr.length : null, first: Array.isArray(arr) ? arr.slice(0, 2) : b }; };
-  const data = { leaguesStatus: leagues.status, leaguesTotal: Array.isArray(list) ? list.length : null, leaguesFound: found, leaguesRaw: Array.isArray(list) ? undefined : leagues.body,
-    matchesPast: sample(past), matchesToday: sample(today) };
+  // Rohform des Spielplans (Super League) und der Spieldetails eines beendeten Spiels, gekürzt
+  const fx = await get('league_fixtures?league_id=8571');
+  const weeks = fx.body?.data?.weeks || [];
+  const done = weeks.flatMap((w) => w.matches || []).filter((m) => String(m.status?.status || m.status || '').toLowerCase() === 'finished' || /FT/.test(String(m.status?.display || m.status || '')));
+  const det = done.length ? await get(`live_match_details?match_id=${encodeURIComponent(done.at(-1).id)}`) : null;
+  const data = { fixturesStatus: fx.status, top: fx.body?.data ? Object.keys(fx.body.data) : fx.body, weeksCount: weeks.length,
+    weekKeys: weeks[0] ? Object.keys(weeks[0]) : null, firstWeek: weeks[0] ? { ...weeks[0], matches: (weeks[0].matches || []).slice(0, 2) } : null,
+    details: det && { status: det.status, keys: det.body?.data ? Object.keys(det.body.data) : null, header: det.body?.data?.header, events: (det.body?.data?.events || []).slice(0, 6) } };
   lfProbe = { data, at: now };
   return data;
 }
