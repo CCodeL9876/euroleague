@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-01",
+ "updated": "2026-11-02",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -44,11 +44,11 @@
    "team": "OLY",
    "status": "doubtful",
    "since": "2026-10-29",
-   "note": "wird noch untersucht",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/olympiacos-bartzokas-provides-injury-update-milutinov-and-fournier-still-being-evaluated/",
-   "reported": "2026-10-29"
+   "note": "soll laut Trainer Bartzokas am Freitag gegen Crvena Zvezda spielen",
+   "back": "Freitag gegen Crvena Zvezda erwartet",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2029476/bartzokas-believes-that-fournier-will-be-ready-for-zvezda-thats-the-schedule-hes-doing-well/",
+   "reported": "2026-11-02"
   },
   {
    "id": "010042",
@@ -133,6 +133,18 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2029140/maccabi-minority-owner-richard-deitz-denies-blocking-signings-the-opposite-is-true/",
    "reported": "2026-11-01"
+  },
+  {
+   "id": "",
+   "name": "Facundo Campazzo",
+   "team": "MAD",
+   "status": "out",
+   "since": "2026-11-01",
+   "note": "laut Trainer Martinez verletzt; keine Details",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2029528/pedro-martinez-wants-to-bring-back-eli-ndiaye/",
+   "reported": "2026-11-02"
   }
  ]
 }
