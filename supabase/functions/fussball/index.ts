@@ -17,6 +17,7 @@
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Sportradar) bzw. Teamstatistik (Big Balls) eines Spiels der Premier League oder Champions League
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
 //     Karriere und Foto aus Wikipedia/Wikidata
+//   GET ?bbusage=1 → Big-Balls-Konto: Plan, Tageslimit, GitHub verknüpft, heute verbraucht (/v1/user/me, /v1/usage), höchstens alle 10 Min.
 //   GET ?bbprobe=1 → Test von bigballsdata.com (Secret BIGBALLS_KEY): Rohform von Spielen, Live-Feed, Toren, Tabelle, Statistik (≈7 Abfragen), höchstens alle 30 Min.
 //   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
 //   GET ?lfprobe=1 → Test von live-football-api.com (Secret LIVEFOOTBALL_KEY): Rohform von Spielplan/Spieldetails, höchstens alle 30 Min. neu
@@ -165,8 +166,23 @@ async function bbGet(path, params = {}) {
   const q = new URLSearchParams(params);
   const res = await fetch(`${BB_BASE}/${path}${String(q) ? `?${q}` : ''}`, { headers: { 'x-api-key': Deno.env.get('BIGBALLS_KEY') || '' }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
   const d = await res.json().catch(() => null);
+  // Limits aus den Antwort-Headern merken (für ?bbusage)
+  bbLimits = { day: res.headers.get('x-ratelimit-limit-day'), limit: res.headers.get('x-ratelimit-limit'), remaining: res.headers.get('x-ratelimit-remaining'),
+    reset: res.headers.get('x-ratelimit-reset'), endsAt: res.headers.get('x-bbs-access-ends-at'), notice: res.headers.get('x-bbs-access-ending-notice'), at: new Date().toISOString() };
   if (!res.ok) throw new Error(String(d?.error?.message || `HTTP ${res.status}`));
   return d;
+}
+let bbLimits = null;
+// Konto und Kontingent bei Big Balls (Plan, Tageslimit, GitHub verknüpft, heute verbraucht); höchstens alle 10 Min. neu
+let bbUsage = null;
+async function bbUsageRun(now) {
+  if (!Deno.env.get('BIGBALLS_KEY')) return { error: 'Secret BIGBALLS_KEY fehlt' };
+  if (bbUsage && now - bbUsage.at < 10 * 60 * 1000) return bbUsage.data;
+  const [me, usage] = await Promise.all([bbGet('user/me').catch((e) => ({ error: String(e?.message || e) })), bbGet('usage').catch((e) => ({ error: String(e?.message || e) }))]);
+  const k = `bbcount:${new Date(now).toISOString().slice(0, 10)}`;
+  const data = { me: me?.data ?? me, usage: usage?.data ?? usage, headers: bbLimits, appCounterToday: (await cacheGet(k))?.data ?? null, appDailyMax: bbDailyMax() };
+  bbUsage = { data, at: now };
+  return data;
 }
 // Nur Männer-Nationalteams (Länderspiele enthalten auch Frauen- und Juniorenspiele)
 const BB_NOT_MEN = /\b(Women|Femenino|Féminine|Frauen)\b|\bU-?\d\d\b| W$/i;
@@ -1011,6 +1027,10 @@ async function handle(req) {
   if (params.has('fbdetail')) {
     try { return new Response(JSON.stringify(await fbDetail(String(params.get('fbdetail')), params.get('kind') === 'stats' ? 'stats' : 'lineup')), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
+  }
+  if (params.has('bbusage')) {
+    try { return new Response(JSON.stringify(await bbUsageRun(Date.now())), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
   }
   if (params.has('fbplayer')) {
     try { return new Response(JSON.stringify(await fbPlayer(String(params.get('fbplayer')))), { headers }); }
