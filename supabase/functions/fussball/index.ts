@@ -1193,6 +1193,8 @@ async function handlePush(body) {
     const key = await pushProfile(body.name, body.pin);
     if (!key) return { ok: false, error: 'profil' };
     const subs = await fetch(`${PUSH_URL}?profile_key=eq.${encodeURIComponent(key)}&select=endpoint`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+    // 10 Sek. warten, damit man das Handy sperren kann (bei offener App zeigt iOS oft kein Banner)
+    await new Promise((r) => setTimeout(r, 10000));
     const now = Date.now(), res = [];
     for (const s of subs) {
       const hash = await sha256Hex(s.endpoint);
