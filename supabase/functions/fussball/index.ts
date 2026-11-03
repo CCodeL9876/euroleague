@@ -523,13 +523,34 @@ async function wikiFootballer(name, birth) {
   return { career, img, article: title };
 }
 const num = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+// Wikipedia-Suche über Nachname + Verein (wenn das Geburtsdatum fehlt, z. B. Big Balls mit «S. Guirassy»):
+// Artikel des Fussballers → voller Name, Geburtsdatum, Grösse, Karriere, Foto, Nationalteam
+async function wikiByName(name, club) {
+  const last = String(name || '').split(/\s+/).pop();
+  if (!last) return null;
+  const api = 'https://en.wikipedia.org/w/api.php?format=json&formatversion=2&action=query';
+  const get = (q) => fetch(`${api}&${q}`, { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => r.json()).catch(() => null);
+  const sr = await get(`list=search&srlimit=5&srsearch=${encodeURIComponent(`${last} ${club || ''} footballer`)}`);
+  const plainLast = plainName(last);
+  const hit = (sr?.query?.search || []).find((r) => plainName(r.title).split(' ').includes(plainLast) && /footballer|football player/i.test(r.snippet || '') && !/season|list of/i.test(r.title));
+  if (!hit) return null;
+  const pg = (await get(`prop=revisions|pageimages&rvprop=content&rvslots=main&rvsection=0&piprop=thumbnail&pithumbsize=240&redirects=1&titles=${encodeURIComponent(hit.title)}`))?.query?.pages?.[0];
+  const text = pg?.revisions?.[0]?.slots?.main?.content || '';
+  const b = /birth_date\s*=\s*\{\{\s*birth date(?: and age)?\s*\|(?:\s*df=y\s*\|)?\s*(\d{4})\s*\|\s*(\d{1,2})\s*\|\s*(\d{1,2})/i.exec(text);
+  const h = /\|\s*height\s*=\s*(?:\{\{\s*height\s*\|\s*m\s*=\s*)?([12][.,]\d{1,2})/i.exec(text);
+  const thumb = String(pg?.thumbnail?.source || '').replace(/\?.*$/, '');
+  const career = parseFootballCareer(text);
+  return { name: hit.title.replace(/\s*\(.*\)$/, ''), birth: b ? `${b[1]}-${b[2].padStart(2, '0')}-${b[3].padStart(2, '0')}` : '',
+    height: h ? Math.round(parseFloat(h[1].replace(',', '.')) * 100) : null, career, img: /^https:\/\/(upload|thumb)\.wikimedia\.org\//.test(thumb) ? thumb : '',
+    nation: career.find((c) => c.kind === 'nat')?.team || '', article: hit.title };
+}
 // Spielerprofil aus Big Balls (Spieler aus Big-Balls-Aufstellungen): Steckbrief, Transfers (7 Tage), Saisonwerte pro Wettbewerb (6 Std.)
 const pick = (o, ...keys) => { for (const k of keys) { const v = k.split('.').reduce((x, y) => x?.[y], o); if (v != null && v !== '') return v; } return null; };
 async function fbPlayerBb(uuid, now) {
   if (!Deno.env.get('BIGBALLS_KEY')) return { available: false };
   const ckP = `bbpl:${uuid}`, ckF = `bbpf:${uuid}`;
   let prof = await cacheGet(ckP);
-  if (!prof || now - prof.at > 7 * 864e5) {
+  if (!prof || prof.data?.wv !== 2 || now - prof.at > 7 * 864e5) { // wv 2: Wikipedia-Suche über Name + Verein
     if (!(await bbAllowed())) { if (!prof) return { available: false, message: 'Tagesgrenze erreicht' }; }
     else {
       const [pr, tr] = await Promise.all([bbGet(`players/${uuid}/profile`).catch(() => null), (async () => ((await bbAllowed()) ? bbGet(`players/${uuid}/transfers`).catch(() => null) : null))()]);
@@ -538,10 +559,14 @@ async function fbPlayerBb(uuid, now) {
       const birth = String(pick(P, 'birth_date', 'date_of_birth', 'birthdate', 'dob') || '').slice(0, 10);
       const cm = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? (n < 3 ? Math.round(n * 100) : Math.round(n)) : null; };
       const transfers = (tr?.data || []).slice(0, 8).map((t) => ({ date: String(t.date || ''), from: String(t.from_club || ''), to: String(t.to_club || ''), type: String(t.type || ''), fee: t.fee ?? null }));
-      const wiki = name ? await wikiFootballer(name, birth).catch(() => ({ career: [], img: '' })) : { career: [], img: '' };
-      const data = { available: Boolean(name), id: `bb:${uuid}`, name, birth: /^\d{4}-\d\d-\d\d$/.test(birth) ? birth : '', nation: String(pick(P, 'nationality', 'country', 'nationality.name', 'country.name') || ''),
-        height: cm(pick(P, 'height', 'height_cm')), weight: cm(pick(P, 'weight', 'weight_kg')), no: pick(P, 'jersey_number', 'number') ?? '', foot: '', pos: ({ g: 'Torhüter', goalkeeper: 'Torhüter', d: 'Verteidigung', defender: 'Verteidigung', m: 'Mittelfeld', midfielder: 'Mittelfeld', f: 'Sturm', attacker: 'Sturm', forward: 'Sturm' })[String(pick(P, 'position', 'position_name') || '').toLowerCase()] || String(pick(P, 'position', 'position_name') || ''),
-        club: String(pick(P, 'team.name', 'team_name', 'team') || ''), transfers, career: wiki.career, img: wiki.img || (/^https:\/\/api\.bigballsdata\.com\//.test(String(P.headshot_url || '')) ? P.headshot_url : ''),
+      const club0 = String(pick(P, 'current_team.name', 'team.name', 'team_name', 'current_team') || '');
+      const hasBirth = /^\d{4}-\d\d-\d\d$/.test(birth);
+      // Mit Geburtsdatum über Wikidata, sonst über die Wikipedia-Suche (Nachname + Verein)
+      const wiki = (hasBirth ? await wikiFootballer(name, birth).catch(() => null) : null) || (await wikiByName(name, club0).catch(() => null)) || { career: [], img: '' };
+      const data = { available: Boolean(name), id: `bb:${uuid}`, name: wiki.name && /^\w\.\s/.test(name) ? wiki.name : name, birth: hasBirth ? birth : wiki.birth || '',
+        nation: String(pick(P, 'nationality', 'country', 'nationality.name', 'country.name') || wiki.nation || ''),
+        height: cm(pick(P, 'height', 'height_cm')) ?? wiki.height ?? null, weight: cm(pick(P, 'weight', 'weight_kg')), no: pick(P, 'jersey_number', 'number') ?? '', foot: '', pos: ({ g: 'Torhüter', goalkeeper: 'Torhüter', d: 'Verteidigung', defender: 'Verteidigung', m: 'Mittelfeld', midfielder: 'Mittelfeld', f: 'Sturm', attacker: 'Sturm', forward: 'Sturm' })[String(pick(P, 'position', 'position_name') || '').toLowerCase()] || String(pick(P, 'position', 'position_name') || ''),
+        club: club0, transfers, wv: 2, career: wiki.career, img: wiki.img || (/^https:\/\/api\.bigballsdata\.com\//.test(String(P.headshot_url || '')) ? P.headshot_url : ''),
         _k: Object.keys(P).slice(0, 30) };
       await cacheSet(ckP, data);
       prof = { data, at: now };
