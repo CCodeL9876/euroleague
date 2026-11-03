@@ -302,6 +302,30 @@ async function bbDay(day, now, ttl) {
     return data;
   } catch { return hit?.data || null; }
 }
+// Live-Feed (ohne ?date=; mit Datum liefert /scores nur die gespeicherte, während Spielen nicht nachgeführte Liste):
+// Spielstände pro match_id, home/away sind dort Zahlen. Während Live-Fenstern alle BB_LIVE_MS.
+const bbNorm = (x) => {
+  const id = x.match_id || x.id || x.game_id;
+  const num2 = (v) => (typeof v === 'number' ? v : v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : null);
+  const score = x.score && typeof x.score === 'object' ? x.score
+    : num2(x.home) != null || num2(x.away) != null ? { home: num2(x.home), away: num2(x.away) }
+    : x.home_score != null ? { home: num2(x.home_score), away: num2(x.away_score) } : undefined;
+  return { id: `bb-${id}`, m: { ...x, id, score, status: x.status ?? x.state ?? x.match_status, clock: x.clock ?? x.minute ?? x.elapsed ?? x.time,
+    home: typeof x.home === 'object' ? x.home : undefined, away: typeof x.away === 'object' ? x.away : undefined } };
+};
+async function bbLive(now) {
+  const ck = 'bblive';
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < BB_LIVE_MS) return hit.data;
+  if (!(await bbAllowed())) return hit?.data || null;
+  try {
+    const d = await bbGet('scores', { sport: 'football', limit: '200' });
+    const arr = Array.isArray(d?.data) ? d.data : d?.data?.scores?.value || d?.data?.value || d?.scores?.value || [];
+    const data = { list: arr.map(bbNorm).filter((x) => x.m.id), source: String(d?.meta?.source || '') };
+    await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || null; }
+}
 async function bbLeagues(list, now) {
   if (!Deno.env.get('BIGBALLS_KEY')) return list.map(() => ({ status: 'nokey', message: 'Big-Balls-Schlüssel fehlt', matches: [] }));
   const res = await Promise.all(list.map((lg) => bbFixtures(lg, now)));
@@ -312,11 +336,24 @@ async function bbLeagues(list, now) {
   const liveDay = (d) => res.some((r) => liveWindow(r.matches.filter((m) => m.utc.slice(0, 10) === d), now));
   const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) ? BB_LIVE_MS : 15 * 60 * 1000)));
   const byId = new Map(lists.flatMap((l) => (l?.list || []).map((x) => [x.id, x.m])));
+  // Laufende Spiele: Live-Feed hat Vorrang vor der gespeicherten Tagesliste (die für die Champions League hinterherhinkt)
+  if (days.some(liveDay)) {
+    const live = await bbLive(now);
+    for (const x of live?.list || []) {
+      const old = byId.get(x.id) || {};
+      const merged = { ...old, ...Object.fromEntries(Object.entries(x.m).filter(([, v]) => v != null)) };
+      // Ohne Spielstand oder Status im Live-Feed den gespeicherten Stand behalten
+      if (x.m.score?.home == null && !x.m.status) continue;
+      byId.set(x.id, merged);
+    }
+  }
   const changed = new Set();
   res.forEach((r, i) => r.matches.forEach((m, j) => {
     const x = byId.get(m.id);
     if (!x || !open(m)) return;
-    const fresh = mapBb(list[i], { ...x, kickoff_utc: x.kickoff_utc || m.utc, home: x.home || { name: m.h }, away: x.away || { name: m.a } });
+    // Live-Feed ohne Status, aber mit Spielstand nach dem Anpfiff: als laufend werten
+    const st0 = x.status || (x.score?.home != null && Date.parse(m.utc) <= now ? 'live' : '');
+    const fresh = mapBb(list[i], { ...x, status: st0, kickoff_utc: x.kickoff_utc || m.utc, home: x.home || { name: m.h }, away: x.away || { name: m.a } });
     if (fresh.st === 'ft') changed.add(i);
     r.matches[j] = { ...m, st: fresh.st, hs: fresh.hs, as: fresh.as, min: fresh.min, ht: fresh.ht || m.ht, note: fresh.note };
   }));
@@ -1299,6 +1336,14 @@ async function handle(req) {
   if (params.has('bbtest')) {
     try { return new Response(JSON.stringify(await bbTestRun(Date.now())), { headers }); }
     catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
+  }
+  if (params.has('bblive')) {
+    // Prüfen: Rohform des Live-Feeds (eine Abfrage, höchstens alle 5 Min. neu wie im Betrieb)
+    try {
+      const d = await bbGet('scores', { sport: 'football', limit: '200' });
+      const arr = Array.isArray(d?.data) ? d.data : d?.data?.scores?.value || d?.data?.value || d?.scores?.value || [];
+      return new Response(JSON.stringify({ meta: d?.meta, keys: Object.keys(d?.data || {}), count: arr.length, sample: arr.slice(0, 6), normalized: arr.slice(0, 6).map(bbNorm) }), { headers });
+    } catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
   }
   if (params.has('bbusage')) {
     try { return new Response(JSON.stringify(await bbUsageRun(Date.now())), { headers }); }
