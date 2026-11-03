@@ -2,7 +2,7 @@
 // aktuell ist); ohne Netz kommt der letzte Stand – bei den Spieldaten mit Kopfzeile „x-offline“, damit die Seite
 // „Offline – Stand von …“ anzeigt. Logos und Spielerfotos: zuerst aus dem Zwischenspeicher (ändern sich kaum).
 
-const CACHE = 'euroleague-v83';
+const CACHE = 'euroleague-v84';
 const IMAGES = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//;
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 const DATA = /\/functions\/v1\/euroleague/;
@@ -51,4 +51,32 @@ self.addEventListener('fetch', (e) => {
   if (DATA.test(url)) e.respondWith(networkFirst(req, true));
   else if (IMAGES.test(url) || FONTS.test(url)) e.respondWith(cacheFirst(req));
   else if (new URL(url).origin === self.location.origin) e.respondWith(networkFirst(req, false));
+});
+
+// Tor-Mitteilungen: Die Funktion „fussball“ stösst das Gerät ohne Inhalt an; hier die Meldungen abholen und zeigen
+const FB_FN = 'https://vbipkljatgandplwould.supabase.co/functions/v1/fussball';
+const FB_ANON = 'sb_publishable_dg4tPjjsYOGRHxuf0Is43Q_LZRRzfs4';
+self.addEventListener('push', (e) => {
+  e.waitUntil((async () => {
+    let msgs = [];
+    try {
+      const sub = await self.registration.pushManager.getSubscription();
+      const res = await fetch(`${FB_FN}?fbpushmsg=${encodeURIComponent(sub?.endpoint || '')}`, { headers: { apikey: FB_ANON }, cache: 'no-store' });
+      msgs = await res.json();
+    } catch { /* ohne Netz: allgemeine Meldung */ }
+    const fresh = (Array.isArray(msgs) ? msgs : []).filter((m) => Date.now() - m.at < 15 * 60 * 1000).slice(-3);
+    if (!fresh.length) return self.registration.showNotification('⚽ Tor!', { body: 'Ein Lieblingsteam hat getroffen.', tag: 'fb-goal', icon: 'fussball/icon-180.png', data: { url: 'fussball/' } });
+    // Gleiche Meldung (tag = Spiel + Stand) ersetzt sich selbst, darum keine Doppelten
+    await Promise.all(fresh.map((m) => self.registration.showNotification(m.title, { body: m.body, tag: m.tag, icon: 'fussball/icon-180.png', data: { url: `fussball/?m=${encodeURIComponent(m.id)}` } })));
+  })());
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || 'fussball/', self.registration.scope).href;
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const w = wins.find((c) => c.url.includes('/fussball/'));
+    if (w) { await w.navigate(url).catch(() => {}); return w.focus(); }
+    return self.clients.openWindow(url);
+  })());
 });

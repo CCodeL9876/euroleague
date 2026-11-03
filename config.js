@@ -3,6 +3,9 @@
 export const SUPABASE_URL = 'https://vbipkljatgandplwould.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_dg4tPjjsYOGRHxuf0Is43Q_LZRRzfs4';
 
+// Öffentlicher Schlüssel für Push-Mitteilungen (Web Push/VAPID); der private liegt nur als Secret VAPID_PRIVATE in Supabase
+export const VAPID_PUBLIC = 'BD1n1TeW2V_kuQWajo-jHgAeOorW8yTqbt86lP_GyaMwA-nkJLogk1c_N2hC5Hhy7XjcgNpeqIn-bjFc1CoTV5I';
+
 // „Sport“ im Titel führt zur KI-News-Seite
 export const KI_NEWS_URL = 'https://claude.ai/artifact/A79MLhwGijoouiwS9h3tWW';
 

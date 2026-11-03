@@ -19,6 +19,8 @@
 //   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
 //     Karriere und Foto aus Wikipedia/Wikidata
+//   POST { kind: 'push-sub'|'push-unsub', endpoint, name, pin } → Gerät für Tor-Mitteilungen an-/abmelden (Tabelle el_fb_push)
+//   GET ?fbpushtick=1 → (Zeitplan, jede Minute) Tore der Lieblingsteams erkennen und Push senden; ?fbpushmsg=<endpoint> → Meldungen fürs Gerät
 //   GET ?bbtest=1 → Test: Aufstellungen und Spielerdaten von Big Balls für Fussball (≈8 Abfragen), höchstens alle 30 Min.
 //   GET ?bbusage=1 → Big-Balls-Konto: Plan, Tageslimit, GitHub verknüpft, heute verbraucht (/v1/user/me, /v1/usage), höchstens alle 10 Min.
 //   GET ?bbprobe=1 → Test von bigballsdata.com (Secret BIGBALLS_KEY): Rohform von Spielen, Live-Feed, Toren, Tabelle, Statistik (≈7 Abfragen), höchstens alle 30 Min.
@@ -36,7 +38,7 @@ const SUPABASE_URL = 'https://vbipkljatgandplwould.supabase.co';
 function corsFor(req) {
   const origin = req.headers.get('origin') || '';
   const ok = ALLOWED_ORIGINS.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  return ok ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'apikey, authorization, content-type', 'Access-Control-Allow-Methods': 'GET, OPTIONS', Vary: 'Origin' } : { Vary: 'Origin' };
+  return ok ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'apikey, authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', Vary: 'Origin' } : { Vary: 'Origin' };
 }
 function serviceHeaders() {
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -1141,12 +1143,124 @@ async function lfProbeRun(now) {
   return data;
 }
 
+// ---------- Push-Mitteilungen bei Toren der Lieblingsteams (Web Push, ohne Inhalt: das Gerät holt die Meldung danach ab) ----------
+// Tabelle el_fb_push (endpoint, profile_key, created_at); Secrets VAPID_PUBLIC, VAPID_PRIVATE (base64url), VAPID_SUBJECT (mailto:…).
+// Ein Zeitplan (pg_cron) ruft jede Minute ?fbpushtick=1 auf: Spielstände mit dem letzten Stand vergleichen, bei einem Tor
+// die Geräte der Profile mit diesem Lieblingsteam anstossen. Die Meldungen liegen 30 Min. unter pushmsg:<Hash des Endpunkts>.
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = (s) => Uint8Array.from(atob(String(s).replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((String(s).length + 3) % 4)), (c) => c.charCodeAt(0));
+async function sha256Hex(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+function sameString(a, b) { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; }
+let vapidKey = null;
+async function vapidJwt(aud) {
+  const pub = unb64u(Deno.env.get('VAPID_PUBLIC') || ''), d = Deno.env.get('VAPID_PRIVATE') || '';
+  vapidKey ||= await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', d, x: b64u(pub.slice(1, 33)), y: b64u(pub.slice(33, 65)), ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
+  const unsigned = `${enc({ typ: 'JWT', alg: 'ES256' })}.${enc({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: Deno.env.get('VAPID_SUBJECT') || 'https://ccodel9876.github.io/euroleague/' })}`;
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, vapidKey, new TextEncoder().encode(unsigned));
+  return `${unsigned}.${b64u(sig)}`;
+}
+// Leere Push-Nachricht an ein Gerät; 404/410 = Anmeldung ungültig (wird gelöscht)
+async function pushPing(endpoint) {
+  const aud = new URL(endpoint).origin;
+  const res = await fetch(endpoint, { method: 'POST', headers: { Authorization: `vapid t=${await vapidJwt(aud)}, k=${Deno.env.get('VAPID_PUBLIC')}`, TTL: '1800', Urgency: 'high', 'Content-Length': '0' },
+    signal: AbortSignal.timeout(TIMEOUT_MS) });
+  return res.status;
+}
+const PUSH_URL = `${SUPABASE_URL}/rest/v1/el_fb_push`, PROFILES_URL = `${SUPABASE_URL}/rest/v1/el_profiles`;
+async function pushProfile(name, pin) {
+  const key = String(name || '').trim().slice(0, 40).toLowerCase();
+  if (!key || !/^\d{4,8}$/.test(String(pin || ''))) return null;
+  const r = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}&select=key,pin_hash`, { headers: serviceHeaders() });
+  const row = r.ok ? (await r.json())[0] : null;
+  return row && sameString(await sha256Hex(`${pin}:${key}`), row.pin_hash) ? key : null;
+}
+async function handlePush(body) {
+  const endpoint = String(body?.endpoint || '');
+  if (!/^https:\/\/[\w.-]+\//.test(endpoint) || endpoint.length > 1000) return { ok: false, error: 'ungültig' };
+  if (body.kind === 'push-unsub') {
+    await fetch(`${PUSH_URL}?endpoint=eq.${encodeURIComponent(endpoint)}`, { method: 'DELETE', headers: serviceHeaders() });
+    return { ok: true };
+  }
+  const key = await pushProfile(body.name, body.pin);
+  if (!key) return { ok: false, error: 'profil' };
+  const r = await fetch(`${PUSH_URL}?on_conflict=endpoint`, { method: 'POST', headers: { ...serviceHeaders(), Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ endpoint, profile_key: key, created_at: new Date().toISOString() }) });
+  return { ok: r.ok, error: r.ok ? '' : `db ${r.status}` };
+}
+// Jede Minute: Tore seit dem letzten Lauf finden und die passenden Geräte anstossen
+async function pushTick(now) {
+  if (!Deno.env.get('VAPID_PRIVATE')) return { error: 'VAPID-Secrets fehlen' };
+  const ov = await fbOverview(now);
+  const prev = (await cacheGet('push:scores'))?.data || {};
+  const cur = {}, events = [];
+  for (const m of ov.matches) {
+    if (m.hs == null || m.as == null || !['live', 'ht', 'ft'].includes(m.st)) continue;
+    cur[m.id] = [m.hs, m.as];
+    const p = prev[m.id];
+    // Nur echte Änderungen (erster Stand nach dem Anpfiff = Ausgangslage, ausser es steht schon ein Tor und das Spiel ist frisch)
+    if (!p) { if (m.hs + m.as > 0 && m.st !== 'ft' && now - Date.parse(m.utc) < 10 * 60 * 1000) events.push({ m, side: m.hs > 0 ? 1 : 2 }); continue; }
+    if (m.hs > p[0]) events.push({ m, side: 1 });
+    if (m.as > p[1]) events.push({ m, side: 2 });
+  }
+  // Beendete Spiele nach einem Tag aus dem Vergleich nehmen
+  for (const [id, v] of Object.entries(prev)) if (!cur[id] && ov.matches.some((m) => m.id === id && now - Date.parse(m.utc) < 864e5)) cur[id] = v;
+  await cacheSet('push:scores', cur);
+  if (!events.length) return { events: 0 };
+  const subs = await fetch(`${PUSH_URL}?select=endpoint,profile_key`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+  if (!subs.length) return { events: events.length, sent: 0 };
+  const keys = [...new Set(subs.map((x) => x.profile_key))];
+  const profs = await fetch(`${PROFILES_URL}?key=in.(${keys.map((k) => `"${k.replace(/"/g, '')}"`).join(',')})&select=key,fb_favorites`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+  const fav = new Map(profs.map((p) => [p.key, new Set((Array.isArray(p.fb_favorites) ? p.fb_favorites : []).map((n) => String(n).toLowerCase()))]));
+  let sent = 0;
+  for (const s of subs) {
+    const f = fav.get(s.profile_key);
+    const mine = events.filter((e) => f && (f.has(e.m.h.toLowerCase()) || f.has(e.m.a.toLowerCase())));
+    if (!mine.length) continue;
+    const hash = await sha256Hex(s.endpoint);
+    const old = (await cacheGet(`pushmsg:${hash}`))?.data || [];
+    const msgs = mine.map(({ m, side }) => {
+      const team = side === 1 ? m.h : m.a, last = (m.goals || []).filter((g) => g.s === side).at(-1);
+      return { id: m.id, tag: `${m.id}-${m.hs}-${m.as}`, at: now, title: `⚽ Tor für ${team}`,
+        body: `${m.h} ${m.hs}:${m.as} ${m.a}${last?.n ? ` · ${last.n}${last.m ? ` (${last.m}')` : ''}` : m.min ? ` · ${m.min}'` : ''}` };
+    });
+    await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), ...msgs].slice(-10));
+    const st = await pushPing(s.endpoint).catch(() => 0);
+    if (st === 404 || st === 410) await fetch(`${PUSH_URL}?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: 'DELETE', headers: serviceHeaders() }).catch(() => {});
+    else if (st >= 200 && st < 300) sent++;
+  }
+  return { events: events.length, sent };
+}
+// Das Gerät holt nach dem Anstoss seine Meldungen ab (nur die der letzten 30 Min.)
+async function pushMessages(endpoint, now) {
+  const hash = await sha256Hex(String(endpoint || ''));
+  return ((await cacheGet(`pushmsg:${hash}`))?.data || []).filter((x) => now - x.at < 30 * 60 * 1000);
+}
+
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers });
+  if (req.method === 'POST') {
+    let body = null;
+    try { body = await req.json(); } catch { /* leer */ }
+    if (!body || !['push-sub', 'push-unsub'].includes(body.kind)) return new Response(JSON.stringify({ ok: false }), { status: 400, headers });
+    try { return new Response(JSON.stringify(await handlePush(body)), { headers }); }
+    catch { return new Response(JSON.stringify({ ok: false, error: 'serverfehler' }), { status: 502, headers }); }
+  }
+  if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET oder POST' }), { status: 405, headers });
   const params = new URL(req.url).searchParams;
+  if (params.has('fbpushtick')) {
+    try { return new Response(JSON.stringify(await pushTick(Date.now())), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
+  }
+  if (params.has('fbpushmsg')) {
+    try { return new Response(JSON.stringify(await pushMessages(params.get('fbpushmsg'), Date.now())), { headers }); }
+    catch { return new Response('[]', { headers }); }
+  }
   if (params.has('fbleague')) {
     try { return new Response(JSON.stringify(await fbLeague(String(params.get('fbleague')), params.get('kind') === 'scorers' ? 'scorers' : 'table')), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }

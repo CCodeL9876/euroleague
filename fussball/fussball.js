@@ -2,7 +2,7 @@
 // Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): grosse Ligen, Champions League und Nationalteams aus Big Balls,
 // 2. Bundesliga aus OpenLigaDB, Schweizer Ligen aus Sportradar. Premier League mit Aufstellung und Teamstatistik (?fbdetail=). Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC } from '../config.js';
 
 const DATA_URL = `${SUPABASE_URL}/functions/v1/fussball`;
 const LIVE_POLL_MS = 60 * 1000;
@@ -583,6 +583,41 @@ function closeSheet() {
 }
 function openFav(required = false) { sheet = { id: 'fav', required }; renderSheet(); if (!required) document.querySelector('.fb-sheet-x')?.focus(); }
 
+// ---------- Tor-Mitteilungen (Web Push) ----------
+// Das Gerät meldet sich mit Profil (Name + PIN) bei der Funktion an; bei einem Tor eines Lieblingsteams stösst die Funktion
+// das Gerät an, der Service Worker (sw.js) holt die Meldung ab und zeigt sie. iPhone: nur in der App vom Home-Bildschirm.
+let pushOn = false;
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const standaloneApp = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+async function pushState() {
+  if (!pushSupported()) return;
+  try { const reg = await navigator.serviceWorker.getRegistration('../'); pushOn = Boolean(await reg?.pushManager.getSubscription()) && Notification.permission === 'granted'; } catch { pushOn = false; }
+  if (menuOpen) renderMenu();
+}
+async function pushCall(body) {
+  const res = await fetch(DATA_URL, { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+  return res.json().catch(() => ({ ok: false }));
+}
+async function togglePush() {
+  if (!pushSupported()) { toast(/iphone|ipad/i.test(navigator.userAgent) && !standaloneApp() ? 'Mitteilungen gehen nur in der App vom Home-Bildschirm.' : 'Dieser Browser kann keine Mitteilungen empfangen.'); return; }
+  try {
+    const reg = await navigator.serviceWorker.register('../sw.js', { scope: '../' });
+    await navigator.serviceWorker.ready;
+    const cur = await reg.pushManager.getSubscription();
+    if (pushOn && cur) {
+      await pushCall({ kind: 'push-unsub', endpoint: cur.endpoint }).catch(() => {});
+      await cur.unsubscribe();
+      pushOn = false; toast('Tor-Mitteilungen ausgeschaltet.'); return;
+    }
+    if ((await Notification.requestPermission()) !== 'granted') { toast('Mitteilungen sind in den Einstellungen nicht erlaubt.'); return; }
+    const key = Uint8Array.from(atob(VAPID_PUBLIC.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+    const sub = cur || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    const r = await pushCall({ kind: 'push-sub', endpoint: sub.endpoint, ...profileAuth() });
+    if (!r.ok) { toast(r.error === 'profil' ? 'Profil nicht gefunden – bitte neu anmelden.' : 'Anmelden für Mitteilungen hat nicht geklappt.'); return; }
+    pushOn = true; toast('Tor-Mitteilungen eingeschaltet – für deine Lieblingsteams.');
+  } catch { toast('Mitteilungen konnten nicht eingeschaltet werden.'); }
+}
+
 async function load() {
   try {
     const res = await fetch(`${DATA_URL}?fb=1`, { headers: { apikey: SUPABASE_ANON_KEY }, cache: 'no-store', signal: AbortSignal.timeout(30000) });
@@ -635,6 +670,7 @@ const ICON = {
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  bell: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   sort: '<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
   star: '<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
@@ -666,7 +702,7 @@ function renderMenu() {
   if (!menuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
   menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV ? [...FAV.values()].join(', ') || 'keine' : LEGACY_FAV.join(', ') || 'keine')}</small></span></div>
-    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
+    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('fb-push', 'bell', pushOn ? 'Tor-Mitteilungen: Ein' : 'Tor-Mitteilungen: Aus')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
   menu.querySelector('.pm-item')?.focus();
 }
 function toast(msg) {
@@ -708,6 +744,7 @@ document.addEventListener('click', (e) => {
   if (act === 'fb-fav') { menuOpen = false; renderMenu(); openFav(); return; }
   if (act === 'fb-player') { openPlayer(e.target.closest('[data-pid]').dataset.pid); return; }
   if (act === 'fb-goal') { const b = e.target.closest('[data-mid]'); openScorer(b.dataset.mid, b.dataset.name); return; }
+  if (act === 'fb-push') { menuOpen = false; renderMenu(); togglePush(); return; }
   if (act === 'fb-order-open') { menuOpen = false; renderMenu(); sheet = { id: 'order' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); return; }
   if (act === 'fb-order') { const b = e.target.closest('[data-id]'); moveLeague(b.dataset.id, Number(b.dataset.dir)); return; }
   if (act === 'fb-order-reset') { leagueOrder = []; store.set('el-fb-order', '[]'); renderSheet(); render(); return; }
@@ -783,9 +820,18 @@ function setupPullToRefresh() {
   });
   window.addEventListener('touchcancel', () => { startY = null; reset(); });
 }
+// Aus einer Mitteilung geöffnet (?m=<Spiel>): nach dem Laden zum Spiel springen und Torschützen aufklappen
+const openFromPush = new URLSearchParams(location.search).get('m');
 themeUi();
 renderMenu();
-load();
+load().then(() => {
+  const m = openFromPush && data?.matches.find((x) => x.id === openFromPush);
+  if (!m) return;
+  mineOnly = false; sel = zDate(new Date(m.utc)); open.add(m.id); render();
+  if (!m.goals) loadGoals(m);
+  document.querySelector(`.fb-match[data-id="${CSS.escape(m.id)}"]`)?.scrollIntoView({ block: 'center' });
+});
+pushState();
 pullFav();
 setupPullToRefresh();
 
