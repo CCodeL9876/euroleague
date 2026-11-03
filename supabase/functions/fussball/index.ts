@@ -17,6 +17,7 @@
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Sportradar) bzw. Teamstatistik (Big Balls) eines Spiels der Premier League oder Champions League
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
 //     Karriere und Foto aus Wikipedia/Wikidata
+//   GET ?bbtest=1 → Test: Aufstellungen und Spielerdaten von Big Balls für Fussball (≈8 Abfragen), höchstens alle 30 Min.
 //   GET ?bbusage=1 → Big-Balls-Konto: Plan, Tageslimit, GitHub verknüpft, heute verbraucht (/v1/user/me, /v1/usage), höchstens alle 10 Min.
 //   GET ?bbprobe=1 → Test von bigballsdata.com (Secret BIGBALLS_KEY): Rohform von Spielen, Live-Feed, Toren, Tabelle, Statistik (≈7 Abfragen), höchstens alle 30 Min.
 //   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
@@ -183,6 +184,37 @@ async function bbUsageRun(now) {
   const data = { me: me?.data ?? me, usage: usage?.data ?? usage, headers: bbLimits, appCounterToday: (await cacheGet(k))?.data ?? null, appDailyMax: bbDailyMax() };
   bbUsage = { data, at: now };
   return data;
+}
+// Test: Was liefert Big Balls für Fussball an Aufstellungen und Spielerdaten? (≈8 Abfragen, gekürzte Rohdaten, höchstens alle 30 Min.)
+let bbTest = null;
+async function bbTestRun(now) {
+  if (!Deno.env.get('BIGBALLS_KEY')) return { error: 'Secret BIGBALLS_KEY fehlt' };
+  if (bbTest && now - bbTest.at < 30 * 60 * 1000) return bbTest.data;
+  const cut = (v, n = 1600) => { const t = JSON.stringify(v); return t && t.length > n ? `${t.slice(0, n)}…` : v; };
+  const get = async (path, params) => { if (!(await bbAllowed())) return { error: 'Tagesgrenze' }; try { return await bbGet(path, params); } catch (e) { return { error: String(e?.message || e) }; } };
+  const out = {};
+  // Letztes beendetes Spiel der Premier League und der Bundesliga aus dem gespeicherten Spielplan
+  const last = async (key) => ((await cacheGet(`bb2:${key}`))?.data?.matches || []).filter((m) => m.st === 'ft').sort((a, b) => b.utc.localeCompare(a.utc))[0];
+  const pl = await last('epl'), bl = await last('bundesliga');
+  out.plMatch = pl && `${pl.h} – ${pl.a} ${pl.utc}`;
+  const luPl = pl ? await get(`stored/matches/${pl.id.replace(/^bb-/, '')}/lineups`) : null;
+  out.plLineups = cut(luPl, 2500);
+  out.plStats = pl ? cut(await get(`stored/matches/${pl.id.replace(/^bb-/, '')}/stats`), 1500) : null;
+  out.blMatch = bl && `${bl.h} – ${bl.a} ${bl.utc}`;
+  out.blLineups = bl ? cut(await get(`stored/matches/${bl.id.replace(/^bb-/, '')}/lineups`), 1500) : null;
+  // Spieler: Bester Torschütze der Premier League
+  const ts = await get('leagues/epl/top-scorers', { limit: '1' });
+  const pid = ts?.data?.[0]?.id;
+  out.player = ts?.data?.[0] ? `${ts.data[0].player_name} (${pid})` : cut(ts, 400);
+  if (pid) {
+    out.profile = cut(await get(`players/${pid}`), 2000);
+    out.stats = cut(await get(`players/${pid}/stats`, { league: 'epl', season: '2026' }), 1500);
+    out.transfers = cut(await get(`players/${pid}/transfers`), 800);
+    out.clubForm = cut(await get(`players/${pid}/club-form`), 800);
+  }
+  out.limits = bbLimits;
+  bbTest = { data: out, at: now };
+  return out;
 }
 // Nur Männer-Nationalteams (Länderspiele enthalten auch Frauen- und Juniorenspiele)
 const BB_NOT_MEN = /\b(Women|Femenino|Féminine|Frauen)\b|\bU-?\d\d\b| W$/i;
@@ -1027,6 +1059,10 @@ async function handle(req) {
   if (params.has('fbdetail')) {
     try { return new Response(JSON.stringify(await fbDetail(String(params.get('fbdetail')), params.get('kind') === 'stats' ? 'stats' : 'lineup')), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
+  }
+  if (params.has('bbtest')) {
+    try { return new Response(JSON.stringify(await bbTestRun(Date.now())), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
   }
   if (params.has('bbusage')) {
     try { return new Response(JSON.stringify(await bbUsageRun(Date.now())), { headers }); }
