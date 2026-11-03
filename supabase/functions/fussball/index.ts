@@ -1155,8 +1155,14 @@ async function sha256Hex(s) {
 }
 function sameString(a, b) { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; }
 let vapidKey = null;
+// Secrets bereinigen: Leerzeichen, Zeilenumbrüche, Anführungszeichen und «=» am Ende entfernen, base64 → base64url
+const vapidClean = (v) => String(v || '').replace(/[\s"'`]/g, '').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+const vapidPub = () => vapidClean(Deno.env.get('VAPID_PUBLIC'));
 async function vapidJwt(aud) {
-  const pub = unb64u(Deno.env.get('VAPID_PUBLIC') || ''), d = Deno.env.get('VAPID_PRIVATE') || '';
+  const pubS = vapidPub(), d = vapidClean(Deno.env.get('VAPID_PRIVATE'));
+  if (!/^[\w-]{86,88}$/.test(pubS)) throw new Error(`VAPID_PUBLIC ungültig (${pubS.length} Zeichen, erwartet 87)`);
+  if (!/^[\w-]{43}$/.test(d)) throw new Error(`VAPID_PRIVATE ungültig (${d.length} Zeichen, erwartet 43)`);
+  const pub = unb64u(pubS);
   vapidKey ||= await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', d, x: b64u(pub.slice(1, 33)), y: b64u(pub.slice(33, 65)), ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
   const enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
   const unsigned = `${enc({ typ: 'JWT', alg: 'ES256' })}.${enc({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: Deno.env.get('VAPID_SUBJECT') || 'https://ccodel9876.github.io/euroleague/' })}`;
@@ -1166,7 +1172,7 @@ async function vapidJwt(aud) {
 // Leere Push-Nachricht an ein Gerät; 404/410 = Anmeldung ungültig (wird gelöscht)
 async function pushPing(endpoint, detail = false) {
   const aud = new URL(endpoint).origin;
-  const res = await fetch(endpoint, { method: 'POST', headers: { Authorization: `vapid t=${await vapidJwt(aud)}, k=${Deno.env.get('VAPID_PUBLIC')}`, TTL: '1800', Urgency: 'high', 'Content-Length': '0' },
+  const res = await fetch(endpoint, { method: 'POST', headers: { Authorization: `vapid t=${await vapidJwt(aud)}, k=${vapidPub()}`, TTL: '1800', Urgency: 'high', 'Content-Length': '0' },
     signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (detail) return `${res.status}${res.ok ? '' : ` ${(await res.text().catch(() => '')).slice(0, 120)}`}`;
   return res.status;
