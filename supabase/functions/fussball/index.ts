@@ -1369,6 +1369,25 @@ async function handle(req) {
     try { return new Response(JSON.stringify(await bbTestRun(Date.now())), { headers }); }
     catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
   }
+  if (params.has('livedebug')) {
+    // Diagnose Live-Stände: Zähler, Sportradar-Spielplan der Champions League, Live-Liste, Zuordnung der heutigen CL-Spiele
+    try {
+      const now = Date.now(), day = new Date(now).toISOString().slice(0, 10);
+      const out = { version: 'live-sr-1', srCount: (await cacheGet(`srcount:${day}`))?.data ?? null, srMax: srDailyMax(), bbCount: (await cacheGet(`bbcount:${day}`))?.data ?? null, srKey: Boolean(Deno.env.get('SPORTRADAR_KEY')) };
+      const lg = FB_LEAGUES.find((l) => l.id === 'ucl');
+      const fx = await srFixtures({ ...lg, key: lg.sr }, now).catch((e) => ({ status: 'error', message: String(e?.message || e), matches: [] }));
+      out.uclSr = { status: fx.status, message: fx.message, count: fx.matches.length, today: fx.matches.filter((m) => m.utc.slice(0, 10) === day).map((m) => `${m.utc.slice(11, 16)} ${m.h} – ${m.a} ${m.st} ${m.hs ?? ''}:${m.as ?? ''} ${m.id}`) };
+      const live = await srLive(now).catch((e) => ({ error: String(e?.message || e) }));
+      out.srLive = { count: live?.list?.length ?? null, error: live?.error, ids: (live?.list || []).slice(0, 40).map((x) => `${x.id} ${x.es?.status} ${x.es?.home_score ?? ''}:${x.es?.away_score ?? ''}`) };
+      const bb = (await cacheGet('bb2:ucl'))?.data?.matches || [];
+      out.match = bb.filter((m) => m.utc.slice(0, 10) === day).map((m) => {
+        const t = Date.parse(m.utc);
+        const sr = fx.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 3 * 3600e3 && (nameKey(x.h) === nameKey(m.h) || nameKey(x.a) === nameKey(m.a)));
+        return `${m.h} – ${m.a} [${nameKey(m.h)}/${nameKey(m.a)}] → ${sr ? `${sr.h} – ${sr.a} ${sr.id}` : 'keine Zuordnung'}`;
+      });
+      return new Response(JSON.stringify(out), { headers });
+    } catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err), stack: String(err?.stack || '').slice(0, 400) }), { status: 502, headers }); }
+  }
   if (params.has('bblive')) {
     // Prüfen: Rohform des Live-Feeds (eine Abfrage, höchstens alle 5 Min. neu wie im Betrieb)
     try {
