@@ -380,7 +380,7 @@ async function fbDetail(id, kind, now = Date.now()) {
     attacking_midfielder: 'OM', striker: 'ST', right_midfielder: 'RM', left_midfielder: 'LM', midfielder: 'M', defender: 'V', forward: 'ST' };
   const team = (c) => c && { formation: c.formation?.type || '', coach: flip(c.manager?.name),
     start: (c.players || []).filter((p) => p.starter).sort((a, b) => (a.order || 0) - (b.order || 0)).map((p) => ({ id: String(p.id || '').split(':').pop(), n: flip(p.name), no: p.jersey_number ?? '', pos: POS[p.position] || POS[p.type] || '' })),
-    bench: (c.players || []).filter((p) => !p.starter).map((p) => flip(p.name)) };
+    bench: (c.players || []).filter((p) => !p.starter).map((p) => flip(p.name)), benchIds: (c.players || []).filter((p) => !p.starter).map((p) => String(p.id || '').split(':').pop()) };
   const comps = d?.lineups?.competitors || [];
   const data = { available: comps.some((c) => (c.players || []).some((p) => p.starter)),
     home: team(comps.find((c) => c.qualifier === 'home')), away: team(comps.find((c) => c.qualifier === 'away')), final: m.st === 'ft' };
@@ -557,7 +557,7 @@ function srGoals(timeline) {
   return (timeline || []).filter((e) => e.type === 'score_change').map((e) => {
     const sc = (e.players || []).find((p) => p.type === 'scorer');
     const extra = e.stoppage_time ? `+${e.stoppage_time}` : '';
-    return { m: `${e.match_time ?? ''}${extra}`, s: e.competitor === 'away' ? 2 : 1,
+    return { m: `${e.match_time ?? ''}${extra}`, s: e.competitor === 'away' ? 2 : 1, id: String(sc?.id || '').split(':').pop(),
       n: `${String(sc?.name || '').replace(/^(.+), (.+)$/, '$2 $1')}${e.method === 'penalty' ? ' (Pen.)' : e.method === 'own_goal' ? ' (Eigentor)' : ''}` };
   });
 }

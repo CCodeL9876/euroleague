@@ -120,7 +120,10 @@ function goalsHtml(m) {
   if (!goals) return '<p>Lade Torschützen …</p>';
   if (!goals.length) return `<p>${m.hs || m.as ? 'Keine Angaben zu den Torschützen.' : 'Keine Tore.'}</p>${m.ht ? `<span class="fb-ht">Halbzeit ${esc(m.ht)}</span>` : ''}`;
   const h = goals.filter((g) => g.s === 1), a = goals.filter((g) => g.s === 2);
-  return Array.from({ length: Math.max(h.length, a.length) }, (_, i) => `<span>${h[i] ? `<span class="fb-m">${esc(h[i].m)}'</span>${esc(h[i].n)}` : ''}</span><span class="fb-a">${a[i] ? `${esc(a[i].n)}<span class="fb-m">${esc(a[i].m)}'</span>` : ''}</span>`).join('')
+  // Torschütze antippbar: mit Sportradar-ID direkt (Schweiz), bei Premier/Champions League über die Aufstellung gesucht
+  const who = (g) => (g.id ? `<button type="button" class="fb-lu-pl" data-act="fb-player" data-pid="${esc(g.id)}">${esc(g.n)}</button>`
+    : hasExtra(m) ? `<button type="button" class="fb-lu-pl" data-act="fb-goal" data-mid="${esc(m.id)}" data-name="${esc(g.n)}">${esc(g.n)}</button>` : esc(g.n));
+  return Array.from({ length: Math.max(h.length, a.length) }, (_, i) => `<span>${h[i] ? `<span class="fb-m">${esc(h[i].m)}'</span>${who(h[i])}` : ''}</span><span class="fb-a">${a[i] ? `${who(a[i])}<span class="fb-m">${esc(a[i].m)}'</span>` : ''}</span>`).join('')
     + (m.ht ? `<span class="fb-ht">Halbzeit ${esc(m.ht)}</span>` : '');
 }
 
@@ -526,6 +529,26 @@ function playerHtml(d) {
     ${career ? `<div class="fb-ps-sec"><h4>Karriere</h4><div class="fb-ps-career">${career}</div>${youth.length ? `<p class="fb-ps-youth">Jugend: ${esc(youth.map((c) => c.team).join(', '))}</p>` : ''}</div>` : ''}
     <p class="fb-x-src">Quellen: Sportradar${d.career.length || d.img ? ` · Karriere${d.img ? ' und Foto' : ''}: Wikipedia/Wikimedia` : ''}</p>`;
 }
+// Torschütze ohne ID (Big Balls): in der Aufstellung des Spiels (Sportradar) über den Namen suchen
+const normName = (n) => String(n || '').replace(/\s*\((Pen\.|Eigentor)\)\s*$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+async function openScorer(mid, name) {
+  const m = data?.matches.find((x) => x.id === mid);
+  if (!m) return;
+  const k = `${mid}|lineup`;
+  if (!detailCache.get(k)?.available) await loadDetail(m, 'lineup');
+  const d = detailCache.get(k);
+  const want = normName(name), last = want.split(' ').pop(), first = want[0];
+  const all = [];
+  for (const t of [d?.home, d?.away]) {
+    if (!t) continue;
+    for (const p of t.start || []) all.push({ id: p.id, n: p.n });
+    (t.bench || []).forEach((n, i) => all.push({ id: t.benchIds?.[i], n }));
+  }
+  const cand = all.filter((p) => p.id);
+  const hit = cand.find((p) => normName(p.n) === want)
+    || cand.filter((p) => normName(p.n).split(' ').pop() === last).find((p, _, arr) => arr.length === 1 || normName(p.n)[0] === first);
+  if (hit) openPlayer(hit.id); else toast('Zu diesem Torschützen gibt es kein Profil.');
+}
 async function openPlayer(pid) {
   sheet = { id: 'player', pid }; renderSheet();
   document.querySelector('.fb-sheet-x')?.focus();
@@ -681,6 +704,7 @@ document.addEventListener('click', (e) => {
   if (act === 'logout') { logout(); return; }
   if (act === 'fb-fav') { menuOpen = false; renderMenu(); openFav(); return; }
   if (act === 'fb-player') { openPlayer(e.target.closest('[data-pid]').dataset.pid); return; }
+  if (act === 'fb-goal') { const b = e.target.closest('[data-mid]'); openScorer(b.dataset.mid, b.dataset.name); return; }
   if (act === 'fb-order-open') { menuOpen = false; renderMenu(); sheet = { id: 'order' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); return; }
   if (act === 'fb-order') { const b = e.target.closest('[data-id]'); moveLeague(b.dataset.id, Number(b.dataset.dir)); return; }
   if (act === 'fb-order-reset') { leagueOrder = []; store.set('el-fb-order', '[]'); renderSheet(); render(); return; }
