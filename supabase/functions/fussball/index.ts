@@ -146,7 +146,7 @@ async function afLeague(lg, season, now) {
 // ---------- bigballsdata.com (grosse Ligen, Champions League, Nationalteams) ----------
 const BB_BASE = 'https://api.bigballsdata.com/v1';
 const bbDailyMax = () => Number(Deno.env.get('BIGBALLS_DAILY')) || 230;
-const BB_LIVE_MS = 3 * 60 * 1000;
+const BB_LIVE_MS = 5 * 60 * 1000; // Tagesgrenze: Spieltage mit Spielen von 13 bis 23 Uhr bleiben so unter 230 Abfragen
 async function bbAllowed() {
   const k = `bbcount:${new Date().toISOString().slice(0, 10)}`;
   const n = Number((await cacheGet(k))?.data) || 0;
@@ -164,9 +164,12 @@ async function bbGet(path, params = {}) {
 // Nur Männer-Nationalteams (Länderspiele enthalten auch Frauen- und Juniorenspiele)
 const BB_NOT_MEN = /\b(Women|Femenino|Féminine|Frauen)\b|\bU-?\d\d\b| W$/i;
 export function mapBb(lg, m) {
-  const raw = String(m.status || '');
-  const st = raw === 'finished' ? 'ft' : raw === 'live' || raw === 'in_progress' ? 'live'
-    : ['postponed', 'cancelled', 'suspended'].includes(raw) ? 'off' : 'pre';
+  const raw = String(m.status || '').toLowerCase();
+  // Unbekannte Zwischenstände (Pause, Unterbruch …) nach dem Anpfiff als laufend werten, damit der Spielstand sichtbar bleibt
+  const started = Date.parse(m.kickoff_utc) <= Date.now();
+  const st = raw === 'finished' || raw === 'ended' || raw === 'awarded' ? 'ft' : raw === 'halftime' || raw === 'half_time' || raw === 'break' ? 'ht'
+    : ['postponed', 'cancelled', 'canceled', 'suspended', 'abandoned'].includes(raw) ? 'off'
+    : raw === 'live' || raw === 'in_progress' || (started && raw && !['scheduled', 'not_started', 'tbd'].includes(raw)) ? 'live' : 'pre';
   const ls = m.linescore;
   const ht = ls?.home?.length > 1 && ls.home[0] != null ? `${ls.home[0]}:${ls.away[0]}` : '';
   return { id: `bb-${m.id}`, l: lg.id, utc: new Date(m.kickoff_utc).toISOString(), round: String(m.round || '').replace(/^Regular Season - /, ''),
@@ -174,8 +177,10 @@ export function mapBb(lg, m) {
     hs: st === 'pre' ? null : m.score?.home ?? null, as: st === 'pre' ? null : m.score?.away ?? null, st, min: null, ht, note: st === 'off' ? raw : '' };
 }
 // Spielplan eines Wettbewerbs (Clubs: Saison = Startjahr; Nationalteams: Kalenderjahr), alle 12 Std.
+// /matches ohne Filter liefert nur kommende Spiele – darum zusätzlich eine Seite beendeter Spiele, und der alte Stand bleibt
+// erhalten (sonst fallen gespielte Partien beim Neuladen aus der Übersicht)
 async function bbFixtures(lg, now) {
-  const ck = `bb:${lg.key}`;
+  const ck = `bb2:${lg.key}`; // bb2: Stand inkl. beendeter Spiele (ersetzt den alten Stand einmal)
   const hit = await cacheGet(ck);
   if (hit && now - hit.at < (hit.data.status === 'ok' ? 12 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
   try {
@@ -188,9 +193,19 @@ async function bbFixtures(lg, now) {
       all.push(...list.map((m) => mapBb(lg, m)));
       if ((d?.data || []).length < 200) break;
     }
-    const old = new Map((hit?.data?.matches || []).map((m) => [m.id, m]));
-    for (const m of all) { const o = old.get(m.id); if (o?.goals && !m.goals) m.goals = o.goals; }
-    const data = { status: 'ok', message: '', matches: all };
+    if (await bbAllowed()) {
+      const d = await bbGet('matches', { league: lg.key, season, status: 'finished', limit: '200' }).catch(() => null);
+      all.push(...(d?.data || []).filter((m) => m.sport === 'football' && !(BB_NOT_MEN.test(m.home?.name || '') || BB_NOT_MEN.test(m.away?.name || ''))).map((m) => mapBb(lg, m)));
+    }
+    // Zusammenführen: alter Stand (bis 3 Wochen zurück) < beendete < kommende; Torschützen übernehmen
+    const byId = new Map();
+    for (const m of hit?.data?.matches || []) if (now - Date.parse(m.utc) < 21 * 864e5) byId.set(m.id, m);
+    for (const m of all) {
+      const o = byId.get(m.id);
+      if (o?.st === 'ft' && m.st !== 'ft') continue; // ein bekanntes Schlussresultat nicht durch einen älteren Stand ersetzen
+      byId.set(m.id, o?.goals && !m.goals ? { ...m, goals: o.goals } : m);
+    }
+    const data = { status: 'ok', message: '', matches: [...byId.values()] };
     await cacheSet(ck, data);
     return data;
   } catch (err) {
@@ -199,16 +214,20 @@ async function bbFixtures(lg, now) {
     return data;
   }
 }
-// Tagesliste aller Fussballspiele (eine Abfrage) für Live-Stände und Schlussresultate
-async function bbToday(now, ttl) {
-  const day = new Date(now).toISOString().slice(0, 10);
+// Tagesliste aller Fussballspiele eines UTC-Tages (bis 2 Seiten à 200) für Live-Stände und Schlussresultate
+async function bbDay(day, now, ttl) {
   const ck = `bbday:${day}`;
   const hit = await cacheGet(ck);
   if (hit && now - hit.at < ttl) return hit.data;
-  if (!(await bbAllowed())) return hit?.data || null;
   try {
-    const d = await bbGet('scores', { sport: 'football', date: day, limit: '200' });
-    const data = { list: (d?.data || []).map((m) => ({ id: `bb-${m.id}`, m })) };
+    const list = [];
+    for (let offset = 0; offset < 400; offset += 200) {
+      if (!(await bbAllowed())) { if (!list.length) return hit?.data || null; break; }
+      const d = await bbGet('scores', { sport: 'football', date: day, limit: '200', offset: String(offset) });
+      list.push(...(d?.data || []).map((m) => ({ id: `bb-${m.id}`, m })));
+      if ((d?.data || []).length < 200) break;
+    }
+    const data = { list };
     await cacheSet(ck, data);
     return data;
   } catch { return hit?.data || null; }
@@ -216,10 +235,13 @@ async function bbToday(now, ttl) {
 async function bbLeagues(list, now) {
   if (!Deno.env.get('BIGBALLS_KEY')) return list.map(() => ({ status: 'nokey', message: 'Big-Balls-Schlüssel fehlt', matches: [] }));
   const res = await Promise.all(list.map((lg) => bbFixtures(lg, now)));
-  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) < now && now - Date.parse(m.utc) < 12 * 3600e3;
+  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) < now && now - Date.parse(m.utc) < 30 * 3600e3;
   if (!res.some((r) => r.matches.some(open))) return res;
-  const today = await bbToday(now, res.some((r) => liveWindow(r.matches, now)) ? BB_LIVE_MS : 15 * 60 * 1000);
-  const byId = new Map((today?.list || []).map((x) => [x.id, x.m]));
+  // Jeden UTC-Tag mit offenen Spielen abfragen (Abendspiele von gestern stehen nicht in der Liste von heute)
+  const days = [...new Set(res.flatMap((r) => r.matches.filter(open).map((m) => m.utc.slice(0, 10))))].sort().slice(-2);
+  const todayUtc = new Date(now).toISOString().slice(0, 10), live = res.some((r) => liveWindow(r.matches, now));
+  const lists = await Promise.all(days.map((d) => bbDay(d, now, d === todayUtc && live ? BB_LIVE_MS : 15 * 60 * 1000)));
+  const byId = new Map(lists.flatMap((l) => (l?.list || []).map((x) => [x.id, x.m])));
   const changed = new Set();
   res.forEach((r, i) => r.matches.forEach((m, j) => {
     const x = byId.get(m.id);
@@ -228,7 +250,7 @@ async function bbLeagues(list, now) {
     if (fresh.st === 'ft') changed.add(i);
     r.matches[j] = { ...m, st: fresh.st, hs: fresh.hs, as: fresh.as, ht: fresh.ht || m.ht, note: fresh.note };
   }));
-  for (const i of changed) await cacheSet(`bb:${list[i].key}`, res[i]);
+  for (const i of changed) await cacheSet(`bb2:${list[i].key}`, res[i]);
   return res;
 }
 // Tore eines Spiels; nach Spielende dauerhaft, sonst 2 Min. gespeichert

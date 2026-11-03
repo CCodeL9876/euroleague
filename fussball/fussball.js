@@ -87,7 +87,8 @@ const logo = (u) => `<span class="fb-logo">${LOGO_OK.test(u || '') ? `<img src="
 
 let data = null, error = '', sel = '', mineOnly = false, timer = 0;
 const open = new Set();
-const goalsCache = new Map();
+const goalsCache = new Map(); // id → { goals, final } (nach Spielende nicht mehr neu laden)
+const goalsOf = (m) => m.goals || goalsCache.get(m.id)?.goals;
 const detailTab = new Map(); // Premier League aufgeklappt: 'goals' | 'lineup' | 'stats'
 const detailCache = new Map(); // `${id}|${kind}` → Antwort von ?fbdetail=
 const lastFlaps = new Map();
@@ -113,7 +114,7 @@ function status(m) {
 }
 
 function goalsHtml(m) {
-  const goals = m.goals || goalsCache.get(m.id);
+  const goals = goalsOf(m);
   if (m.st === 'pre') return `<p>Anpfiff ${zTime(new Date(m.utc))} Uhr${m.round ? ` · ${esc(/^\d+$/.test(m.round) ? `${m.round}. Runde` : m.round)}` : ''}</p>`;
   if (!goals) return '<p>Lade Torschützen …</p>';
   if (!goals.length) return `<p>${m.hs || m.as ? 'Keine Angaben zu den Torschützen.' : 'Keine Tore.'}</p>${m.ht ? `<span class="fb-ht">Halbzeit ${esc(m.ht)}</span>` : ''}`;
@@ -259,7 +260,7 @@ function liveHtml() {
     }).join('')}</span>`;
     const lg = data.leagues.find((l) => l.id === m.l);
     const state = m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft';
-    const last = (m.goals || goalsCache.get(m.id) || []).at(-1);
+    const last = (goalsOf(m) || []).at(-1);
     const goal = last ? `Tor ${esc(last.n || (last.s === 1 ? m.h : m.a))}${last.m !== '' ? ` ${esc(last.m)}'` : ''}` : '';
     return `<button type="button" class="live-hero fb-live-card" data-act="fb-live" data-id="${esc(m.id)}" aria-label="${esc(m.h)} ${esc(hs)}, ${esc(m.a)} ${esc(as)}, ${esc(state)}">
       <span class="flap-row">${logo(m.hl).replace('fb-logo', 'fb-logo fb-logo-lg')}<span class="flap-name">${esc(m.h)}</span>${tiles(hs)}</span>
@@ -276,7 +277,7 @@ function tickerHtml(lives) {
   const rows = [];
   for (const m of lives) {
     const sc = [0, 0];
-    for (const g of m.goals || goalsCache.get(m.id) || []) {
+    for (const g of goalsOf(m) || []) {
       sc[g.s === 1 ? 0 : 1] += 1;
       const [min, extra = 0] = String(g.m).split('+').map((x) => Number(x) || 0);
       rows.push({ m, g, sc: [...sc], at: Date.parse(m.utc) + (min + extra + (min > 45 ? 15 : 0)) * 60e3 });
@@ -294,7 +295,8 @@ function tickerHtml(lives) {
 function render() {
   const days = $('#fbDays'), list = $('#fbList');
   if (!data) { days.innerHTML = ''; list.innerHTML = `<p class="fb-empty">${esc(error || 'Lade Spiele …')}</p>`; return; }
-  const matches = data.matches.filter((m) => !mineOnly || isFav(m));
+  // Verschobene Spiele ohne neues Datum stehen bei Sportradar mit dem alten Termin: nach 2 Tagen ausblenden
+  const matches = data.matches.filter((m) => (!mineOnly || isFav(m)) && !(m.st === 'off' && Date.now() - Date.parse(m.utc) > 2 * 864e5));
   const byDay = {};
   for (const m of matches) (byDay[zDate(new Date(m.utc))] ||= []).push(m);
   const keys = Object.keys(byDay).sort();
@@ -556,6 +558,8 @@ async function load() {
     if (!data) error = err?.message || 'Die Fussball-Daten sind gerade nicht erreichbar.';
   }
   render();
+  // Aufgeklappte Spiele: Torschützen nachführen, bis die Quelle das Spiel als beendet meldet
+  for (const id of open) { const m = data?.matches.find((x) => x.id === id); if (m && m.st !== 'pre' && !m.goals && !goalsCache.get(id)?.final) loadGoals(m); }
   clearTimeout(timer);
   // Nur nachladen, solange die Seite sichtbar ist (Hintergrund-Tab oder gesperrtes Handy: keine Abfragen)
   if (document.visibilityState === 'hidden') return;
@@ -564,14 +568,19 @@ async function load() {
 }
 
 async function loadGoals(m) {
-  if (m.goals || (goalsCache.has(m.id) && m.st === 'ft')) return;
+  if (m.goals || goalsCache.get(m.id)?.final || loadGoals.busy.has(m.id)) return;
+  loadGoals.busy.add(m.id);
   try {
     const res = await fetch(`${DATA_URL}?fbgame=${encodeURIComponent(m.id)}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) });
     const d = await res.json();
-    goalsCache.set(m.id, Array.isArray(d?.goals) ? d.goals : []);
-  } catch { goalsCache.set(m.id, []); }
+    // Fehler nicht speichern (sonst bliebe «Keine Angaben» stehen); Schlussstand erst, wenn die Quelle das Spiel als beendet meldet
+    if (res.ok && Array.isArray(d?.goals)) goalsCache.set(m.id, { goals: d.goals, final: d.final === true || (d.final == null && m.st === 'ft') });
+  } catch { /* beim nächsten Nachladen erneut */ }
+  loadGoals.busy.delete(m.id);
   render();
 }
+
+loadGoals.busy = new Set();
 
 // ---------- Kopf: Hell/Dunkel und Profil-Menü (wie im Basketball-Bereich) ----------
 const ICON = {
