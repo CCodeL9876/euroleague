@@ -1257,10 +1257,14 @@ async function pushTick(now) {
   }
   return { events: events.length, sent };
 }
-// Das Gerät holt nach dem Anstoss seine Meldungen ab (nur die der letzten 30 Min.)
+// Das Gerät holt nach dem Anstoss seine Meldungen ab (nur die der letzten 30 Min.); abgeholt = gelöscht, damit
+// beim nächsten Anstoss nicht ältere Meldungen nochmals erscheinen
 async function pushMessages(endpoint, now) {
   const hash = await sha256Hex(String(endpoint || ''));
-  return ((await cacheGet(`pushmsg:${hash}`))?.data || []).filter((x) => now - x.at < 30 * 60 * 1000);
+  const ck = `pushmsg:${hash}`;
+  const list = ((await cacheGet(ck))?.data || []).filter((x) => now - x.at < 30 * 60 * 1000);
+  if (list.length) await cacheSet(ck, []);
+  return list;
 }
 
 async function handle(req) {
