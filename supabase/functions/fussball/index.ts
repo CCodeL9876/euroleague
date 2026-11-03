@@ -95,14 +95,27 @@ async function cacheSet(key, data) {
   await fetch(`${SUPABASE_URL}/rest/v1/el_fb_cache?on_conflict=key`, { method: 'POST', headers: { ...serviceHeaders(), Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify({ key, data, at: new Date().toISOString() }), signal: AbortSignal.timeout(TIMEOUT_MS) }).catch(() => {});
 }
-// Zähler gegen das Tageslimit von API-Football
-async function afAllowed() {
-  const k = `afcount:${new Date().toISOString().slice(0, 10)}`;
-  const n = Number((await cacheGet(k))?.data) || 0;
-  if (n >= AF_DAILY_MAX) return false;
+// Tageszähler gegen die Kontingente der Anbieter. Atomar über die SQL-Funktion el_fb_incr (README / unten); fehlt sie,
+// lesen + schreiben mit einem Zähler pro Instanz, damit gleichzeitige Abfragen derselben Instanz nicht alle denselben Stand lesen.
+const memCount = new Map();
+let rpcOk = true;
+async function dailyAllowed(prefix, max) {
+  const k = `${prefix}:${new Date().toISOString().slice(0, 10)}`;
+  if (rpcOk && Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/el_fb_incr`, { method: 'POST', headers: serviceHeaders(), body: JSON.stringify({ k, lim: max }), signal: AbortSignal.timeout(TIMEOUT_MS) });
+      if (r.ok) return (await r.json()) === true;
+      if (r.status === 404) rpcOk = false;
+    } catch { /* Datenbank kurz nicht erreichbar: Ersatz unten */ }
+  }
+  const local = (memCount.get(k) || 0) + 1;
+  memCount.set(k, local);
+  const n = Math.max(Number((await cacheGet(k))?.data) || 0, local - 1);
+  if (n >= max) return false;
   await cacheSet(k, n + 1);
   return true;
 }
+const afAllowed = () => dailyAllowed('afcount', AF_DAILY_MAX);
 async function afGet(path) {
   const key = Deno.env.get('APIFOOTBALL_KEY') || '';
   const res = await fetch(`https://v3.football.api-sports.io/${path}`, { headers: { 'x-apisports-key': key }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
@@ -147,13 +160,7 @@ async function afLeague(lg, season, now) {
 const BB_BASE = 'https://api.bigballsdata.com/v1';
 const bbDailyMax = () => Number(Deno.env.get('BIGBALLS_DAILY')) || 230;
 const BB_LIVE_MS = 5 * 60 * 1000; // Tagesgrenze: Spieltage mit Spielen von 13 bis 23 Uhr bleiben so unter 230 Abfragen
-async function bbAllowed() {
-  const k = `bbcount:${new Date().toISOString().slice(0, 10)}`;
-  const n = Number((await cacheGet(k))?.data) || 0;
-  if (n >= bbDailyMax()) return false;
-  await cacheSet(k, n + 1);
-  return true;
-}
+const bbAllowed = () => dailyAllowed('bbcount', bbDailyMax());
 async function bbGet(path, params = {}) {
   const q = new URLSearchParams(params);
   const res = await fetch(`${BB_BASE}/${path}${String(q) ? `?${q}` : ''}`, { headers: { 'x-api-key': Deno.env.get('BIGBALLS_KEY') || '' }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
@@ -165,16 +172,21 @@ async function bbGet(path, params = {}) {
 const BB_NOT_MEN = /\b(Women|Femenino|Féminine|Frauen)\b|\bU-?\d\d\b| W$/i;
 export function mapBb(lg, m) {
   const raw = String(m.status || '').toLowerCase();
-  // Unbekannte Zwischenstände (Pause, Unterbruch …) nach dem Anpfiff als laufend werten, damit der Spielstand sichtbar bleibt
-  const started = Date.parse(m.kickoff_utc) <= Date.now();
-  const st = raw === 'finished' || raw === 'ended' || raw === 'awarded' ? 'ft' : raw === 'halftime' || raw === 'half_time' || raw === 'break' ? 'ht'
+  // Uhr der Live-Liste, z. B. «83'», «45+2'» oder «HT» → Spielminute bzw. Halbzeit (Big Balls kennt keinen eigenen Pausen-Status)
+  const clock = String(m.clock ?? '').trim();
+  const cm = /^(\d{1,3}(?:\+\d{1,2})?)/.exec(clock);
+  const sinceKo = Date.now() - Date.parse(m.kickoff_utc);
+  const known = ['live', 'in_progress', 'scheduled', 'not_started', 'tbd', 'finished', 'ended', 'awarded', 'halftime', 'half_time', 'break', 'postponed', 'cancelled', 'canceled', 'suspended', 'abandoned'];
+  let st = raw === 'finished' || raw === 'ended' || raw === 'awarded' ? 'ft' : raw === 'halftime' || raw === 'half_time' || raw === 'break' || /^(ht|half)/i.test(clock) ? 'ht'
     : ['postponed', 'cancelled', 'canceled', 'suspended', 'abandoned'].includes(raw) ? 'off'
-    : raw === 'live' || raw === 'in_progress' || (started && raw && !['scheduled', 'not_started', 'tbd'].includes(raw)) ? 'live' : 'pre';
+    : raw === 'live' || raw === 'in_progress' ? 'live' : 'pre';
+  // Unbekannter Status nach dem Anpfiff: bis 150 Min. als laufend werten (Spielstand sichtbar), danach mit Spielstand als beendet
+  if (st === 'pre' && raw && !known.includes(raw) && sinceKo > 0) st = sinceKo < 150 * 60 * 1000 ? 'live' : m.score?.home != null ? 'ft' : 'pre';
   const ls = m.linescore;
   const ht = ls?.home?.length > 1 && ls.home[0] != null ? `${ls.home[0]}:${ls.away[0]}` : '';
   return { id: `bb-${m.id}`, l: lg.id, utc: new Date(m.kickoff_utc).toISOString(), round: String(m.round || '').replace(/^Regular Season - /, ''),
     h: String(m.home?.name || ''), a: String(m.away?.name || ''), hl: fbImg(m.home?.logo_url), al: fbImg(m.away?.logo_url),
-    hs: st === 'pre' ? null : m.score?.home ?? null, as: st === 'pre' ? null : m.score?.away ?? null, st, min: null, ht, note: st === 'off' ? raw : '' };
+    hs: st === 'pre' ? null : m.score?.home ?? null, as: st === 'pre' ? null : m.score?.away ?? null, st, min: st === 'live' && cm ? cm[1] : null, ht, note: st === 'off' ? raw : '' };
 }
 // Spielplan eines Wettbewerbs (Clubs: Saison = Startjahr; Nationalteams: Kalenderjahr), alle 12 Std.
 // /matches ohne Filter liefert nur kommende Spiele – darum zusätzlich eine Seite beendeter Spiele, und der alte Stand bleibt
@@ -224,8 +236,14 @@ async function bbDay(day, now, ttl) {
     for (let offset = 0; offset < 400; offset += 200) {
       if (!(await bbAllowed())) { if (!list.length) return hit?.data || null; break; }
       const d = await bbGet('scores', { sport: 'football', date: day, limit: '200', offset: String(offset) });
-      list.push(...(d?.data || []).map((m) => ({ id: `bb-${m.id}`, m })));
-      if ((d?.data || []).length < 200) break;
+      // Gespeicherte Spiele kommen als Array; laut Dokumentation kann der Live-Feed als data.scores.value[] (mit match_id) kommen
+      const arr = Array.isArray(d?.data) ? d.data : d?.data?.scores?.value || d?.scores?.value || d?.data?.value || [];
+      list.push(...arr.map((x) => {
+        const id = x.id || x.match_id;
+        const score = x.score || (x.home_score != null ? { home: x.home_score, away: x.away_score } : undefined);
+        return { id: `bb-${id}`, m: { ...x, id, score } };
+      }).filter((x) => x.m.id));
+      if (arr.length < 200) break;
     }
     const data = { list };
     await cacheSet(ck, data);
@@ -239,16 +257,16 @@ async function bbLeagues(list, now) {
   if (!res.some((r) => r.matches.some(open))) return res;
   // Jeden UTC-Tag mit offenen Spielen abfragen (Abendspiele von gestern stehen nicht in der Liste von heute)
   const days = [...new Set(res.flatMap((r) => r.matches.filter(open).map((m) => m.utc.slice(0, 10))))].sort().slice(-2);
-  const todayUtc = new Date(now).toISOString().slice(0, 10), live = res.some((r) => liveWindow(r.matches, now));
-  const lists = await Promise.all(days.map((d) => bbDay(d, now, d === todayUtc && live ? BB_LIVE_MS : 15 * 60 * 1000)));
+  const liveDay = (d) => res.some((r) => liveWindow(r.matches.filter((m) => m.utc.slice(0, 10) === d), now));
+  const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) ? BB_LIVE_MS : 15 * 60 * 1000)));
   const byId = new Map(lists.flatMap((l) => (l?.list || []).map((x) => [x.id, x.m])));
   const changed = new Set();
   res.forEach((r, i) => r.matches.forEach((m, j) => {
     const x = byId.get(m.id);
     if (!x || !open(m)) return;
-    const fresh = mapBb(list[i], x);
+    const fresh = mapBb(list[i], { ...x, kickoff_utc: x.kickoff_utc || m.utc, home: x.home || { name: m.h }, away: x.away || { name: m.a } });
     if (fresh.st === 'ft') changed.add(i);
-    r.matches[j] = { ...m, st: fresh.st, hs: fresh.hs, as: fresh.as, ht: fresh.ht || m.ht, note: fresh.note };
+    r.matches[j] = { ...m, st: fresh.st, hs: fresh.hs, as: fresh.as, min: fresh.min, ht: fresh.ht || m.ht, note: fresh.note };
   }));
   for (const i of changed) await cacheSet(`bb2:${list[i].key}`, res[i]);
   return res;
@@ -260,7 +278,7 @@ async function bbGame(id) {
   const hit = await cacheGet(ck);
   if (hit && (hit.data.final || Date.now() - hit.at < BB_LIVE_MS)) return hit.data;
   if (!Deno.env.get('BIGBALLS_KEY') || !(await bbAllowed())) return hit?.data || { goals: [] };
-  const [ev, mt] = await Promise.all([bbGet(`matches/${uuid}/events`, { type: 'goals' }), (async () => { try { return await bbGet(`matches/${uuid}`); } catch { return null; } })()]);
+  const [ev, mt] = await Promise.all([bbGet(`matches/${uuid}/events`, { type: 'goals' }), (async () => { try { return (await bbAllowed()) ? await bbGet(`matches/${uuid}`) : null; } catch { return null; } })()]);
   const match = mt?.data || {};
   const home = String(match.home?.name || '');
   const evs = (ev?.data || []).filter((e) => /goal/i.test(String(e.event_type || '')));
@@ -478,14 +496,8 @@ async function fbPlayer(pid, now = Date.now()) {
 // ---------- Sportradar Soccer v4 (Schweizer Ligen; Aufstellungen Premier League und Champions League) ----------
 const srBase = () => `https://api.sportradar.com/soccer/${Deno.env.get('SPORTRADAR_LEVEL') || 'trial'}/v4/en`;
 const srDailyMax = () => Number(Deno.env.get('SPORTRADAR_DAILY')) || 60;
-const SR_LIVE_MS = 5 * 60 * 1000;
-async function srAllowed() {
-  const k = `srcount:${new Date().toISOString().slice(0, 10)}`;
-  const n = Number((await cacheGet(k))?.data) || 0;
-  if (n >= srDailyMax()) return false;
-  await cacheSet(k, n + 1);
-  return true;
-}
+const SR_LIVE_MS = 7 * 60 * 1000; // Sonntage mit Spielen von 14 bis 19 Uhr bleiben so unter 60 Abfragen
+const srAllowed = () => dailyAllowed('srcount', srDailyMax());
 // Test-Zugang: höchstens 1 Abfrage pro Sekunde, darum nacheinander mit Abstand
 let srLast = 0;
 async function srGet(path, params = {}) {
@@ -641,7 +653,9 @@ async function srLive(now) {
 async function srTimeline(id, now = Date.now()) {
   const ck = `srev:${id}`;
   const hit = await cacheGet(ck);
-  if (hit && (hit.data.final || now - hit.at < SR_LIVE_MS)) return hit.data;
+  // Noch nicht angepfiffen / verschoben (z. B. Verspätung): nur stündlich nachfragen statt bei jedem Live-Durchgang
+  const quiet = hit && ['pre', 'off'].includes(srState(hit.data.es));
+  if (hit && (hit.data.final || now - hit.at < (quiet ? 60 * 60 * 1000 : SR_LIVE_MS))) return hit.data;
   if (!Deno.env.get('SPORTRADAR_KEY') || !(await srAllowed())) return hit?.data || null;
   const d = await srGet(`sport_events/${srUrn(id)}/timeline`);
   const es = d?.sport_event_status || {};
@@ -671,10 +685,10 @@ async function srLeagues(list, now) {
       const p1 = (x.es.period_scores || []).find((p) => p.number === 1);
       arr[j] = { ...m, st, hs: st === 'pre' ? null : x.es.home_score ?? m.hs, as: st === 'pre' ? null : x.es.away_score ?? m.as,
         min: st === 'live' ? srMin(x.es) : null, ht: p1 ? `${p1.home_score}:${p1.away_score}` : m.ht, goals: x.goals };
-      if (st === 'ft') changed.add(i);
+      if (st === 'ft' || st === 'off') changed.add(i);
     }
   }
-  // Schlussresultate samt Torschützen in den Spielplan übernehmen
+  // Schlussresultate samt Torschützen (und Verschiebungen) in den Spielplan übernehmen
   for (const i of changed) await cacheSet(`sr:${list[i].key}`, res[i]);
   return res;
 }
@@ -736,13 +750,7 @@ async function srProbeRun(now) {
 // ---------- live-football-api.com (Reserve) ----------
 const LF_BASE = 'https://live-football-api.com/api/v1';
 const lfDailyMax = () => Number(Deno.env.get('LIVEFOOTBALL_DAILY')) || 150;
-async function lfAllowed() {
-  const k = `lfcount:${new Date().toISOString().slice(0, 10)}`;
-  const n = Number((await cacheGet(k))?.data) || 0;
-  if (n >= lfDailyMax()) return false;
-  await cacheSet(k, n + 1);
-  return true;
-}
+const lfAllowed = () => dailyAllowed('lfcount', lfDailyMax());
 async function lfGet(path, params = {}) {
   const q = new URLSearchParams({ ...params, api_key: Deno.env.get('LIVEFOOTBALL_KEY') || '' });
   const res = await fetch(`${LF_BASE}/${path}?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });

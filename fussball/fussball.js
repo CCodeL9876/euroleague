@@ -88,6 +88,7 @@ const logo = (u) => `<span class="fb-logo">${LOGO_OK.test(u || '') ? `<img src="
 let data = null, error = '', sel = '', mineOnly = false, timer = 0;
 const open = new Set();
 const goalsCache = new Map(); // id → { goals, final } (nach Spielende nicht mehr neu laden)
+const lastSum = new Map(); // id → Tore beim letzten Laden (neues Tor erkennen)
 const goalsOf = (m) => m.goals || goalsCache.get(m.id)?.goals;
 const detailTab = new Map(); // Premier League aufgeklappt: 'goals' | 'lineup' | 'stats'
 const detailCache = new Map(); // `${id}|${kind}` → Antwort von ?fbdetail=
@@ -560,11 +561,21 @@ async function load() {
   render();
   // Aufgeklappte Spiele: Torschützen nachführen, bis die Quelle das Spiel als beendet meldet
   for (const id of open) { const m = data?.matches.find((x) => x.id === id); if (m && m.st !== 'pre' && !m.goals && !goalsCache.get(id)?.final) loadGoals(m); }
+  // Spiele ohne mitgelieferte Tore (Big Balls): bei einem neuen Tor eines Lieblingsteams die Torschützen holen, damit
+  // «Letzte Tore» und die Live-Tafel sie zeigen (nicht für alle Spiele – das kostet Abfragen)
+  for (const m of data?.matches || []) {
+    const sum = (m.hs ?? 0) + (m.as ?? 0), before = lastSum.get(m.id);
+    lastSum.set(m.id, sum);
+    if (isLive(m) && !m.goals && isFav(m) && sum > 0 && before !== sum) loadGoals(m);
+  }
   clearTimeout(timer);
   // Nur nachladen, solange die Seite sichtbar ist (Hintergrund-Tab oder gesperrtes Handy: keine Abfragen)
   if (document.visibilityState === 'hidden') return;
   const live = data?.matches.some((m) => m.st === 'live' || m.st === 'ht');
-  timer = setTimeout(load, live ? LIVE_POLL_MS : IDLE_POLL_MS);
+  // Vor dem nächsten Anpfiff nicht 10 Min. warten: kurz danach nachladen, damit das Spiel rasch als live erscheint
+  const nextKo = Math.min(...(data?.matches || []).filter((m) => m.st === 'pre' && Date.parse(m.utc) > Date.now()).map((m) => Date.parse(m.utc)));
+  const untilKo = Number.isFinite(nextKo) ? Math.max(30 * 1000, nextKo - Date.now() + 90 * 1000) : Infinity;
+  timer = setTimeout(load, live ? LIVE_POLL_MS : Math.min(IDLE_POLL_MS, untilKo));
 }
 
 async function loadGoals(m) {
