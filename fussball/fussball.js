@@ -123,7 +123,7 @@ function goalsHtml(m) {
 }
 
 // Premier League: Reiter Tore · Aufstellung · Statistik im aufgeklappten Spiel
-const hasExtra = (m) => m.l === 'pl';
+const hasExtra = (m) => m.l === 'pl' || m.l === 'ucl';
 // Aufstellung als Spielfeld: Heim unten (spielt nach oben), Gast oben. Sportradar liefert die Startelf in Reihenfolge
 // Torwart, dann Linie für Linie von hinten nach vorne, innerhalb der Linie von rechts nach links (aus Sicht des Teams).
 function formationRows(t) {
@@ -142,7 +142,9 @@ function pitchHtml(m, d) {
     const y = yGoal + (yMid - yGoal) * (li === 0 ? 0 : 0.24 + (li - 1) * (0.68 / Math.max(1, rows.length - 2)));
     return line.map((p, k) => {
       const f = (k + 1) * 100 / (line.length + 1), x = side === 'h' ? 100 - f : f;
-      return `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"><span class="sh">${esc(p.no)}</span><span class="nm">${esc(lastName(p.n))}</span></div>`;
+      const inner = `<span class="sh">${esc(p.no)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
+      return p.id ? `<button type="button" class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at} data-act="fb-player" data-pid="${esc(p.id)}" aria-label="Profil ${esc(p.n)}">${inner}</button>`
+        : `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at}>${inner}</div>`;
     }).join('');
   }).join('');
   // Vereinswappen als Wasserzeichen in der jeweiligen Hälfte
@@ -405,6 +407,14 @@ function toggleFav(n) {
 function renderSheet() {
   let el = $('#fbSheet');
   if (!sheet) { if (el) { el.remove(); document.body.classList.remove('fb-sheet-open'); } return; }
+  if (sheet.id === 'player') {
+    if (!el) { el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap'; document.body.appendChild(el); document.body.classList.add('fb-sheet-open'); }
+    el.innerHTML = `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
+      <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
+        <div class="fb-sheet-h fb-ps-bar"><button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Schliessen">✕</button></div>
+        <div class="fb-sheet-body">${playerHtml(playerCache.get(sheet.pid))}</div></section>`;
+    return;
+  }
   if (sheet.id === 'order') {
     if (!el) { el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap'; document.body.appendChild(el); document.body.classList.add('fb-sheet-open'); }
     const keepScroll = el.querySelector('.fb-sheet-body')?.scrollTop || 0;
@@ -470,7 +480,60 @@ function moveLeague(id, dir) {
   document.querySelector(`.fb-order-b[data-id="${CSS.escape(id)}"][data-dir="${dir}"]:not(:disabled)`)?.focus();
 }
 
+// ---------- Blatt: Spielerprofil (Sportradar + Wikipedia) ----------
+const playerCache = new Map();
+const MON_S = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'];
+function ageOf(birth) {
+  const b = new Date(`${birth}T12:00:00`); if (Number.isNaN(b.getTime())) return null;
+  const n = new Date(); let a = n.getFullYear() - b.getFullYear();
+  if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
+  return a;
+}
+const dash = (v) => (v == null ? '–' : esc(v));
+function playerHtml(d) {
+  if (!d) return '<p class="fb-x-note">Lade Profil …</p>';
+  if (!d.available) return `<p class="fb-x-note">${esc(d.message || 'Profil gerade nicht verfügbar.')}</p>`;
+  const age = ageOf(d.birth), [y, mo, da] = String(d.birth).split('-');
+  const ini = d.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const facts = [['Alter', age != null ? `${age} (${Number(da)}.${Number(mo)}.${y})` : null], ['Nation', d.nation], ['Grösse / Gewicht', d.height ? `${d.height} cm${d.weight ? ` · ${d.weight} kg` : ''}` : null], ['Starker Fuss', d.foot]]
+    .filter((f) => f[1]);
+  // Saisonwerte: nur die jüngste Saison, pro Wettbewerb eine Zeile
+  const year = d.seasons.map((x) => x.year).sort().at(-1);
+  const seas = d.seasons.filter((x) => x.year === year && x.st.gp);
+  const tiles = (st, full) => `<div class="fb-ps-tiles"><div><b>${dash(st.gp)}</b><small>Spiele</small></div><div class="hi"><b>${dash(st.g)}</b><small>Tore</small></div><div class="hi"><b>${dash(st.a)}</b><small>Vorlagen</small></div><div><b>${dash(st.min)}</b><small>Minuten</small></div></div>`
+    + (full && (st.sh != null || st.y != null) ? `<div class="fb-ps-tiles"><div><b>${dash(st.sh)}</b><small>Schüsse</small></div><div><b>${dash(st.on)}</b><small>aufs Tor</small></div><div><b>${dash(st.y)}</b><small>Gelb</small></div><div><b>${dash(st.r)}</b><small>Rot</small></div></div>` : '');
+  const games = d.games.map((g) => {
+    const t = new Date(g.utc), opp = g.home === false ? `bei ${g.h}` : g.home ? `gegen ${g.a}` : `${g.h} – ${g.a}`;
+    const my = g.home === false ? g.as : g.hs, ot = g.home === false ? g.hs : g.as;
+    const res = g.home == null || my == null ? 'd' : my > ot ? 'w' : my < ot ? 'l' : 'd';
+    const me = [g.g ? `<b>${g.g}</b> ${g.g === 1 ? 'Tor' : 'Tore'}` : '', g.ast ? `<b>${g.ast}</b> Vorl.` : ''].filter(Boolean).join(' · ') || (g.min != null ? `${g.min}'` : g.in ? 'eingewechselt' : '');
+    return `<div class="fb-ps-g"><span class="dt">${t.getDate()}.${t.getMonth() + 1}.</span><span class="vs">${esc(opp)}${g.comp ? `<small>${esc(g.comp)}</small>` : ''}</span><span class="res ${res}">${dash(g.hs)}:${dash(g.as)}</span><span class="me">${me}</span></div>`;
+  }).join('');
+  const clubs = d.career.filter((c) => c.kind !== 'youth'), youth = d.career.filter((c) => c.kind === 'youth');
+  const yrs = (c) => (c.to == null ? `seit ${c.from}` : c.to > c.from ? `${c.from}–${c.to}` : String(c.from));
+  const career = clubs.map((c, i) => `<div class="fb-ps-st${c.to == null && c.kind === 'club' && i === 0 ? ' now' : ''}"><span class="nm">${esc(c.team)}${c.loan ? ' <small>Leihe</small>' : ''}${c.kind === 'nat' ? ' <small>Nationalteam</small>' : ''}</span>
+    ${c.gp != null ? `<span class="cg">${c.gp} Sp.${c.g != null ? ` · ${c.g} T.` : ''}</span>` : ''}<span class="yrs">${yrs(c)}</span></div>`).join('');
+  return `<div class="fb-ps-head"><span class="fb-ps-av">${d.img ? `<img src="${esc(d.img)}" alt="">` : esc(ini)}${d.no !== '' && d.no != null ? `<span class="no">${esc(d.no)}</span>` : ''}</span>
+      <div><h3 id="fbSheetTitle">${esc(d.name)}</h3><p>${esc([d.club, d.pos].filter(Boolean).join(' · '))}</p></div></div>
+    ${facts.length ? `<div class="fb-ps-sec"><div class="fb-ps-facts">${facts.map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div></div>` : ''}
+    ${seas.map((x, i) => `<div class="fb-ps-sec"><h4>Saison ${esc(x.year || x.season)} · ${esc(x.comp)}</h4>${tiles(x.st, i === 0)}</div>`).join('')}
+    ${games ? `<div class="fb-ps-sec"><h4>Letzte Spiele</h4><div class="fb-ps-games">${games}</div></div>` : ''}
+    ${career ? `<div class="fb-ps-sec"><h4>Karriere</h4><div class="fb-ps-career">${career}</div>${youth.length ? `<p class="fb-ps-youth">Jugend: ${esc(youth.map((c) => c.team).join(', '))}</p>` : ''}</div>` : ''}
+    <p class="fb-x-src">Quellen: Sportradar${d.career.length || d.img ? ` · Karriere${d.img ? ' und Foto' : ''}: Wikipedia/Wikimedia` : ''}</p>`;
+}
+async function openPlayer(pid) {
+  sheet = { id: 'player', pid }; renderSheet();
+  document.querySelector('.fb-sheet-x')?.focus();
+  if (playerCache.has(pid)) return;
+  try {
+    const res = await fetch(`${DATA_URL}?fbplayer=${encodeURIComponent(pid)}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(30000) });
+    playerCache.set(pid, await res.json());
+  } catch { playerCache.set(pid, { available: false }); }
+  if (sheet?.id === 'player' && sheet.pid === pid) renderSheet();
+}
+
 function closeSheet() {
+  if (sheet?.id === 'player') { const back = document.querySelector(`[data-act="fb-player"][data-pid="${CSS.escape(sheet.pid)}"]`); sheet = null; renderSheet(); back?.focus(); return; }
   const fav = sheet?.id === 'fav';
   if (sheet?.id === 'order') { sheet = null; renderSheet(); $('#profileBtn')?.focus(); return; }
   if (fav && sheet.required && !FAV?.size) return; // Pflicht-Auswahl: erst mit mindestens einem Team
@@ -587,6 +650,7 @@ document.addEventListener('click', (e) => {
   if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../'; return; }
   if (act === 'logout') { logout(); return; }
   if (act === 'fb-fav') { menuOpen = false; renderMenu(); openFav(); return; }
+  if (act === 'fb-player') { openPlayer(e.target.closest('[data-pid]').dataset.pid); return; }
   if (act === 'fb-order-open') { menuOpen = false; renderMenu(); sheet = { id: 'order' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); return; }
   if (act === 'fb-order') { const b = e.target.closest('[data-id]'); moveLeague(b.dataset.id, Number(b.dataset.dir)); return; }
   if (act === 'fb-order-reset') { leagueOrder = []; store.set('el-fb-order', '[]'); renderSheet(); render(); return; }

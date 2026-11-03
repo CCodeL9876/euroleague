@@ -195,3 +195,33 @@ body:not(.unlocked) .fb-tabs{display:none;}
 .fb-order-reset{margin-left:auto;min-height:36px;padding:0 12px;border:0;border-radius:10px;background:var(--card);color:var(--blue-hi);font:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;}
 .fb-order-reset:disabled{color:var(--faint);cursor:default;}
 .fb-order-reset + .fb-sheet-x{margin-left:8px;}
+button.fb-pl{border:0;background:transparent;padding:0;font:inherit;cursor:pointer;}
+button.fb-pl:hover .sh, button.fb-pl:focus-visible .sh{background:var(--card-2);}
+/* Spielerprofil (Blatt) */
+.fb-ps-bar{padding:0 14px 0;min-height:0;} .fb-ps-bar .fb-sheet-x{margin-top:-6px;}
+.fb-ps-head{display:flex;align-items:center;gap:14px;padding:0 4px;}
+.fb-ps-head h3{margin:0;font-size:1.15rem;} .fb-ps-head p{margin:3px 0 0;font-size:0.8rem;color:var(--dim);}
+.fb-ps-av{position:relative;width:72px;height:72px;min-width:72px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--card-2);color:var(--dim);font-weight:700;font-size:1.3rem;}
+.fb-ps-av img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;object-position:50% 15%;}
+.fb-ps-av .no{position:absolute;right:-4px;bottom:-4px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:0.72rem;font-weight:700;
+  background:var(--panel);border:2px solid var(--pitch-hi);color:var(--pitch-hi);}
+.fb-ps-sec{margin:16px 2px 0;} .fb-ps-sec h4{margin:0 0 8px;font-size:0.74rem;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;}
+.fb-ps-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.fb-ps-facts div{background:var(--card);border-radius:12px;padding:8px 10px;} .fb-ps-facts small{display:block;font-size:0.68rem;color:var(--faint);} .fb-ps-facts b{font-size:0.86rem;font-weight:600;}
+.fb-ps-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;} .fb-ps-tiles + .fb-ps-tiles{margin-top:6px;}
+.fb-ps-tiles div{background:var(--card);border-radius:12px;padding:10px 4px;text-align:center;} .fb-ps-tiles b{display:block;font-family:var(--mono);font-size:1.1rem;}
+.fb-ps-tiles small{font-size:0.66rem;color:var(--dim);} .fb-ps-tiles .hi b{color:var(--pitch-hi);}
+.fb-ps-games{background:var(--card);border-radius:14px;overflow:hidden;}
+.fb-ps-g{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);font-size:0.8rem;}
+.fb-ps-g:last-child{border-bottom:0;} .fb-ps-g .dt{font-family:var(--mono);font-size:0.68rem;color:var(--faint);}
+.fb-ps-g .vs{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .fb-ps-g .vs small{display:block;font-size:0.66rem;color:var(--faint);overflow:hidden;text-overflow:ellipsis;}
+.fb-ps-g .res{font-family:var(--mono);font-size:0.74rem;padding:2px 6px;border-radius:6px;background:var(--card-2);color:var(--dim);}
+.fb-ps-g .res.w{background:color-mix(in srgb, var(--pitch-hi) 20%, transparent);color:var(--pitch-hi);} .fb-ps-g .res.l{background:color-mix(in srgb, var(--coral) 20%, transparent);color:var(--coral);}
+.fb-ps-g .me{min-width:54px;text-align:right;font-size:0.72rem;color:var(--dim);} .fb-ps-g .me b{color:var(--text);}
+.fb-ps-career{position:relative;padding-left:18px;} .fb-ps-career::before{content:"";position:absolute;left:6px;top:10px;bottom:10px;width:2px;background:var(--line);}
+.fb-ps-st{position:relative;display:flex;align-items:center;gap:8px;padding:6px 0;font-size:0.84rem;}
+.fb-ps-st::before{content:"";position:absolute;left:-16px;width:10px;height:10px;border-radius:50%;background:var(--card-2);border:2px solid var(--line);}
+.fb-ps-st.now::before{background:var(--pitch-hi);border-color:var(--pitch-hi);}
+.fb-ps-st .nm{flex:1;min-width:0;} .fb-ps-st small{color:var(--faint);font-size:0.7rem;}
+.fb-ps-st .cg{font-size:0.7rem;color:var(--faint);white-space:nowrap;} .fb-ps-st .yrs{font-family:var(--mono);font-size:0.7rem;color:var(--faint);white-space:nowrap;min-width:74px;text-align:right;}
+.fb-ps-youth{margin:6px 0 0;font-size:0.74rem;color:var(--faint);}

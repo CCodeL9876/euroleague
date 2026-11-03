@@ -14,7 +14,9 @@
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
 //   GET ?fbleague=pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste (Big Balls); Tabelle alle 30 Min. (Spieltag) bzw. 3 Std., Torschützen alle 6 Std.
-//   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Sportradar) bzw. Teamstatistik (Big Balls) eines Premier-League-Spiels
+//   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Sportradar) bzw. Teamstatistik (Big Balls) eines Spiels der Premier League oder Champions League
+//   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
+//     Karriere und Foto aus Wikipedia/Wikidata
 //   GET ?bbprobe=1 → Test von bigballsdata.com (Secret BIGBALLS_KEY): Rohform von Spielen, Live-Feed, Toren, Tabelle, Statistik (≈7 Abfragen), höchstens alle 30 Min.
 //   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
 //   GET ?lfprobe=1 → Test von live-football-api.com (Secret LIVEFOOTBALL_KEY): Rohform von Spielplan/Spieldetails, höchstens alle 30 Min. neu
@@ -43,7 +45,7 @@ async function getJson(url) {
 }
 
 const FB_LEAGUES = [
-  { id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', src: 'bb', key: 'ucl', oldb: 'ucl' },
+  { id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', src: 'bb', key: 'ucl', sr: 'sr:competition:7' },
   { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'bb', key: 'epl', sr: 'sr:competition:17', lf: 1008 },
   { id: 'bl1', name: 'Bundesliga', country: 'Deutschland', short: 'BL', color: '#D20515', src: 'bb', key: 'bundesliga', oldb: 'bl1' },
   { id: 'laliga', name: 'La Liga', country: 'Spanien', short: 'LL', color: '#E2342B', src: 'bb', key: 'laliga' },
@@ -302,10 +304,12 @@ async function srMatchFor(m, now) {
   const t = Date.parse(m.utc);
   return sched.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 3 * 3600e3 && (nameKey(x.h) === nameKey(m.h) || nameKey(x.a) === nameKey(m.a))) || null;
 }
+// Ligen mit Aufstellung (Sportradar) und Teamstatistik (Big Balls)
+const DETAIL_LEAGUES = new Set(['pl', 'ucl']);
 async function fbDetail(id, kind, now = Date.now()) {
   const ov = await fbOverview(now);
   const m = ov.matches.find((x) => x.id === id);
-  if (!m || m.l !== 'pl') return { error: 'nicht verfügbar' };
+  if (!m || !DETAIL_LEAGUES.has(m.l)) return { error: 'nicht verfügbar' };
   if (kind === 'stats') {
     const uuid = id.replace(/^bb-/, '');
     const ck = `bbst:${uuid}`;
@@ -333,7 +337,7 @@ async function fbDetail(id, kind, now = Date.now()) {
   const POS = { goalkeeper: 'TW', right_back: 'RV', left_back: 'LV', central_defender: 'IV', defensive_midfielder: 'DM', central_midfielder: 'ZM', right_winger: 'RA', left_winger: 'LA',
     attacking_midfielder: 'OM', striker: 'ST', right_midfielder: 'RM', left_midfielder: 'LM', midfielder: 'M', defender: 'V', forward: 'ST' };
   const team = (c) => c && { formation: c.formation?.type || '', coach: flip(c.manager?.name),
-    start: (c.players || []).filter((p) => p.starter).sort((a, b) => (a.order || 0) - (b.order || 0)).map((p) => ({ n: flip(p.name), no: p.jersey_number ?? '', pos: POS[p.position] || POS[p.type] || '' })),
+    start: (c.players || []).filter((p) => p.starter).sort((a, b) => (a.order || 0) - (b.order || 0)).map((p) => ({ id: String(p.id || '').split(':').pop(), n: flip(p.name), no: p.jersey_number ?? '', pos: POS[p.position] || POS[p.type] || '' })),
     bench: (c.players || []).filter((p) => !p.starter).map((p) => flip(p.name)) };
   const comps = d?.lineups?.competitors || [];
   const data = { available: comps.some((c) => (c.players || []).some((p) => p.starter)),
@@ -342,7 +346,114 @@ async function fbDetail(id, kind, now = Date.now()) {
   return data;
 }
 
-// ---------- Sportradar Soccer v4 (Schweizer Ligen; Aufstellungen Premier League) ----------
+// ---------- Spielerprofil: Sportradar (Steckbrief, Saisonwerte, letzte Spiele) + Wikipedia (Karriere, Foto) ----------
+const WIKI_UA = 'euroleague-pwa/1.0 (https://github.com/CCodeL9876/euroleague)';
+const FOOT = { left: 'Links', right: 'Rechts', both: 'Beidfüssig' };
+const POS_DE = { goalkeeper: 'Torhüter', defender: 'Verteidigung', midfielder: 'Mittelfeld', forward: 'Sturm' };
+function wikiClean(v) {
+  return String(v || '').replace(/<ref[^>]*\/>|<ref[^>]*>[\s\S]*?<\/ref>/g, '').replace(/<[^>]+>/g, '')
+    .replace(/\{\{[^{}]*\}\}/g, '').replace(/\[\[([^\]|]*)\|([^\]]*)\]\]/g, '$2').replace(/\[\[([^\]]*)\]\]/g, '$1').replace(/'{2,}/g, '').replace(/&nbsp;/g, ' ').trim();
+}
+// Infobox „football biography“: youth_years/youth_clubs, years/clubs/caps/goals, national_years/national_team/… (Nummern 1, 2, …;
+// ältere Artikel ohne Unterstrich). Junioren-Nationalteams (U21 usw.) bleiben weg.
+export function parseFootballCareer(wikitext) {
+  const fields = {};
+  const re = /\|\s*(youth_?years|youth_?clubs|years|clubs|caps|goals|national_?years|national_?team|national_?caps|national_?goals)(\d+)\s*=\s*((?:\[\[[^\]]*\]\]|\{\{[^}]*\}\}|<ref[\s\S]*?<\/ref>|[^|\n])*)/g;
+  let m;
+  while ((m = re.exec(String(wikitext || '')))) {
+    const f = m[1].replace('_', ''), kind = f.startsWith('youth') ? 'youth' : f.startsWith('national') ? 'nat' : 'club';
+    const prop = /years/.test(f) ? 'y' : /clubs|team/.test(f) ? 'c' : /caps/.test(f) ? 'gp' : 'g';
+    (fields[`${kind}${m[2]}`] ||= { kind })[prop] = m[3];
+  }
+  const out = [];
+  for (const v of Object.values(fields)) {
+    const team = wikiClean(v.c).replace(/^→\s*/, ''), yrs = wikiClean(v.y);
+    const y = /(\d{4})(?:\s*[–—-]\s*(\d{4})?)?/.exec(yrs);
+    if (!team || !y || (v.kind === 'nat' && /\bU-?\d{2}\b|under-\d{2}|olympic/i.test(team))) continue;
+    const n = (x) => { const k = parseInt(wikiClean(x), 10); return Number.isFinite(k) ? k : null; };
+    out.push({ kind: v.kind, team, loan: String(v.c || '').trim().startsWith('→'), from: Number(y[1]), to: y[2] ? Number(y[2]) : /[–—-]\s*$/.test(yrs) ? null : Number(y[1]),
+      gp: v.kind === 'youth' ? null : n(v.gp), g: v.kind === 'youth' ? null : n(v.g) });
+  }
+  return out.sort((a, b) => (a.kind === 'nat') - (b.kind === 'nat') || (b.to ?? 9999) - (a.to ?? 9999) || b.from - a.from);
+}
+async function sparql(q) {
+  const res = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`, { headers: { accept: 'application/sparql-results+json', 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`sparql ${res.status}`);
+  return (await res.json())?.results?.bindings || [];
+}
+const plainName = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+// Fussballer (Q937857) mit gleichem Geburtsdatum und passendem Namen → englischer Artikel, Karriere und Foto
+async function wikiFootballer(name, birth) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)) return { career: [], img: '' };
+  const rows = await sparql(`SELECT ?l ?a ?img WHERE { ?p wdt:P106 wd:Q937857 ; wdt:P569 ?b . FILTER(?b = "${birth}T00:00:00Z"^^xsd:dateTime)
+    ?p rdfs:label ?l . FILTER(LANG(?l) = "en") ?a schema:about ?p ; schema:isPartOf <https://en.wikipedia.org/> . OPTIONAL { ?p wdt:P18 ?img } }`);
+  const want = plainName(name), last = want.split(' ').pop();
+  const hit = rows.find((r) => plainName(r.l.value) === want) || rows.find((r) => plainName(r.l.value).split(' ').includes(last)) || (rows.length === 1 ? rows[0] : null);
+  if (!hit) return { career: [], img: '' };
+  const title = decodeURIComponent(hit.a.value.split('/wiki/')[1] || '');
+  const wp = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&rvsection=0&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(title)}`,
+    { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => r.json()).catch(() => null);
+  const career = parseFootballCareer(wp?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content);
+  let img = '';
+  if (hit.img?.value) {
+    const file = decodeURIComponent(hit.img.value.split('/Special:FilePath/')[1] || '');
+    const ii = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url&iiurlwidth=240&format=json&formatversion=2&titles=${encodeURIComponent(`File:${file}`)}`,
+      { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => r.json()).catch(() => null);
+    const u = String(ii?.query?.pages?.[0]?.imageinfo?.[0]?.thumburl || '').replace(/\?.*$/, '');
+    if (/^https:\/\/(upload|thumb)\.wikimedia\.org\//.test(u)) img = u;
+  }
+  return { career, img, article: title };
+}
+const num = (v) => (v == null || v === '' ? null : Number(v));
+// Steckbrief + Saisonwerte (7 Tage gespeichert), letzte Spiele (6 Std.)
+async function fbPlayer(pid, now = Date.now()) {
+  if (!/^\d{1,12}$/.test(pid) || !Deno.env.get('SPORTRADAR_KEY')) return { available: false };
+  const urn = `sr:player:${pid}`;
+  const ckP = `srpl:${pid}`, ckS = `srps:${pid}`;
+  let prof = await cacheGet(ckP);
+  if (!prof || now - prof.at > 7 * 864e5) {
+    if (!(await srAllowed())) { if (!prof) return { available: false, message: 'Tagesgrenze erreicht' }; }
+    else {
+      const d = await srGet(`players/${urn}/profile`);
+      const p = d?.player || {};
+      const roles = (d?.roles || []).filter((r) => r.type === 'player');
+      const club = roles.find((r) => r.active && r.competitor?.country_code !== p.country_code) || roles.find((r) => r.active) || null;
+      const name = String(p.name || '').replace(/^(.+), (.+)$/, '$2 $1');
+      const seasons = (d?.statistics?.seasons || []).map((x) => ({ season: String(x.name || x.year || ''), year: String(x.year || ''), comp: String(x.competition?.name || ''), team: String(x.competitor?.name || ''),
+        st: { gp: num(x.statistics?.matches_played), g: num(x.statistics?.goals_scored), a: num(x.statistics?.assists), min: num(x.statistics?.minutes_played),
+          sh: num(x.statistics?.shots_on_target != null || x.statistics?.shots_off_target != null ? (Number(x.statistics?.shots_on_target) || 0) + (Number(x.statistics?.shots_off_target) || 0) + (Number(x.statistics?.shots_blocked) || 0) : null),
+          on: num(x.statistics?.shots_on_target), y: num(x.statistics?.yellow_cards), r: num((Number(x.statistics?.red_cards) || 0) + (Number(x.statistics?.yellow_red_cards) || 0)) } }));
+      const wiki = await wikiFootballer(name, String(p.date_of_birth || '')).catch(() => ({ career: [], img: '' }));
+      const data = { available: Boolean(p.id), id: pid, name, birth: String(p.date_of_birth || ''), place: String(p.place_of_birth || ''), nation: String(p.nationality || ''),
+        height: num(p.height), weight: num(p.weight), no: p.jersey_number ?? club?.jersey_number ?? '', foot: FOOT[p.preferred_foot] || '', pos: POS_DE[p.type] || '',
+        club: String(club?.competitor?.name || ''), clubSince: String(club?.start_date || '').slice(0, 10), seasons, career: wiki.career, img: wiki.img, article: wiki.article || '',
+        _k: Object.keys(d?.statistics?.seasons?.[0]?.statistics || {}).slice(0, 40) };
+      await cacheSet(ckP, data);
+      prof = { data, at: now };
+    }
+  }
+  let sums = await cacheGet(ckS);
+  if ((!sums || now - sums.at > 6 * 3600e3) && prof.data.available && (await srAllowed())) {
+    try {
+      const d = await srGet(`players/${urn}/summaries`);
+      const games = (d?.summaries || []).filter((x) => ['closed', 'ended'].includes(x.sport_event_status?.status)).slice(0, 6).map((x) => {
+        const ev = x.sport_event || {}, cs = ev.competitors || [], st = x.sport_event_status || {};
+        const mine = (x.statistics?.totals?.competitors || []).find((c) => (c.players || []).some((pl) => pl.id === urn));
+        const ps = (mine?.players || []).find((pl) => pl.id === urn)?.statistics || {};
+        const home = cs.find((c) => c.qualifier === 'home') || cs[0] || {}, away = cs.find((c) => c.qualifier === 'away') || cs[1] || {};
+        const isHome = mine ? mine.id === home.id : null;
+        return { utc: String(ev.start_time || ''), comp: String(ev.sport_event_context?.competition?.name || ''), h: String(home.name || ''), a: String(away.name || ''),
+          hs: st.home_score ?? null, as: st.away_score ?? null, home: isHome, g: num(ps.goals_scored) || 0, ast: num(ps.assists) || 0, min: num(ps.minutes_played),
+          in: num(ps.substituted_in) || 0, out: num(ps.substituted_out) || 0, y: num(ps.yellow_cards) || 0, r: (num(ps.red_cards) || 0) + (num(ps.yellow_red_cards) || 0) };
+      });
+      await cacheSet(ckS, games);
+      sums = { data: games, at: now };
+    } catch { /* letzte Spiele fehlen dann */ }
+  }
+  return { ...prof.data, games: sums?.data || [] };
+}
+
+// ---------- Sportradar Soccer v4 (Schweizer Ligen; Aufstellungen Premier League und Champions League) ----------
 const srBase = () => `https://api.sportradar.com/soccer/${Deno.env.get('SPORTRADAR_LEVEL') || 'trial'}/v4/en`;
 const srDailyMax = () => Number(Deno.env.get('SPORTRADAR_DAILY')) || 60;
 const SR_LIVE_MS = 5 * 60 * 1000;
@@ -838,6 +949,10 @@ async function handle(req) {
   }
   if (params.has('fbdetail')) {
     try { return new Response(JSON.stringify(await fbDetail(String(params.get('fbdetail')), params.get('kind') === 'stats' ? 'stats' : 'lineup')), { headers }); }
+    catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
+  }
+  if (params.has('fbplayer')) {
+    try { return new Response(JSON.stringify(await fbPlayer(String(params.get('fbplayer')))), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
   }
   if (params.has('bbprobe')) {
