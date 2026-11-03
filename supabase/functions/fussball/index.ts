@@ -357,7 +357,39 @@ async function bbLeagues(list, now) {
     if (fresh.st === 'ft') changed.add(i);
     r.matches[j] = { ...m, st: fresh.st, hs: fresh.hs, as: fresh.as, min: fresh.min, ht: fresh.ht || m.ht, note: fresh.note };
   }));
-  for (const i of changed) await cacheSet(`bb2:${list[i].key}`, res[i]);
+  // Big Balls hat für Fussball keinen Live-Feed (nur nachgeladene Datenbank): Ligen mit Sportradar-Wettbewerb (Champions
+  // League, Premier League) über die Sportradar-Live-Liste (eine Abfrage für alle Spiele weltweit) nachführen
+  if (Deno.env.get('SPORTRADAR_KEY')) {
+    const srIdx = list.map((lg, i) => (FB_LEAGUES.find((l) => l.id === lg.id)?.sr ? i : -1)).filter((i) => i >= 0);
+    const need = srIdx.some((i) => res[i].matches.some(open));
+    if (need) {
+      const live = srIdx.some((i) => liveWindow(res[i].matches.filter(open), now)) ? await srLive(now).catch(() => null) : null;
+      const byIdSr = new Map((live?.list || []).map((x) => [x.id, x]));
+      for (const i of srIdx) {
+        const lg = FB_LEAGUES.find((l) => l.id === list[i].id);
+        const sched = await srFixtures({ ...lg, key: lg.sr }, now).catch(() => null);
+        if (!sched) continue;
+        for (let j = 0; j < res[i].matches.length; j++) {
+          const m = res[i].matches[j];
+          if (!open(m)) continue;
+          const t = Date.parse(m.utc);
+          const sr = sched.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 3 * 3600e3 && (nameKey(x.h) === nameKey(m.h) || nameKey(x.a) === nameKey(m.a)));
+          if (!sr) continue;
+          let x = byIdSr.get(sr.id);
+          // Nicht (mehr) live und seit über 100 Min. angepfiffen: einmal die Timeline (nach Spielende dauerhaft gespeichert)
+          if (!x && now - t > 100 * 60 * 1000) { const tl = await srTimeline(sr.id, now).catch(() => null); if (tl) x = { es: tl.es, goals: tl.goals }; }
+          if (!x) continue;
+          const st = srState(x.es);
+          if (st === 'pre') continue;
+          const p1 = (x.es.period_scores || []).find((p) => p.number === 1);
+          res[i].matches[j] = { ...m, st, hs: x.es.home_score ?? m.hs, as: x.es.away_score ?? m.as, min: st === 'live' ? srMin(x.es) : null,
+            ht: p1 ? `${p1.home_score}:${p1.away_score}` : m.ht, goals: x.goals?.length ? x.goals : m.goals };
+          if (st === 'ft') changed.add(i);
+        }
+      }
+      for (const i of changed) await cacheSet(`bb2:${list[i].key}`, res[i]);
+    }
+  }
   return res;
 }
 // Tore eines Spiels; nach Spielende dauerhaft, sonst 2 Min. gespeichert
