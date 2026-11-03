@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-02",
+ "updated": "2026-11-03",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -140,11 +140,11 @@
    "team": "MAD",
    "status": "out",
    "since": "2026-11-01",
-   "note": "laut Trainer Martinez verletzt; keine Details",
+   "note": "Muskelverletzung; weitere Untersuchungen sollen Ausmass und Ausfalldauer klären",
    "back": "offen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2029528/pedro-martinez-wants-to-bring-back-eli-ndiaye/",
-   "reported": "2026-11-02"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/real-madrids-facundo-campazzo-suffers-muscle-injury-tests-pending/",
+   "reported": "2026-11-03"
   }
  ]
 }

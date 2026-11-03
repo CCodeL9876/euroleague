@@ -1,7 +1,70 @@
 {
-  "issue": 34,
-  "updated": "2. November 2026 · 07:21 Uhr (CH)",
+  "issue": 35,
+  "updated": "3. November 2026 · 07:15 Uhr (CH)",
   "items": [
+    {
+      "tag": "Liga national · Virtus Bologna",
+      "title": "Virtus verliert erstmals in der Serie A, Milano siegt in Cantu",
+      "text": "Virtus Bologna hat in der 6. Runde der italienischen Liga zu Hause 93:100 gegen Trieste verloren, die erste Niederlage der Saison. Bester Werfer bei Virtus war Derrick Alston mit 16 Punkten. Olimpia Milano gewann auswärts 95:82 in Cantu und steht neu bei 4:2 Siegen.",
+      "time": "02.11.2026 · 22:32",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/legabasket/2029938/trieste-hands-virtus-first-league-loss-milano-wins-at-cantu/",
+      "firstShown": "03.11.2026"
+    },
+    {
+      "tag": "Liga · Crvena Zvezda",
+      "title": "Hohe Bussen nach dem Belgrader Derby",
+      "text": "Die Euroleague hat Crvena Zvezda nach den Vorfällen im Derby gegen Partizan mit 115'000 Euro gebüsst und die Fans des Klubs für die nächsten fünf Auswärtsspiele ausgeschlossen. Partizan erhielt Bussen von 49'000 Euro, unter anderem für Feuerwerk, Laserpointer, Platzstürme und ungenügende Sicherheitsmassnahmen. Panathinaikos muss wegen Fanverhaltens gegen Baskonia 7'000 Euro bezahlen.",
+      "time": "02.11.2026 · 20:45",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2029890/euroleague-sanctions-partizan-and-crvena-zvezda-after-belgrade-derby/",
+      "firstShown": "03.11.2026"
+    },
+    {
+      "tag": "Transfergerücht · Baskonia",
+      "title": "Baskonia will Perrin und Brazdeikis holen",
+      "text": "Baskonia bemüht sich laut Cadena SER um Zach Perrin (Lleida) und Ignas Brazdeikis (Unicaja); die beiden Zuzüge könnten rund 1,1 Millionen Euro kosten. Perrin, ein 22-jähriger französischer Big Man, würde etwa 500'000 Euro kosten, Brazdeikis rund 600'000 Euro. Trainer Velimir Perasovic sagte: «Ich erwarte in den kommenden Tagen einige neue Gesichter.»",
+      "time": "02.11.2026 · 18:14",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2029843/baskonia-reportedly-targeting-zach-perrin-and-ignas-brazdeikis/",
+      "firstShown": "03.11.2026"
+    },
+    {
+      "tag": "Verletzungen · Baskonia",
+      "title": "Duarte vor Comeback gegen Fenerbahce",
+      "text": "Chris Duarte steigt nach einer Muskelverletzung im rechten Oberschenkel wieder ins Mannschaftstraining von Baskonia ein und soll am Donnerstag gegen Fenerbahce zurückkehren. Der Guard kommt in sechs EuroLeague-Spielen auf 10,7 Punkte im Schnitt. Rodions Kurucs und Tadas Sedekerskis befinden sich weiter in der Rehabilitation.",
+      "time": "02.11.2026 · 17:23",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2029814/chris-duarte-expected-to-return-against-fenerbahce/",
+      "firstShown": "03.11.2026"
+    },
+    {
+      "tag": "Verletzung · Real Madrid",
+      "title": "Campazzo mit Muskelverletzung",
+      "text": "Facundo Campazzo hat sich laut 24segundosenblanco eine Muskelverletzung zugezogen. Weitere Untersuchungen sollen das Ausmass und die Ausfalldauer klären. Real Madrid hatte zuletzt bereits die Ausfälle von Mikael Jantunen und Theo Maledon zu verkraften.",
+      "time": "02.11.2026 · 12:29",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/real-madrids-facundo-campazzo-suffers-muscle-injury-tests-pending/",
+      "firstShown": "03.11.2026"
+    },
+    {
+      "tag": "Stimmen · Maccabi Tel Aviv",
+      "title": "Coldebella: «Kattash zu entlassen ist nicht realistisch»",
+      "text": "Maccabi-Manager Claudio Coldebella hat nach der Derby-Niederlage gegen Hapoel die volle Verantwortung übernommen und Trainer Oded Kattash den Rücken gestärkt. «Oded ist unser Trainer», sagte er. Zudem bestätigte er, dass der Klub im Rückraum Verstärkung sucht: «Wir sprechen mit Spielern und ich hoffe, dass in den nächsten Tagen etwas passiert.»",
+      "time": "02.11.2026 · 12:11",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/coldebella-on-maccabis-crisis-i-take-full-responsibility-firing-kattash-is-not-realistic/",
+      "firstShown": "03.11.2026"
+    },
+    {
+      "tag": "Liga national · Hapoel Tel Aviv",
+      "title": "Micic führt Hapoel mit 31 Punkten zum Derbysieg",
+      "text": "Hapoel Tel Aviv hat das Stadtderby in der israelischen Liga gegen Maccabi Tel Aviv 105:87 gewonnen. Vasilije Micic erzielte 31 Punkte und traf 9 von 13 Dreipunktewürfen. Hapoel steht nun bei 3:1 Siegen, Maccabi bei 2:2.",
+      "time": "02.11.2026 · 07:26",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/others/2029621/vasilije-micic-scores-31-points-hapoel-tel-aviv-beats-maccabi-tel-aviv-israel/",
+      "firstShown": "03.11.2026"
+    },
     {
       "tag": "Stimmen · Panathinaikos",
       "title": "Spanoulis: «Keine persönliche Rivalität» mit Obradovic",
@@ -82,69 +145,6 @@
       "source": "Eurohoops",
       "url": "https://www.eurohoops.net/en/euroleague/2029152/oded-kattash-on-killian-hayes-we-agreed-to-all-his-conditions/",
       "firstShown": "01.11.2026"
-    },
-    {
-      "tag": "Klub · Maccabi Tel Aviv",
-      "title": "Minderheitsaktionär Deitz weist Vorwürfe zurück",
-      "text": "Maccabi-Minderheitsaktionär Richard Deitz bestreitet, Neuverpflichtungen zu blockieren, wie es der frühere Maccabi-Trainer Pini Gershon behauptet hatte. «I can say definitively that this is FAKE NEWS», schrieb Deitz in einer Stellungnahme vom 30. Oktober. Der Streit um Besitz und Führung des Klubs geht laut Deitz in ein Schiedsverfahren.",
-      "time": "31.10.2026 · 18:38",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2029140/maccabi-minority-owner-richard-deitz-denies-blocking-signings-the-opposite-is-true/",
-      "firstShown": "01.11.2026"
-    },
-    {
-      "tag": "Verletzungen · Partizan",
-      "title": "Marinkovic zurück, Willis und Jekiri im November",
-      "text": "Partizan-Captain Vanja Marinkovic ist nach seinem Achillessehnenproblem wieder voll im Training und steht ab dem nächsten Spiel zur Verfügung. Derek Willis (Knöchel) soll in der zweiten Novemberwoche zurückkehren, Tonye Jekiri wird nach einer Leistenzerrung in rund zwei Wochen wieder voll fit erwartet.",
-      "time": "31.10.2026 · 12:26",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2028995/vanja-marinkovic-derek-willis-tonye-jekiri-updates-partizan-euroleague/",
-      "firstShown": "01.11.2026"
-    },
-    {
-      "tag": "MVP · Besiktas",
-      "title": "Lonnie Walker MVP der 9. Runde",
-      "text": "Lonnie Walker IV von Besiktas ist zum MVP der 9. Runde gewählt worden. Beim 103:101-Auswärtssieg bei Virtus Bologna kam er mit 30 Punkten (7/11 Dreier) auf einen PIR-Wert von 36, Karrierebestwert. Er ist der erste Besiktas-Spieler mit dieser Auszeichnung.",
-      "time": "31.10.2026 · 12:03",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2028930/lonnie-walker-iv-round-9-mvp-euroleague/",
-      "firstShown": "01.11.2026"
-    },
-    {
-      "tag": "Verletzungen · Hapoel Tel Aviv",
-      "title": "Satoransky gibt nach Sturz Entwarnung",
-      "text": "Tomas Satoransky hat sich nach seinem schweren Sturz im Spiel bei Dubai gemeldet und fühlt sich nach eigenen Angaben bereits deutlich besser. Der 35-jährige Tscheche dankte Dubai für die schnelle Hilfe und hofft, so bald wie möglich wieder zu spielen. Er war im dritten Viertel nach einer Kollision unter dem Korb auf den Rücken gefallen und auf der Trage vom Feld gebracht worden.",
-      "time": "31.10.2026 · 11:57",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2028976/tomas-satoransky-talks-injury-hapoel-euroleague/",
-      "firstShown": "01.11.2026"
-    },
-    {
-      "tag": "Resultat · ASVEL",
-      "title": "ASVEL deklassiert Baskonia 94:79",
-      "text": "ASVEL hat Baskonia zu Hause 94:79 geschlagen und führte bereits nach dem ersten Viertel 26:16. Washington (21) und Patty Mills (20) waren die besten Werfer, bei Baskonia kam Kenneth Faried auf 17 Punkte und 8 Rebounds.",
-      "time": "30.10.2026 · 23:43",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/asvel-beats-baskonia-94-79-behind-washington-and-mills/",
-      "firstShown": "31.10.2026"
-    },
-    {
-      "tag": "Resultat · Olympiacos",
-      "title": "Olympiacos gewinnt 84:78 gegen Olimpia Milano",
-      "text": "Olympiacos hat Olimpia Milano 84:78 geschlagen, zur Pause stand es 44:44. Miller-McIntyre und Vezenkov machten den Unterschied, Milano kam im Schlussviertel nach einem 10:1-Lauf nochmals auf zwei Punkte heran.",
-      "time": "30.10.2026 · 23:42",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/olympiacos-beats-olimpia-milan-84-78-behind-miller-mcintyre/",
-      "firstShown": "31.10.2026"
-    },
-    {
-      "tag": "Resultat · Zalgiris",
-      "title": "Zalgiris hält Partizan 87:80 auf Distanz",
-      "text": "Zalgiris Kaunas hat Partizan 87:80 bezwungen, das dritte Viertel ging 25:17 an die Litauer. Carsen Edwards (17) und Jonas Valanciunas (16) waren die besten Werfer, bei Partizan erzielte Tanaskovic 19 Punkte.",
-      "time": "30.10.2026 · 23:40",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/zalgiris-beats-partizan-87-80-behind-edwards-and-valanciunas/",
-      "firstShown": "31.10.2026"
     }
   ]
 }
