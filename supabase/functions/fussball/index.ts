@@ -1164,10 +1164,11 @@ async function vapidJwt(aud) {
   return `${unsigned}.${b64u(sig)}`;
 }
 // Leere Push-Nachricht an ein Gerät; 404/410 = Anmeldung ungültig (wird gelöscht)
-async function pushPing(endpoint) {
+async function pushPing(endpoint, detail = false) {
   const aud = new URL(endpoint).origin;
   const res = await fetch(endpoint, { method: 'POST', headers: { Authorization: `vapid t=${await vapidJwt(aud)}, k=${Deno.env.get('VAPID_PUBLIC')}`, TTL: '1800', Urgency: 'high', 'Content-Length': '0' },
     signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (detail) return `${res.status}${res.ok ? '' : ` ${(await res.text().catch(() => '')).slice(0, 120)}`}`;
   return res.status;
 }
 const PUSH_URL = `${SUPABASE_URL}/rest/v1/el_fb_push`, PROFILES_URL = `${SUPABASE_URL}/rest/v1/el_profiles`;
@@ -1191,7 +1192,7 @@ async function handlePush(body) {
       const hash = await sha256Hex(s.endpoint);
       const old = (await cacheGet(`pushmsg:${hash}`))?.data || [];
       await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), { id: '', tag: `test-${now}`, at: now, title: '⚽ Testmeldung', body: 'So sieht eine Tor-Mitteilung aus: FC Basel 1:0 FC Lugano · 18\'' }].slice(-10));
-      res.push(await pushPing(s.endpoint).catch((e) => String(e?.message || e)));
+      res.push(await pushPing(s.endpoint, true).catch((e) => `Fehler: ${String(e?.message || e).slice(0, 120)}`));
     }
     return { ok: subs.length > 0, devices: subs.length, status: res, error: subs.length ? '' : 'keine Geräte' };
   }
