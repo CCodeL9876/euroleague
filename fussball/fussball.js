@@ -750,7 +750,7 @@ document.addEventListener('click', (e) => {
     if (!pushSupported()) { toast(/iphone|ipad/i.test(navigator.userAgent) && !standaloneApp() ? 'Mitteilungen gehen nur in der App vom Home-Bildschirm.' : 'Dieser Browser kann keine Mitteilungen empfangen.'); return; }
     if (Notification.permission !== 'granted') { toast(Notification.permission === 'denied' ? 'Mitteilungen sind blockiert – in den iPhone-Einstellungen für diese App erlauben.' : 'Zuerst «Tor-Mitteilungen» einschalten.'); return; }
     if (!pushOn) { toast('Dieses Gerät ist noch nicht angemeldet – «Tor-Mitteilungen» einschalten.'); return; }
-    pushCall({ kind: 'push-test', ...profileAuth() }).then((r) => toast(r.ok ? `Testmeldung an ${r.devices} ${r.devices === 1 ? 'Gerät' : 'Geräte'} gesendet.` : r.error === 'keine Geräte' ? 'Kein Gerät angemeldet – Mitteilungen aus- und wieder einschalten.' : 'Testmeldung hat nicht geklappt.')).catch(() => toast('Testmeldung hat nicht geklappt.'));
+    pushCall({ kind: 'push-test', ...profileAuth() }).then((r) => toast(r.ok ? `Testmeldung an ${r.devices} ${r.devices === 1 ? 'Gerät' : 'Geräte'} gesendet (Antwort Push-Dienst: ${(r.status || []).join(', ')}).` : r.error === 'keine Geräte' ? 'Kein Gerät angemeldet – Mitteilungen aus- und wieder einschalten.' : 'Testmeldung hat nicht geklappt.')).catch(() => toast('Testmeldung hat nicht geklappt.'));
     return;
   }
   if (act === 'fb-push') { menuOpen = false; renderMenu(); togglePush(); return; }
