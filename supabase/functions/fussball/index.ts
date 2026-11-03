@@ -14,7 +14,9 @@
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
 //   GET ?fbleague=pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste (Big Balls); Tabelle alle 30 Min. (Spieltag) bzw. 3 Std., Torschützen alle 6 Std.
-//   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Sportradar) bzw. Teamstatistik (Big Balls) eines Spiels der Premier League oder Champions League
+//   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung bzw. Teamstatistik (Big Balls) eines Spiels der grossen Ligen und der Champions League;
+//     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst von Big Balls
+//   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
 //     Karriere und Foto aus Wikipedia/Wikidata
 //   GET ?bbtest=1 → Test: Aufstellungen und Spielerdaten von Big Balls für Fussball (≈8 Abfragen), höchstens alle 30 Min.
@@ -392,8 +394,31 @@ async function srMatchFor(m, now) {
   const t = Date.parse(m.utc);
   return sched.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 3 * 3600e3 && (nameKey(x.h) === nameKey(m.h) || nameKey(x.a) === nameKey(m.a))) || null;
 }
-// Ligen mit Aufstellung (Sportradar) und Teamstatistik (Big Balls)
-const DETAIL_LEAGUES = new Set(['pl', 'ucl']);
+// Ligen mit Aufstellung und Teamstatistik: Premier League und Champions League mit Sportradar-Aufstellung (genauer: Formation,
+// Positionen links/rechts), sonst und als Ersatz die Aufstellung von Big Balls (nur Tor/Verteidigung/Mittelfeld/Sturm)
+const DETAIL_LEAGUES = new Set(['pl', 'ucl', 'bl1', 'laliga', 'seriea', 'ligue1']);
+async function bbLineup(m, now) {
+  const uuid = m.id.replace(/^bb-/, '');
+  const ck = `bblu:${uuid}`;
+  const hit = await cacheGet(ck);
+  if (hit && (hit.data.final || now - hit.at < 10 * 60 * 1000)) return hit.data;
+  if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
+  if (!(await bbAllowed())) return hit?.data || { available: false };
+  const d = await bbGet(`stored/matches/${uuid}/lineups`);
+  const ORDER = { G: 0, D: 1, M: 2, F: 3 }, POS = { G: 'TW', D: 'V', M: 'M', F: 'ST' };
+  const team = (list) => {
+    const pl = Array.isArray(list) ? list : [];
+    const st = pl.filter((p) => p.starter).sort((a, b) => (ORDER[a.position] ?? 9) - (ORDER[b.position] ?? 9) || (a.jersey_number ?? 99) - (b.jersey_number ?? 99));
+    const cnt = ['D', 'M', 'F'].map((k) => st.filter((p) => p.position === k).length);
+    const ok = st.length === 11 && st[0]?.position === 'G' && cnt.every((c) => c > 0) && cnt.reduce((a, b) => a + b, 0) === 10;
+    const bench = pl.filter((p) => !p.starter);
+    return { formation: ok ? cnt.join('-') : '', coach: '', start: st.map((p) => ({ id: `bb:${p.player_id}`, n: String(p.name || ''), no: p.jersey_number ?? '', pos: POS[p.position] || '' })),
+      bench: bench.map((p) => String(p.name || '')), benchIds: bench.map((p) => `bb:${p.player_id}`) };
+  };
+  const data = { available: (d?.data?.home || []).some((p) => p.starter), home: team(d?.data?.home), away: team(d?.data?.away), final: m.st === 'ft', src: 'bb' };
+  await cacheSet(ck, data);
+  return data;
+}
 async function fbDetail(id, kind, now = Date.now()) {
   const ov = await fbOverview(now);
   const m = ov.matches.find((x) => x.id === id);
@@ -412,17 +437,18 @@ async function fbDetail(id, kind, now = Date.now()) {
     await cacheSet(ck, data);
     return data;
   }
-  // Aufstellung: erst ab 90 Min. vor Anpfiff sinnvoll; nach Spielende dauerhaft
-  const sr = await srMatchFor(m, now);
-  if (!sr) return { available: false, message: 'Spiel bei Sportradar nicht gefunden' };
+  // Aufstellung: erst ab 90 Min. vor Anpfiff sinnvoll; nach Spielende dauerhaft. Sportradar, wo vorhanden, sonst Big Balls
+  const sr = await srMatchFor(m, now).catch(() => null);
+  if (!sr) return bbLineup(m, now);
   const ck = `srlu:${sr.id}`;
   const hit = await cacheGet(ck);
   // Vor dem Spielerprofil gespeicherte Aufstellungen haben keine Spieler-IDs: einmal neu laden
   const noIds = hit?.data?.available && !hit.data.home?.start?.[0]?.id;
   if (hit && !noIds && (hit.data.final || now - hit.at < 10 * 60 * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
-  if (!(await srAllowed())) return hit?.data || { available: false };
-  const d = await srGet(`sport_events/${srUrn(sr.id)}/lineups`);
+  if (!(await srAllowed())) return hit?.data || bbLineup(m, now);
+  const d = await srGet(`sport_events/${srUrn(sr.id)}/lineups`).catch(() => null);
+  if (!d) return hit?.data || bbLineup(m, now);
   const flip = (n) => String(n || '').replace(/^(.+), (.+)$/, '$2 $1');
   const POS = { goalkeeper: 'TW', right_back: 'RV', left_back: 'LV', central_defender: 'IV', defensive_midfielder: 'DM', central_midfielder: 'ZM', right_winger: 'RA', left_winger: 'LA',
     attacking_midfielder: 'OM', striker: 'ST', right_midfielder: 'RM', left_midfielder: 'LM', midfielder: 'M', defender: 'V', forward: 'ST' };
@@ -496,9 +522,53 @@ async function wikiFootballer(name, birth) {
   }
   return { career, img, article: title };
 }
-const num = (v) => (v == null || v === '' ? null : Number(v));
+const num = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+// Spielerprofil aus Big Balls (Spieler aus Big-Balls-Aufstellungen): Steckbrief, Transfers (7 Tage), Saisonwerte pro Wettbewerb (6 Std.)
+const pick = (o, ...keys) => { for (const k of keys) { const v = k.split('.').reduce((x, y) => x?.[y], o); if (v != null && v !== '') return v; } return null; };
+async function fbPlayerBb(uuid, now) {
+  if (!Deno.env.get('BIGBALLS_KEY')) return { available: false };
+  const ckP = `bbpl:${uuid}`, ckF = `bbpf:${uuid}`;
+  let prof = await cacheGet(ckP);
+  if (!prof || now - prof.at > 7 * 864e5) {
+    if (!(await bbAllowed())) { if (!prof) return { available: false, message: 'Tagesgrenze erreicht' }; }
+    else {
+      const [pr, tr] = await Promise.all([bbGet(`players/${uuid}/profile`).catch(() => null), (async () => ((await bbAllowed()) ? bbGet(`players/${uuid}/transfers`).catch(() => null) : null))()]);
+      const P = pr?.data?.player || pr?.data?.players?.value?.[0] || pr?.data || {};
+      const name = String(pick(P, 'name', 'full_name', 'display_name') || [P.first_name, P.last_name].filter(Boolean).join(' '));
+      const birth = String(pick(P, 'birth_date', 'date_of_birth', 'birthdate', 'dob') || '').slice(0, 10);
+      const cm = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? (n < 3 ? Math.round(n * 100) : Math.round(n)) : null; };
+      const transfers = (tr?.data || []).slice(0, 8).map((t) => ({ date: String(t.date || ''), from: String(t.from_club || ''), to: String(t.to_club || ''), type: String(t.type || ''), fee: t.fee ?? null }));
+      const wiki = name ? await wikiFootballer(name, birth).catch(() => ({ career: [], img: '' })) : { career: [], img: '' };
+      const data = { available: Boolean(name), id: `bb:${uuid}`, name, birth: /^\d{4}-\d\d-\d\d$/.test(birth) ? birth : '', nation: String(pick(P, 'nationality', 'country', 'nationality.name', 'country.name') || ''),
+        height: cm(pick(P, 'height', 'height_cm')), weight: cm(pick(P, 'weight', 'weight_kg')), no: pick(P, 'jersey_number', 'number') ?? '', foot: '', pos: ({ g: 'Torhüter', goalkeeper: 'Torhüter', d: 'Verteidigung', defender: 'Verteidigung', m: 'Mittelfeld', midfielder: 'Mittelfeld', f: 'Sturm', attacker: 'Sturm', forward: 'Sturm' })[String(pick(P, 'position', 'position_name') || '').toLowerCase()] || String(pick(P, 'position', 'position_name') || ''),
+        club: String(pick(P, 'team.name', 'team_name', 'team') || ''), transfers, career: wiki.career, img: wiki.img || (/^https:\/\/api\.bigballsdata\.com\//.test(String(P.headshot_url || '')) ? P.headshot_url : ''),
+        _k: Object.keys(P).slice(0, 30) };
+      await cacheSet(ckP, data);
+      prof = { data, at: now };
+    }
+  }
+  let form = await cacheGet(ckF);
+  if ((!form || now - form.at > 6 * 3600e3) && prof.data.available && (await bbAllowed())) {
+    const d = await bbGet(`players/${uuid}/club-form`).catch(() => null);
+    if (d) {
+      const rows = (Array.isArray(d.data) ? d.data : []).map((r) => ({ season: Number(r.season) || 0, comp: String(r.league || ''), team: String(r.team || ''),
+        st: { gp: num(r.appearances), g: num(r.goals), a: num(r.assists), min: num(r.minutes), sh: null, on: num(r.shots_on), y: num(r.yellow_cards), r: num(r.red_cards) } }));
+      await cacheSet(ckF, rows);
+      form = { data: rows, at: now };
+    }
+  }
+  // Saisonwerte: nur die jüngste Saison; Ligen als «26/27», Nationalteam-Wettbewerbe als Kalenderjahr
+  const rows = form?.data || [];
+  const top = Math.max(0, ...rows.map((r) => r.season));
+  const seasons = rows.filter((r) => r.season === top && r.st.gp).map((r) => ({ ...r, cur: true,
+    year: /nations|world|euro|friendl|qualif/i.test(r.comp) ? String(r.season) : `${String(r.season).slice(2)}/${String(r.season + 1).slice(2)}` }));
+  if (!prof.data.club && seasons[0]?.team) prof.data.club = seasons.find((x) => !/nations|world|euro|friendl|qualif/i.test(x.comp))?.team || '';
+  return { ...prof.data, seasons, games: [] };
+}
 // Steckbrief + Saisonwerte (7 Tage gespeichert), letzte Spiele (6 Std.)
 async function fbPlayer(pid, now = Date.now()) {
+  const bb = /^bb:([0-9a-f-]{36})$/i.exec(pid);
+  if (bb) return fbPlayerBb(bb[1].toLowerCase(), now);
   if (!/^\d{1,12}$/.test(pid) || !Deno.env.get('SPORTRADAR_KEY')) return { available: false };
   const urn = `sr:player:${pid}`;
   const ckP = `srpl:${pid}`, ckS = `srps2:${pid}`; // srps2: letzte Spiele mit Saison- und Team-ID

@@ -128,7 +128,7 @@ function goalsHtml(m) {
 }
 
 // Premier League: Reiter Tore · Aufstellung · Statistik im aufgeklappten Spiel
-const hasExtra = (m) => m.l === 'pl' || m.l === 'ucl';
+const hasExtra = (m) => ['pl', 'ucl', 'bl1', 'laliga', 'seriea', 'ligue1'].includes(m.l);
 // Aufstellung als Spielfeld: Heim unten (spielt nach oben), Gast oben. Sportradar liefert die Startelf in Reihenfolge
 // Torwart, dann Linie für Linie von hinten nach vorne, innerhalb der Linie von rechts nach links (aus Sicht des Teams).
 function formationRows(t) {
@@ -174,7 +174,7 @@ function lineupHtml(m) {
   }
   return `<div class="fb-lu">${body}
     <div class="fb-bench"><b>Ersatz</b><span>${esc(d.home.bench.join(', '))}</span><span class="r">${esc(d.away.bench.join(', '))}</span></div>
-    <p class="fb-x-src">${d.home.coach || d.away.coach ? `Trainer: ${esc(d.home.coach)} · ${esc(d.away.coach)} · ` : ''}Aufstellung: Sportradar</p></div>`;
+    <p class="fb-x-src">${d.home.coach || d.away.coach ? `Trainer: ${esc(d.home.coach)} · ${esc(d.away.coach)} · ` : ''}Aufstellung: ${d.src === 'bb' ? 'Big Balls' : 'Sportradar'}</p></div>`;
 }
 function statsHtml(m) {
   const d = detailCache.get(`${m.id}|stats`);
@@ -507,7 +507,9 @@ function playerHtml(d) {
     .filter((f) => f[1]);
   // Saisonwerte: nur die jüngste Saison, pro Wettbewerb eine Zeile
   const year = d.seasons.map((x) => x.year).sort().at(-1);
-  const seas = d.seasons.filter((x) => x.year === year && x.st.gp);
+  const seas = d.seasons.filter((x) => (x.cur || x.year === year) && x.st.gp);
+  const fee = (t) => (t.fee ? `${t.fee >= 1e6 ? `${Math.round(t.fee / 1e5) / 10} Mio.` : `${Math.round(t.fee / 1e3)}'`} €` : /loan|leih/i.test(t.type) ? 'Leihe' : /free|ablösefrei/i.test(t.type) ? 'ablösefrei' : '');
+  const transfers = (d.transfers || []).map((t) => `<div class="fb-ps-st"><span class="nm">${esc(t.from)} → ${esc(t.to)}${fee(t) ? ` <small>${esc(fee(t))}</small>` : ''}</span><span class="yrs">${esc(String(t.date).slice(0, 4))}</span></div>`).join('');
   const tiles = (st, full) => `<div class="fb-ps-tiles"><div><b>${dash(st.gp)}</b><small>Spiele</small></div><div class="hi"><b>${dash(st.g)}</b><small>Tore</small></div><div class="hi"><b>${dash(st.a)}</b><small>Vorlagen</small></div><div><b>${dash(st.min)}</b><small>Minuten</small></div></div>`
     + (full && (st.sh != null || st.y != null) ? `<div class="fb-ps-tiles"><div><b>${dash(st.sh)}</b><small>Schüsse</small></div><div><b>${dash(st.on)}</b><small>aufs Tor</small></div><div><b>${dash(st.y)}</b><small>Gelb</small></div><div><b>${dash(st.r)}</b><small>Rot</small></div></div>` : '');
   const games = d.games.map((g) => {
@@ -526,8 +528,9 @@ function playerHtml(d) {
     ${facts.length ? `<div class="fb-ps-sec"><div class="fb-ps-facts">${facts.map(([k, v]) => `<div><small>${k}</small><b>${esc(v)}</b></div>`).join('')}</div></div>` : ''}
     ${seas.map((x, i) => `<div class="fb-ps-sec"><h4>Saison ${esc(x.year || x.season)} · ${esc(x.comp)}</h4>${tiles(x.st, i === 0)}</div>`).join('')}
     ${games ? `<div class="fb-ps-sec"><h4>Letzte Spiele</h4><div class="fb-ps-games">${games}</div></div>` : ''}
+    ${transfers ? `<div class="fb-ps-sec"><h4>Transfers</h4><div class="fb-ps-career">${transfers}</div></div>` : ''}
     ${career ? `<div class="fb-ps-sec"><h4>Karriere</h4><div class="fb-ps-career">${career}</div>${youth.length ? `<p class="fb-ps-youth">Jugend: ${esc(youth.map((c) => c.team).join(', '))}</p>` : ''}</div>` : ''}
-    <p class="fb-x-src">Quellen: Sportradar${d.career.length || d.img ? ` · Karriere${d.img ? ' und Foto' : ''}: Wikipedia/Wikimedia` : ''}</p>`;
+    <p class="fb-x-src">Quellen: ${String(d.id).startsWith("bb:") ? "Big Balls" : "Sportradar"}${d.career.length || d.img ? ` · Karriere${d.img ? ' und Foto' : ''}: Wikipedia/Wikimedia` : ''}</p>`;
 }
 // Torschütze ohne ID (Big Balls): in der Aufstellung des Spiels (Sportradar) über den Namen suchen
 const normName = (n) => String(n || '').replace(/\s*\((Pen\.|Eigentor)\)\s*$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
