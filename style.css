@@ -1088,3 +1088,14 @@ body.fb-sheet-open{overflow:hidden;}
 .fb-fav-done{margin-left:10px;min-height:36px;padding:0 16px;border:0;border-radius:10px;background:var(--pitch, var(--blue));color:#fff;font:inherit;font-weight:600;cursor:pointer;}
 .fb-fav-done:disabled{background:var(--card);color:var(--faint);cursor:default;}
 .fb-fav-intro{margin:0 16px 10px;font-size:0.85rem;line-height:1.45;color:var(--dim);}
+
+/* Handy: kürzerer Titel («Sport - Euroleague» / «Sport - Fussball») und «Stand» klein oben rechts neben dem Spieltag */
+.t-short{display:none;}
+@media (max-width:820px){
+  .t-long{display:none;} .t-short{display:inline;}
+  .today-head{flex-wrap:nowrap;align-items:flex-start;}
+  .today-head h2{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .today-head h2 span{font-size:0.8rem;}
+  .today-head .stand{flex:none;font-size:0.68rem;line-height:1.9;white-space:nowrap;}
+  .today-head .stand::before{content:"(";} .today-head .stand::after{content:")";}
+}
