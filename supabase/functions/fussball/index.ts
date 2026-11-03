@@ -857,18 +857,24 @@ async function srSeason(lg, now) {
 async function srFixtures(lg, now) {
   const ck = `sr:${lg.key}`;
   const hit = await cacheGet(ck);
-  if (hit && now - hit.at < (hit.data.status === 'ok' ? 12 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
+  // Genau 100 Spiele = mit dem alten Fehler nur die erste Seite gespeichert: neu laden
+  const cut = hit?.data?.matches?.length === 100;
+  if (hit && !cut && now - hit.at < (hit.data.status === 'ok' ? 12 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
   try {
     const season = await srSeason(lg, now);
     if (!season) throw new Error('Keine laufende Saison gefunden');
     const all = [];
-    for (let start = 0; start < 1000; start += 200) {
-      if (!(await srAllowed())) { if (!all.length) return hit?.data || { status: 'error', message: 'Tagesgrenze für Sportradar erreicht', matches: [] }; break; }
-      const d = await srGet(`seasons/${season}/summaries`, { start: String(start), limit: '200' });
+    // Sportradar liefert höchstens 100 Spiele pro Seite (limit=200 wird auf 100 gekürzt): weiterblättern bis zur letzten Seite
+    let partial = false;
+    for (let start = 0; start < 1000; start += 100) {
+      if (!(await srAllowed())) { if (!all.length) return hit?.data || { status: 'error', message: 'Tagesgrenze für Sportradar erreicht', matches: [] }; partial = true; break; }
+      const d = await srGet(`seasons/${season}/summaries`, { start: String(start), limit: '100' });
       const sums = d?.summaries || [];
       all.push(...sums.map((x) => mapSr(lg, x)));
-      if (sums.length < 200) break;
+      if (sums.length < 100) break;
     }
+    // Unvollständig (Tagesgrenze mitten im Blättern): den alten Stand behalten und bald erneut versuchen
+    if (partial && hit?.data?.matches?.length > all.length) return { ...hit.data, status: 'error', message: 'Spielplan unvollständig (Tagesgrenze)' };
     // Bekannte Torschützen und Schlussstände aus dem alten Stand übernehmen
     const old = new Map((hit?.data?.matches || []).map((m) => [m.id, m]));
     for (const m of all) { const o = old.get(m.id); if (o?.goals && !m.goals) m.goals = o.goals; }
