@@ -1180,7 +1180,21 @@ async function pushProfile(name, pin) {
 }
 async function handlePush(body) {
   const endpoint = String(body?.endpoint || '');
-  if (!/^https:\/\/[\w.-]+\//.test(endpoint) || endpoint.length > 1000) return { ok: false, error: 'ungültig' };
+  if (body.kind !== 'push-test' && (!/^https:\/\/[\w.-]+\//.test(endpoint) || endpoint.length > 1000)) return { ok: false, error: 'ungültig' };
+  if (body.kind === 'push-test') {
+    // Testmeldung an alle Geräte des Profils (Name + PIN nötig)
+    const key = await pushProfile(body.name, body.pin);
+    if (!key) return { ok: false, error: 'profil' };
+    const subs = await fetch(`${PUSH_URL}?profile_key=eq.${encodeURIComponent(key)}&select=endpoint`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+    const now = Date.now(), res = [];
+    for (const s of subs) {
+      const hash = await sha256Hex(s.endpoint);
+      const old = (await cacheGet(`pushmsg:${hash}`))?.data || [];
+      await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), { id: '', tag: `test-${now}`, at: now, title: '⚽ Testmeldung', body: 'So sieht eine Tor-Mitteilung aus: FC Basel 1:0 FC Lugano · 18\'' }].slice(-10));
+      res.push(await pushPing(s.endpoint).catch((e) => String(e?.message || e)));
+    }
+    return { ok: subs.length > 0, devices: subs.length, status: res, error: subs.length ? '' : 'keine Geräte' };
+  }
   if (body.kind === 'push-unsub') {
     await fetch(`${PUSH_URL}?endpoint=eq.${encodeURIComponent(endpoint)}`, { method: 'DELETE', headers: serviceHeaders() });
     return { ok: true };
@@ -1247,7 +1261,7 @@ async function handle(req) {
   if (req.method === 'POST') {
     let body = null;
     try { body = await req.json(); } catch { /* leer */ }
-    if (!body || !['push-sub', 'push-unsub'].includes(body.kind)) return new Response(JSON.stringify({ ok: false }), { status: 400, headers });
+    if (!body || !['push-sub', 'push-unsub', 'push-test'].includes(body.kind)) return new Response(JSON.stringify({ ok: false }), { status: 400, headers });
     try { return new Response(JSON.stringify(await handlePush(body)), { headers }); }
     catch { return new Response(JSON.stringify({ ok: false, error: 'serverfehler' }), { status: 502, headers }); }
   }

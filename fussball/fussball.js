@@ -702,7 +702,7 @@ function renderMenu() {
   if (!menuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
   menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV ? [...FAV.values()].join(', ') || 'keine' : LEGACY_FAV.join(', ') || 'keine')}</small></span></div>
-    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('fb-push', 'bell', pushOn ? 'Tor-Mitteilungen: Ein' : 'Tor-Mitteilungen: Aus')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
+    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('fb-push', 'bell', pushOn ? 'Tor-Mitteilungen: Ein' : 'Tor-Mitteilungen: Aus')}${pushOn ? item('fb-push-test', 'bell', 'Testmeldung senden') : ''}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
   menu.querySelector('.pm-item')?.focus();
 }
 function toast(msg) {
@@ -744,6 +744,11 @@ document.addEventListener('click', (e) => {
   if (act === 'fb-fav') { menuOpen = false; renderMenu(); openFav(); return; }
   if (act === 'fb-player') { openPlayer(e.target.closest('[data-pid]').dataset.pid); return; }
   if (act === 'fb-goal') { const b = e.target.closest('[data-mid]'); openScorer(b.dataset.mid, b.dataset.name); return; }
+  if (act === 'fb-push-test') {
+    menuOpen = false; renderMenu();
+    pushCall({ kind: 'push-test', ...profileAuth() }).then((r) => toast(r.ok ? `Testmeldung an ${r.devices} ${r.devices === 1 ? 'Gerät' : 'Geräte'} gesendet.` : r.error === 'keine Geräte' ? 'Kein Gerät angemeldet – Mitteilungen aus- und wieder einschalten.' : 'Testmeldung hat nicht geklappt.')).catch(() => toast('Testmeldung hat nicht geklappt.'));
+    return;
+  }
   if (act === 'fb-push') { menuOpen = false; renderMenu(); togglePush(); return; }
   if (act === 'fb-order-open') { menuOpen = false; renderMenu(); sheet = { id: 'order' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); return; }
   if (act === 'fb-order') { const b = e.target.closest('[data-id]'); moveLeague(b.dataset.id, Number(b.dataset.dir)); return; }

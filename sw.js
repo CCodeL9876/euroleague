@@ -2,7 +2,7 @@
 // aktuell ist); ohne Netz kommt der letzte Stand – bei den Spieldaten mit Kopfzeile „x-offline“, damit die Seite
 // „Offline – Stand von …“ anzeigt. Logos und Spielerfotos: zuerst aus dem Zwischenspeicher (ändern sich kaum).
 
-const CACHE = 'euroleague-v84';
+const CACHE = 'euroleague-v85';
 const IMAGES = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//;
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 const DATA = /\/functions\/v1\/euroleague/;
@@ -67,7 +67,7 @@ self.addEventListener('push', (e) => {
     const fresh = (Array.isArray(msgs) ? msgs : []).filter((m) => Date.now() - m.at < 15 * 60 * 1000).slice(-3);
     if (!fresh.length) return self.registration.showNotification('⚽ Tor!', { body: 'Ein Lieblingsteam hat getroffen.', tag: 'fb-goal', icon: 'fussball/icon-180.png', data: { url: 'fussball/' } });
     // Gleiche Meldung (tag = Spiel + Stand) ersetzt sich selbst, darum keine Doppelten
-    await Promise.all(fresh.map((m) => self.registration.showNotification(m.title, { body: m.body, tag: m.tag, icon: 'fussball/icon-180.png', data: { url: `fussball/?m=${encodeURIComponent(m.id)}` } })));
+    await Promise.all(fresh.map((m) => self.registration.showNotification(m.title, { body: m.body, tag: m.tag, icon: 'fussball/icon-180.png', data: { url: m.id ? `fussball/?m=${encodeURIComponent(m.id)}` : 'fussball/' } })));
   })());
 });
 self.addEventListener('notificationclick', (e) => {
