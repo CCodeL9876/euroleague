@@ -1,5 +1,9 @@
 /* Fussball-Bereich: gleiche Farb-Bausteine wie die Euroleague-Seite (style.css), Akzent Rasengrün */
 :root{--pitch:#2E9E5B;--pitch-hi:#5BD08A;}
+/* Dunkelmodus in Tannengrün (statt Blau-Violett wie im Basketball-Teil); der helle Modus aus style.css überschreibt das */
+:root{--frame:#B4D6C0;--bg:#1B3326;--panel:#203B2D;--card:#264534;--card-2:#2D503D;--line:#365C46;--text:#ECF6EF;--dim:#A7C4B1;--faint:#88A894;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .live-hero{--flap-board:#142A1E;--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;} }
+:root[data-theme="dark"] .live-hero{--flap-board:#142A1E;--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;}
 @media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){--pitch:#1F7A45;--pitch-hi:#1F7A45;} }
 :root[data-theme="light"]{--pitch:#1F7A45;--pitch-hi:#1F7A45;}
 body:not(.unlocked) .fb{display:none;}
