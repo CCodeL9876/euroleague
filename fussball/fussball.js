@@ -166,7 +166,8 @@ function lineupHtml(m) {
   if (!pitch) { // ohne brauchbare Formation: Liste wie bisher
     const n = Math.max(d.home.start.length, d.away.start.length);
     body = `<div class="fb-lu-head"><span>${logo(m.hl)}${esc(d.home.formation)}</span><span>${esc(d.away.formation)}${logo(m.al)}</span></div>` + Array.from({ length: n }, (_, i) => { const h = d.home.start[i], a = d.away.start[i];
-      return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${esc(h.n)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${esc(a.n)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
+      const nm = (p) => (p.id ? `<button type="button" class="fb-lu-pl" data-act="fb-player" data-pid="${esc(p.id)}">${esc(p.n)}</button>` : esc(p.n));
+      return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${nm(h)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${nm(a)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
   }
   return `<div class="fb-lu">${body}
     <div class="fb-bench"><b>Ersatz</b><span>${esc(d.home.bench.join(', '))}</span><span class="r">${esc(d.away.bench.join(', '))}</span></div>
@@ -496,6 +497,7 @@ const dash = (v) => (v == null ? '–' : esc(v));
 function playerHtml(d) {
   if (!d) return '<p class="fb-x-note">Lade Profil …</p>';
   if (!d.available) return `<p class="fb-x-note">${esc(d.message || 'Profil gerade nicht verfügbar.')}</p>`;
+  d = { ...d, name: String(d.name || ''), seasons: d.seasons || [], games: d.games || [], career: d.career || [] };
   const age = ageOf(d.birth), [y, mo, da] = String(d.birth).split('-');
   const ini = d.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   const facts = [['Alter', age != null ? `${age} (${Number(da)}.${Number(mo)}.${y})` : null], ['Nation', d.nation], ['Grösse / Gewicht', d.height ? `${d.height} cm${d.weight ? ` · ${d.weight} kg` : ''}` : null], ['Starker Fuss', d.foot]]
@@ -528,11 +530,19 @@ async function openPlayer(pid) {
   sheet = { id: 'player', pid }; renderSheet();
   document.querySelector('.fb-sheet-x')?.focus();
   if (playerCache.has(pid)) return;
+  let d = null;
   try {
-    const res = await fetch(`${DATA_URL}?fbplayer=${encodeURIComponent(pid)}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(30000) });
-    playerCache.set(pid, await res.json());
-  } catch { playerCache.set(pid, { available: false }); }
-  if (sheet?.id === 'player' && sheet.pid === pid) renderSheet();
+    const res = await fetch(`${DATA_URL}?fbplayer=${encodeURIComponent(pid)}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(45000) });
+    d = await res.json();
+    if (!res.ok || !d || typeof d !== 'object') d = null;
+  } catch { /* Netz oder Zeitüberschreitung */ }
+  // Nur gültige Profile merken; sonst Meldung zeigen und beim nächsten Antippen erneut versuchen
+  if (d?.available) playerCache.set(pid, d);
+  if (sheet?.id === 'player' && sheet.pid === pid) {
+    if (!d?.available) playerCache.set(pid, { available: false, message: d?.message || 'Profil gerade nicht erreichbar – bitte nochmals antippen.' });
+    try { renderSheet(); } catch { /* Darstellung fehlgeschlagen */ }
+    if (!d?.available) playerCache.delete(pid);
+  }
 }
 
 function closeSheet() {

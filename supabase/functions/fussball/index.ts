@@ -369,7 +369,9 @@ async function fbDetail(id, kind, now = Date.now()) {
   if (!sr) return { available: false, message: 'Spiel bei Sportradar nicht gefunden' };
   const ck = `srlu:${sr.id}`;
   const hit = await cacheGet(ck);
-  if (hit && (hit.data.final || now - hit.at < 10 * 60 * 1000)) return hit.data;
+  // Vor dem Spielerprofil gespeicherte Aufstellungen haben keine Spieler-IDs: einmal neu laden
+  const noIds = hit?.data?.available && !hit.data.home?.start?.[0]?.id;
+  if (hit && !noIds && (hit.data.final || now - hit.at < 10 * 60 * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await srAllowed())) return hit?.data || { available: false };
   const d = await srGet(`sport_events/${srUrn(sr.id)}/lineups`);
@@ -428,7 +430,9 @@ async function wikiFootballer(name, birth) {
   const rows = await sparql(`SELECT ?l ?a ?img WHERE { ?p wdt:P106 wd:Q937857 ; wdt:P569 ?b . FILTER(?b = "${birth}T00:00:00Z"^^xsd:dateTime)
     ?p rdfs:label ?l . FILTER(LANG(?l) = "en") ?a schema:about ?p ; schema:isPartOf <https://en.wikipedia.org/> . OPTIONAL { ?p wdt:P18 ?img } }`);
   const want = plainName(name), last = want.split(' ').pop();
-  const hit = rows.find((r) => plainName(r.l.value) === want) || rows.find((r) => plainName(r.l.value).split(' ').includes(last)) || (rows.length === 1 ? rows[0] : null);
+  // Artikel „… (footballer, born 1995)“ mit anderem Jahr verwerfen (Wikidata hat dort teils falsche Geburtsdaten)
+  const ok = rows.filter((r) => { const y = /born_(\d{4})/.exec(r.a.value)?.[1]; return !y || y === birth.slice(0, 4); });
+  const hit = ok.find((r) => plainName(r.l.value) === want) || ok.find((r) => plainName(r.l.value).split(' ').includes(last)) || (ok.length === 1 ? ok[0] : null);
   if (!hit) return { career: [], img: '' };
   const title = decodeURIComponent(hit.a.value.split('/wiki/')[1] || '');
   const wp = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&rvsection=0&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(title)}`,
@@ -449,9 +453,9 @@ const num = (v) => (v == null || v === '' ? null : Number(v));
 async function fbPlayer(pid, now = Date.now()) {
   if (!/^\d{1,12}$/.test(pid) || !Deno.env.get('SPORTRADAR_KEY')) return { available: false };
   const urn = `sr:player:${pid}`;
-  const ckP = `srpl:${pid}`, ckS = `srps:${pid}`;
+  const ckP = `srpl:${pid}`, ckS = `srps2:${pid}`; // srps2: letzte Spiele mit Saison- und Team-ID
   let prof = await cacheGet(ckP);
-  if (!prof || now - prof.at > 7 * 864e5) {
+  if (!prof || prof.data?.wv !== 2 || now - prof.at > 7 * 864e5) { // wv 2: korrigierte Wikipedia-Zuordnung
     if (!(await srAllowed())) { if (!prof) return { available: false, message: 'Tagesgrenze erreicht' }; }
     else {
       const d = await srGet(`players/${urn}/profile`);
@@ -467,7 +471,7 @@ async function fbPlayer(pid, now = Date.now()) {
       const data = { available: Boolean(p.id), id: pid, name, birth: String(p.date_of_birth || ''), place: String(p.place_of_birth || ''), nation: String(p.nationality || ''),
         height: num(p.height), weight: num(p.weight), no: p.jersey_number ?? club?.jersey_number ?? '', foot: FOOT[p.preferred_foot] || '', pos: POS_DE[p.type] || '',
         club: String(club?.competitor?.name || ''), clubSince: String(club?.start_date || '').slice(0, 10), seasons, career: wiki.career, img: wiki.img, article: wiki.article || '',
-        _k: Object.keys(d?.statistics?.seasons?.[0]?.statistics || {}).slice(0, 40) };
+        wv: 2 };
       await cacheSet(ckP, data);
       prof = { data, at: now };
     }
@@ -476,13 +480,15 @@ async function fbPlayer(pid, now = Date.now()) {
   if ((!sums || now - sums.at > 6 * 3600e3) && prof.data.available && (await srAllowed())) {
     try {
       const d = await srGet(`players/${urn}/summaries`);
-      const games = (d?.summaries || []).filter((x) => ['closed', 'ended'].includes(x.sport_event_status?.status)).slice(0, 6).map((x) => {
+      const games = (d?.summaries || []).filter((x) => ['closed', 'ended'].includes(x.sport_event_status?.status)).slice(0, 10).map((x) => {
         const ev = x.sport_event || {}, cs = ev.competitors || [], st = x.sport_event_status || {};
         const mine = (x.statistics?.totals?.competitors || []).find((c) => (c.players || []).some((pl) => pl.id === urn));
         const ps = (mine?.players || []).find((pl) => pl.id === urn)?.statistics || {};
         const home = cs.find((c) => c.qualifier === 'home') || cs[0] || {}, away = cs.find((c) => c.qualifier === 'away') || cs[1] || {};
         const isHome = mine ? mine.id === home.id : null;
-        return { utc: String(ev.start_time || ''), comp: String(ev.sport_event_context?.competition?.name || ''), h: String(home.name || ''), a: String(away.name || ''),
+        const ctx = ev.sport_event_context || {};
+        return { utc: String(ev.start_time || ''), comp: String(ctx.competition?.name || ''), sid: String(ctx.season?.id || ''), year: String(ctx.season?.year || ''), cid: String(mine?.id || ''),
+          h: String(home.name || ''), a: String(away.name || ''),
           hs: st.home_score ?? null, as: st.away_score ?? null, home: isHome, g: num(ps.goals_scored) || 0, ast: num(ps.assists) || 0, min: num(ps.minutes_played),
           in: num(ps.substituted_in) || 0, out: num(ps.substituted_out) || 0, y: num(ps.yellow_cards) || 0, r: (num(ps.red_cards) || 0) + (num(ps.yellow_red_cards) || 0) };
       });
@@ -490,7 +496,32 @@ async function fbPlayer(pid, now = Date.now()) {
       sums = { data: games, at: now };
     } catch { /* letzte Spiele fehlen dann */ }
   }
-  return { ...prof.data, games: sums?.data || [] };
+  // Saisonwerte: Das Profil enthält keine; darum die Teamstatistik der Saisons aus den letzten Spielen (Liga, Europacup).
+  // Gespeichert pro Saison und Team (6 Std.) – gilt so für alle Spieler desselben Teams.
+  const games = sums?.data || [];
+  const pairs = [...new Map(games.filter((g) => g.sid && g.cid).map((g) => [`${g.sid}|${g.cid}`, g])).values()].slice(0, 2);
+  const seasons = [];
+  for (const g of pairs) {
+    const ck = `srcs:${g.sid}:${g.cid}`;
+    let hit = await cacheGet(ck);
+    if (!hit || now - hit.at > 6 * 3600e3) {
+      if (!(await srAllowed())) { if (!hit) continue; }
+      else {
+        try {
+          const d = await srGet(`seasons/${g.sid}/competitors/${g.cid}/statistics`);
+          const players = (d?.competitor?.players || []).map((x) => ({ id: x.id, st: x.statistics || {} }));
+          await cacheSet(ck, players);
+          hit = { data: players, at: now };
+        } catch { if (!hit) continue; }
+      }
+    }
+    const x = (hit.data || []).find((pl) => pl.id === urn)?.st;
+    if (!x) continue;
+    const shots = x.shots_on_target != null || x.shots_off_target != null ? (Number(x.shots_on_target) || 0) + (Number(x.shots_off_target) || 0) + (Number(x.shots_blocked) || 0) : null;
+    seasons.push({ season: g.year, year: g.year, comp: g.comp, st: { gp: num(x.matches_played), g: num(x.goals_scored), a: num(x.assists), min: num(x.minutes_played),
+      sh: shots, on: num(x.shots_on_target), y: num(x.yellow_cards), r: x.red_cards != null || x.yellow_red_cards != null ? (Number(x.red_cards) || 0) + (Number(x.yellow_red_cards) || 0) : null } });
+  }
+  return { ...prof.data, seasons: seasons.length ? seasons : prof.data.seasons || [], games: games.slice(0, 6).map(({ sid, cid, ...g }) => g) };
 }
 
 // ---------- Sportradar Soccer v4 (Schweizer Ligen; Aufstellungen Premier League und Champions League) ----------

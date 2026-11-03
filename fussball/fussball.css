@@ -225,3 +225,5 @@ button.fb-pl:hover .sh, button.fb-pl:focus-visible .sh{background:var(--card-2);
 .fb-ps-st .nm{flex:1;min-width:0;} .fb-ps-st small{color:var(--faint);font-size:0.7rem;}
 .fb-ps-st .cg{font-size:0.7rem;color:var(--faint);white-space:nowrap;} .fb-ps-st .yrs{font-family:var(--mono);font-size:0.7rem;color:var(--faint);white-space:nowrap;min-width:74px;text-align:right;}
 .fb-ps-youth{margin:6px 0 0;font-size:0.74rem;color:var(--faint);}
+.fb-lu-pl{border:0;background:transparent;padding:0;color:inherit;font:inherit;text-align:inherit;cursor:pointer;overflow:hidden;text-overflow:ellipsis;}
+.fb-lu-pl:hover{text-decoration:underline;}
