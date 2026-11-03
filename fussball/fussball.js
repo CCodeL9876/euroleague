@@ -595,7 +595,7 @@ async function pushState() {
   if (menuOpen) renderMenu();
 }
 async function pushCall(body) {
-  const res = await fetch(DATA_URL, { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+  const res = await fetch(DATA_URL, { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
   return res.json().catch(() => ({ ok: false }));
 }
 async function togglePush() {
