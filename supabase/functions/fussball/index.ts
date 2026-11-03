@@ -326,6 +326,60 @@ async function bbLive(now) {
     return data;
   } catch { return hit?.data || null; }
 }
+// ---------- ESPN (inoffizielle Schnittstelle, nur als Ersatzquelle für Live-Stände) ----------
+// Die Nutzungsbedingungen von ESPN/Disney untersagen automatisierte Abrufe; bewusst nur für laufende/gerade beendete
+// Spiele ohne Stand aus Big Balls/Sportradar, höchstens alle 2 Min. pro Liga und Tag.
+const ESPN_LG = { ucl: 'uefa.champions', pl: 'eng.1', bl1: 'ger.1', laliga: 'esp.1', seriea: 'ita.1', ligue1: 'fra.1', bl2: 'ger.2', chsl: 'sui.1', chcl: 'sui.2',
+  unl: 'uefa.nations', wcq: 'fifa.worldq.uefa', emq: 'uefa.euroq', fr: 'fifa.friendly' };
+const ESPN_MS = 2 * 60 * 1000;
+async function espnDay(code, day, now) {
+  const ck = `espn:${code}:${day}`;
+  const hit = fbMem.get(ck) || (await cacheGet(ck));
+  if (hit && now - hit.at < ESPN_MS) return hit.data;
+  try {
+    const d = await getJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/scoreboard?dates=${day.replace(/-/g, '')}`);
+    const list = (d?.events || []).map((e) => {
+      const c = e.competitions?.[0] || {}, st = c.status || e.status || {}, ty = st.type || {};
+      const home = (c.competitors || []).find((x) => x.homeAway === 'home') || {}, away = (c.competitors || []).find((x) => x.homeAway === 'away') || {};
+      const clock = String(st.displayClock || '').replace(/'/g, '').replace(/\s+/g, '');
+      const state = ty.state === 'post' ? (ty.completed === false ? 'off' : 'ft') : ty.state === 'in' ? (/^HT$|half/i.test(String(ty.shortDetail || ty.name || '')) ? 'ht' : 'live') : /postpon|cancel|abandon/i.test(String(ty.name || '')) ? 'off' : 'pre';
+      const goals = (c.details || []).filter((x) => x.scoringPlay).map((x) => ({
+        m: String(x.clock?.displayValue || '').replace(/'/g, ''), s: x.team?.id === home.team?.id ? 1 : 2,
+        n: `${String(x.athletesInvolved?.[0]?.displayName || '')}${x.penaltyKick ? ' (Pen.)' : x.ownGoal ? ' (Eigentor)' : ''}` }));
+      return { utc: String(e.date || ''), h: String(home.team?.displayName || ''), a: String(away.team?.displayName || ''), hs: home.score != null ? Number(home.score) : null,
+        as: away.score != null ? Number(away.score) : null, st: state, min: state === 'live' && /^\d/.test(clock) ? clock : null, goals };
+    });
+    const data = { list };
+    fbMem.set(ck, { data, at: now });
+    await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || null; }
+}
+// Namen über Wortanfänge vergleichen («Internazionale» ~ «Inter Milan», «Bodo/Glimt» ~ «FK Bodø/Glimt»)
+const espnTok = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ø/gi, 'o').toLowerCase().split(/[^a-z0-9]+/)
+  .filter((w) => w.length >= 4 || /^(psg|lask|roma|ac|as|psv)$/.test(w)).map((w) => w.slice(0, 4));
+const espnSame = (a, b) => { const x = espnTok(a), y = new Set(espnTok(b)); return x.some((w) => y.has(w)); };
+// Offene Spiele (angepfiffen, ohne Endstand) mit ESPN nachführen; onlyPre: nur Spiele, die noch ohne Stand sind
+async function espnApply(list, res, now, open, onlyPre) {
+  const changed = new Set();
+  for (let i = 0; i < list.length; i++) {
+    const code = ESPN_LG[list[i].id];
+    if (!code) continue;
+    const todo = res[i].matches.map((m, j) => [m, j]).filter(([m]) => open(m) && (!onlyPre || m.st === 'pre' || m.hs == null));
+    if (!todo.length) continue;
+    const days = [...new Set(todo.map(([m]) => m.utc.slice(0, 10)))];
+    const lists = (await Promise.all(days.map((d) => espnDay(code, d, now)))).flatMap((x) => x?.list || []);
+    for (const [m, j] of todo) {
+      const t = Date.parse(m.utc);
+      const e = lists.find((x) => Math.abs(Date.parse(x.utc) - t) < 40 * 60 * 1000 && (espnSame(m.h, x.h) || espnSame(m.a, x.a)));
+      if (!e || e.st === 'pre') continue;
+      res[i].matches[j] = { ...m, st: e.st, hs: e.hs, as: e.as, min: e.min, goals: e.goals.length ? e.goals : m.goals };
+      if (e.st === 'ft') changed.add(i);
+    }
+  }
+  return changed;
+}
+
 async function bbLeagues(list, now) {
   if (!Deno.env.get('BIGBALLS_KEY')) return list.map(() => ({ status: 'nokey', message: 'Big-Balls-Schlüssel fehlt', matches: [] }));
   const res = await Promise.all(list.map((lg) => bbFixtures(lg, now)));
@@ -357,6 +411,8 @@ async function bbLeagues(list, now) {
     if (fresh.st === 'ft') changed.add(i);
     r.matches[j] = { ...m, st: fresh.st, hs: fresh.hs, as: fresh.as, min: fresh.min, ht: fresh.ht || m.ht, note: fresh.note };
   }));
+  // Ersatz: ESPN für alle offenen Spiele (Big Balls hat für Fussball keinen Live-Feed); Endstände gleich speichern
+  for (const i of await espnApply(list, res, now, open, false).catch(() => new Set())) { changed.add(i); await cacheSet(`bb2:${list[i].key}`, res[i]); }
   // Big Balls hat für Fussball keinen Live-Feed (nur nachgeladene Datenbank): Ligen mit Sportradar-Wettbewerb (Champions
   // League, Premier League) über die Sportradar-Live-Liste (eine Abfrage für alle Spiele weltweit) nachführen
   if (Deno.env.get('SPORTRADAR_KEY')) {
@@ -939,6 +995,8 @@ async function srLeagues(list, now) {
       if (st === 'ft' || st === 'off') changed.add(i);
     }
   }
+  // Sportradar ohne Stand (z. B. Tagesgrenze erreicht): ESPN als Ersatz
+  for (const i of await espnApply(list, res, now, open, true).catch(() => new Set())) changed.add(i);
   // Schlussresultate samt Torschützen (und Verschiebungen) in den Spielplan übernehmen
   for (const i of changed) await cacheSet(`sr:${list[i].key}`, res[i]);
   return res;
