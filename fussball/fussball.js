@@ -115,8 +115,9 @@ function liveTestData(now) {
       h: 'FC Test Heim', a: 'FC Test Gast', hl: '', al: '', st: 'live', ht: '', note: '', ...states }] };
 }
 // Blatt von unten mit Tabelle und Torschützen (grosse Ligen)
-const ZONE_NAME = { cl: 'Champions League', clq: 'CL-Qualifikation', el: 'Europa League', co: 'Conference League', rel: 'Relegation', ab: 'Abstieg' };
-const TABLE_LEAGUES = new Set(['pl', 'bl1', 'laliga', 'seriea', 'ligue1']);
+const ZONE_NAME = { cl: 'Champions League', clq: 'CL-Qualifikation', el: 'Europa League', co: 'Conference League', rel: 'Relegation', ab: 'Abstieg',
+  'ucl-r16': 'Achtelfinale', 'ucl-playoff': 'Play-off-Runde', 'ucl-out': 'Ausgeschieden' };
+const TABLE_LEAGUES = new Set(['ucl', 'pl', 'bl1', 'laliga', 'seriea', 'ligue1']);
 const leagueCache = new Map(); // `${id}|${kind}` → Antwort von ?fbleague=
 let sheet = null; // { id, tab: 'table' | 'scorers' } // Spielstand-Zeichen der letzten Anzeige: geänderte Blätter klappen um
 
@@ -463,11 +464,12 @@ function renderSheet() {
     document.body.appendChild(el); document.body.classList.add('fb-sheet-open');
   }
   const keep = el.querySelector('.fb-sheet-body')?.scrollTop || 0;
+  const tabs = sheet.id === 'ucl' ? [['table', 'Tabelle']] : [['table', 'Tabelle'], ['scorers', 'Torschützen']];
   el.innerHTML = `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
     <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
       <div class="fb-sheet-h"><span class="fb-lg" style="--c:${esc(lg?.color || '#555')}">${esc(lg?.short || '')}</span><b id="fbSheetTitle">${esc(lg?.name || '')}</b>
         <button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Schliessen">✕</button></div>
-      <div class="fb-seg" role="tablist">${[['table', 'Tabelle'], ['scorers', 'Torschützen']].map(([k, t]) => `<button type="button" role="tab" data-act="fb-sheet-tab" data-tab="${k}" aria-selected="${sheet.tab === k}">${t}</button>`).join('')}</div>
+      <div class="fb-seg" role="tablist">${tabs.map(([k, t]) => `<button type="button" role="tab" data-act="fb-sheet-tab" data-tab="${k}" aria-selected="${sheet.tab === k}">${t}</button>`).join('')}</div>
       <div class="fb-sheet-body">${sheetBody(sheet.id, sheet.tab)}</div></section>`;
   el.querySelector('.fb-sheet-body').scrollTop = keep;
 }
