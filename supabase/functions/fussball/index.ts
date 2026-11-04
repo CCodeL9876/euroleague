@@ -474,9 +474,10 @@ async function bbGame(id) {
   await cacheSet(ck, data);
   return data;
 }
-// Tabelle und Torschützen einer Big-Balls-Liga (zurzeit Premier League)
+// Tabellen und Torschützen aus Big Balls Data
 // Zonen: [von, bis, Art] – cl/el/co = Europacup-Plätze, rel = Relegation, ab = Abstieg (Stand Saison 26/27, ohne Sonderfälle wie Pokalsieger)
 const BB_TABLE = {
+  ucl: { key: 'ucl', zones: [[1, 8, 'ucl-r16'], [9, 24, 'ucl-playoff'], [25, 36, 'ucl-out']] },
   pl: { key: 'epl', scorers: 'epl', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
   bl1: { key: 'bundesliga', scorers: 'bundesliga', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [16, 16, 'rel'], [17, 18, 'ab']] },
   laliga: { key: 'laliga', scorers: 'laliga', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
@@ -503,10 +504,17 @@ async function fbLeague(id, kind, now = Date.now()) {
   const playsToday = ov ? ov.matches.some((m) => m.l === id && zurichDay(m.utc) === zurichDay(today + 'T12:00:00Z')) : false;
   if (hit && now - hit.at < (playsToday ? 30 * 60 * 1000 : 3 * 3600 * 1000)) return hit.data;
   if (!(await bbAllowed())) return hit?.data || { available: false };
-  const d = await bbGet('standings', { league: cfg.key });
+  const params = id === 'ucl'
+    ? { sport: 'football', league: cfg.key, season: String(fbSeason(new Date(now))) }
+    : { league: cfg.key };
+  const d = await bbGet('standings', params);
   const t = d?.data?.standings?.[0];
-  const rows = (t?.rows || []).map((r) => ({ rank: r.rank, team: String(r.team_name || ''), logo: fbImg(r.logo_url), p: r.games_played ?? 0, w: r.wins ?? 0, d: r.ties ?? 0, l: r.losses ?? 0,
-    gf: r.points_for ?? 0, ga: r.points_against ?? 0, pts: (r.wins ?? 0) * 3 + (r.ties ?? 0) })).sort((a, b) => a.rank - b.rank);
+  const rows = (t?.rows || []).map((r) => {
+    const w = r.wins ?? 0, draws = r.draws ?? r.ties ?? 0;
+    return { rank: r.rank, team: String(r.team_name || r.team || ''), logo: fbImg(r.logo_url), p: r.games_played ?? r.played ?? 0, w, d: draws, l: r.losses ?? 0,
+      gf: r.goals_for ?? r.goals_scored ?? r.points_for ?? 0, ga: r.goals_against ?? r.goals_conceded ?? r.points_against ?? 0,
+      pts: r.points ?? r.pts ?? (w * 3 + draws) };
+  }).sort((a, b) => a.rank - b.rank);
   const data = { available: rows.length > 0, season: String(t?.season || ''), zones: cfg.zones, rows };
   await cacheSet(ck, data);
   return data;
