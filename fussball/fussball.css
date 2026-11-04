@@ -150,6 +150,7 @@ body:not(.unlocked) .fb{display:none;}
 .fb-zones .z-cl::before{background:#3E7BFA;} .fb-zones .z-el::before{background:#F59E0B;} .fb-zones .z-co::before{background:var(--pitch-hi);} .fb-zones .z-ab::before{background:var(--coral);} .fb-zones .z-clq::before{background:#93B4FF;} .fb-zones .z-rel::before{background:#F2A3A8;}
 .fb-zones .z-ucl-r16::before{background:#3E7BFA;} .fb-zones .z-ucl-playoff::before{background:#F59E0B;} .fb-zones .z-ucl-out::before{background:var(--coral);}
 .fb-sc-head, .fb-scr{display:grid;grid-template-columns:24px minmax(0,1fr) 44px 44px;gap:8px;align-items:center;}
+.fb-sc-head.compact,.fb-scr.compact{grid-template-columns:24px minmax(0,1fr) 44px;}
 .fb-sc-head{font-size:0.68rem;color:var(--dim);padding:0 8px 6px;} .fb-sc-head span:nth-child(n+3){text-align:center;}
 .fb-scr{padding:8px;border-top:1px solid var(--line);font-size:0.86rem;background:var(--card);}
 .fb-sc-list{border-radius:14px;overflow:hidden;} .fb-sc-list .fb-scr:first-child{border-top:0;}

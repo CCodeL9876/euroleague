@@ -363,8 +363,9 @@ function sheetBody(id, tab) {
   if (!d) return '<p class="fb-x-note">Lade …</p>';
   if (!d.available) return '<p class="fb-x-note">Gerade nicht verfügbar.</p>';
   if (tab === 'scorers') {
-    return `<div class="fb-sc-head"><span></span><span>Spieler</span><span>Tore</span><span>Vorl.</span></div><div class="fb-sc-list">${d.rows.map((r) => `<div class="fb-scr${isFavName(r.team) ? ' fav' : ''}"><span class="pos">${esc(r.rank)}</span>
-      <span class="who"><b>${esc(r.n)}</b><small>${esc(r.team)}</small></span><span class="g">${esc(r.g)}</span><span class="a">${esc(r.a)}</span></div>`).join('')}</div><p class="fb-x-src">Quelle: Big Balls</p>`;
+    const openLiga = d.source === 'OpenLigaDB';
+    return `<div class="fb-sc-head${openLiga ? ' compact' : ''}"><span></span><span>Spieler</span><span>Tore</span>${openLiga ? '' : '<span>Vorl.</span>'}</div><div class="fb-sc-list">${d.rows.map((r) => `<div class="fb-scr${openLiga ? ' compact' : ''}${isFavName(r.team) ? ' fav' : ''}"><span class="pos">${esc(r.rank)}</span>
+      <span class="who"><b>${esc(r.n)}</b>${r.team ? `<small>${esc(r.team)}</small>` : ''}</span><span class="g">${esc(r.g)}</span>${openLiga ? '' : `<span class="a">${esc(r.a)}</span>`}</div>`).join('')}</div><p class="fb-x-src">Quelle: ${esc(d.source || 'Big Balls')}</p>`;
   }
   const zone = (rank) => (d.zones || []).find(([a, b]) => rank >= a && rank <= b)?.[2] || '';
   return `<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tore">Tore</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
@@ -464,7 +465,7 @@ function renderSheet() {
     document.body.appendChild(el); document.body.classList.add('fb-sheet-open');
   }
   const keep = el.querySelector('.fb-sheet-body')?.scrollTop || 0;
-  const tabs = sheet.id === 'ucl' ? [['table', 'Tabelle']] : [['table', 'Tabelle'], ['scorers', 'Torschützen']];
+  const tabs = [['table', 'Tabelle'], ['scorers', 'Torschützen']];
   el.innerHTML = `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
     <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
       <div class="fb-sheet-h"><span class="fb-lg" style="--c:${esc(lg?.color || '#555')}">${esc(lg?.short || '')}</span><b id="fbSheetTitle">${esc(lg?.name || '')}</b>

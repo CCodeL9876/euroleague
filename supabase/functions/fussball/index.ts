@@ -13,7 +13,7 @@
 //     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, Neuaufsteiger dort ergänzen). Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
-//   GET ?fbleague=pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste (Big Balls); Tabelle alle 30 Min. (Spieltag) bzw. 3 Std., Torschützen alle 6 Std.
+//   GET ?fbleague=ucl|pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste (Big Balls; UCL-Torschützen OpenLigaDB); Tabelle alle 30 Min. (Spieltag) bzw. 3 Std., Torschützen alle 6 Std.
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung bzw. Teamstatistik (Big Balls) eines Spiels der grossen Ligen und der Champions League;
 //     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst von Big Balls
 //   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
@@ -486,17 +486,33 @@ const BB_TABLE = {
 };
 async function fbLeague(id, kind, now = Date.now()) {
   const cfg = BB_TABLE[id];
-  if (!cfg || !Deno.env.get('BIGBALLS_KEY')) return { available: false };
+  if (!cfg) return { available: false };
   if (kind === 'scorers') {
+    if (id === 'ucl') {
+      const season = String(fbSeason(new Date(now)));
+      const ck = `oldbsc:${id}:${season}`;
+      const hit = await cacheGet(ck);
+      if (hit && now - hit.at < 6 * 3600 * 1000) return hit.data;
+      try {
+        const raw = await getJson(`https://api.openligadb.de/getgoalgetters/${id}/${season}`);
+        const rows = (Array.isArray(raw) ? raw : []).sort((a, b) => Number(b.goalCount || 0) - Number(a.goalCount || 0))
+          .slice(0, 20).map((r, i) => ({ rank: i + 1, n: String(r.goalGetterName || ''), team: '', g: Number(r.goalCount) || 0, a: null }));
+        const data = { available: rows.length > 0, rows, source: 'OpenLigaDB' };
+        await cacheSet(ck, data);
+        return data;
+      } catch { return hit?.data || { available: false }; }
+    }
+    if (!Deno.env.get('BIGBALLS_KEY') || !cfg.scorers) return { available: false };
     const ck = `bbsc:${cfg.key}`;
     const hit = await cacheGet(ck);
     if (hit && now - hit.at < 6 * 3600 * 1000) return hit.data;
     if (!(await bbAllowed())) return hit?.data || { available: false };
     const d = await bbGet(`leagues/${cfg.scorers}/top-scorers`, { limit: '20' });
-    const data = { available: true, rows: (d?.data || []).map((r) => ({ rank: r.rank, n: String(r.player_name || ''), team: String(r.team || ''), g: r.goals ?? 0, a: r.assists ?? 0, mp: r.matches ?? null })) };
+    const data = { available: true, source: 'Big Balls', rows: (d?.data || []).map((r) => ({ rank: r.rank, n: String(r.player_name || ''), team: String(r.team || ''), g: r.goals ?? 0, a: r.assists ?? 0, mp: r.matches ?? null })) };
     await cacheSet(ck, data);
     return data;
   }
+  if (!Deno.env.get('BIGBALLS_KEY')) return { available: false };
   const ck = `bbtab:${cfg.key}`;
   const hit = await cacheGet(ck);
   const today = new Date(now).toISOString().slice(0, 10);
