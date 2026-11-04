@@ -119,8 +119,9 @@ nach Liga gruppiert, eigene Teams oben); das Fussball-Symbol führt zurück. Zug
 
 | Liga | Quelle |
 |---|---|
-| Bundesliga, 2. Bundesliga | OpenLigaDB (frei, ohne Schlüssel, mit Torschützen) |
-| Premier League, Super League, Challenge League | API-Football (Secret `APIFOOTBALL_KEY`, Gratis-Plan 100 Abfragen/Tag) |
+| Champions League, Premier League, Bundesliga, La Liga, Serie A, Ligue 1, Nationalteam-Wettbewerbe | Big Balls; Sportradar ergänzt Live-Stände und Aufstellungen für UCL/PL; ESPN ist Live-Ersatz |
+| Super League, Challenge League | Sportradar |
+| 2. Bundesliga | OpenLigaDB |
 
 Daten über die **eigene** Supabase-Funktion `fussball` (`supabase/functions/fussball/index.ts`), getrennt von `euroleague`.
 
@@ -133,6 +134,11 @@ Einrichtung (einmalig):
    ```
 3. Neue Funktion `fussball` anlegen (Edge Functions → Deploy a new function → Via Editor, Name `fussball`), Code aus
    `supabase/functions/fussball/index.ts` einfügen, **„Verify JWT“ ausschalten** (wie bei `euroleague`) und deployen.
+
+Der vorhandene `pg_cron`-Zeitplan muss mindestens jede Minute `?fbpushtick=1` auf der Funktion `fussball` aufrufen.
+Dieser Tick prüft nun auch fällige Vor-/Nach-Spiel-Aktualisierungen: Aufstellungen bis 90 Minuten vor Anpfiff,
+Statistiken nach Spielende sowie Tabellen und Torschützenlisten nach dem letzten beendeten Spiel der Liga am lokalen Tag.
+Spielpläne werden täglich zwischengespeichert; Live-Spielstände behalten ihre eigenen kürzeren Intervalle.
 
 Lieblingsteams (vorerst lokal, Stichwörter im Teamnamen): Liverpool, Chelsea, Basel, Mainz.
 

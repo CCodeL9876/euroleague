@@ -5,15 +5,15 @@
 //   → { updated, season, leagues: [{ id, name, country, short, color, status: 'ok'|'nokey'|'error', message }],
 //       matches: [{ id, l, utc, round, h, a, hl, al, hs, as, st: 'pre'|'live'|'ht'|'ft'|'off', min, ht, goals? }] }
 //     Champions League, Premier League, Bundesliga, La Liga, Serie A, Ligue 1, Nations League, Länderspiele: bigballsdata.com
-//     (Secret BIGBALLS_KEY, Tagesgrenze Secret BIGBALLS_DAILY, sonst 230): Saison-Spielplan pro Wettbewerb alle 12 Std., Live-Stände
-//     aus einer Tagesabfrage für alle Ligen (während Spielen alle 3 Min.), Tore pro Spiel beim Aufklappen. 2. Bundesliga: OpenLigaDB.
+//     (Secret BIGBALLS_KEY, Tagesgrenze Secret BIGBALLS_DAILY, sonst 230): Saison-Spielplan pro Wettbewerb täglich, Live-Stände
+//     aus einer Tagesabfrage für alle Ligen (während Spielen alle 5 Min.), Tore pro Spiel beim Aufklappen. 2. Bundesliga: OpenLigaDB.
 //     Super League, Challenge League:
 //     Sportradar Soccer v4 (Secrets SPORTRADAR_KEY, SPORTRADAR_LEVEL = trial|production, SPORTRADAR_DAILY = Tagesgrenze, sonst 60):
-//     Saison-Spielplan pro Liga alle 12 Std., während Spielen alle 5 Min. die Live-Timelines (eine Abfrage, mit Torschützen),
+//     Saison-Spielplan pro Liga täglich, während Spielen alle 7 Min. die Live-Timelines (eine Abfrage, mit Torschützen),
 //     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, Neuaufsteiger dort ergänzen). Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
-//   GET ?fbleague=ucl|pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste (Big Balls; UCL-Torschützen OpenLigaDB); Tabelle alle 30 Min. (Spieltag) bzw. 3 Std., Torschützen alle 6 Std.
+//   GET ?fbleague=ucl|pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste; nach letztem Spiel am Tag vorgewärmt, sonst Cache bis zu 24 Std.
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung bzw. Teamstatistik (Big Balls) eines Spiels der grossen Ligen und der Champions League;
 //     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst von Big Balls
 //   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
@@ -83,6 +83,7 @@ const fbSeason = (d) => (d.getUTCMonth() >= 6 ? d.getUTCFullYear() : d.getUTCFul
 // Läuft gerade (oder gleich) ein Spiel dieser Liga? Dann öfter nachfragen
 const liveWindow = (list, now) => list.some((m) => m.st === 'live' || m.st === 'ht' || (m.st === 'pre' && Math.abs(Date.parse(m.utc) - now) < 20 * 60 * 1000)
   || (m.st !== 'ft' && m.st !== 'off' && now > Date.parse(m.utc) && now - Date.parse(m.utc) < 130 * 60 * 1000));
+const kickoffJustStarted = (m, now) => m.st === 'pre' && now >= Date.parse(m.utc) && now - Date.parse(m.utc) <= 3 * 60 * 1000;
 
 // Kleiner Zwischenspeicher in der Datenbank (überlebt Neustarts der Funktion); ohne Tabelle nur im Speicher
 const fbMem = new Map();
@@ -240,13 +241,13 @@ export function mapBb(lg, m) {
     h: String(m.home?.name || ''), a: String(m.away?.name || ''), hl: fbImg(m.home?.logo_url), al: fbImg(m.away?.logo_url),
     hs: st === 'pre' ? null : m.score?.home ?? null, as: st === 'pre' ? null : m.score?.away ?? null, st, min: st === 'live' && cm ? cm[1] : null, ht, note: st === 'off' ? raw : '' };
 }
-// Spielplan eines Wettbewerbs (Clubs: Saison = Startjahr; Nationalteams: Kalenderjahr), alle 12 Std.
+// Spielplan eines Wettbewerbs (Clubs: Saison = Startjahr; Nationalteams: Kalenderjahr), täglich.
 // /matches ohne Filter liefert nur kommende Spiele – darum zusätzlich eine Seite beendeter Spiele, und der alte Stand bleibt
 // erhalten (sonst fallen gespielte Partien beim Neuladen aus der Übersicht)
 async function bbFixtures(lg, now) {
   const ck = `bb2:${lg.key}`; // bb2: Stand inkl. beendeter Spiele (ersetzt den alten Stand einmal)
   const hit = await cacheGet(ck);
-  if (hit && now - hit.at < (hit.data.status === 'ok' ? 12 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
+  if (hit && now - hit.at < (hit.data.status === 'ok' ? 24 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
   try {
     const season = String(lg.season === 'cal' ? new Date(now).getUTCFullYear() : fbSeason(new Date(now)));
     const all = [];
@@ -332,10 +333,15 @@ async function bbLive(now) {
 const ESPN_LG = { ucl: 'uefa.champions', pl: 'eng.1', bl1: 'ger.1', laliga: 'esp.1', seriea: 'ita.1', ligue1: 'fra.1', bl2: 'ger.2', chsl: 'sui.1', chcl: 'sui.2',
   unl: 'uefa.nations', wcq: 'fifa.worldq.uefa', emq: 'uefa.euroq', fr: 'fifa.friendly' };
 const ESPN_MS = 2 * 60 * 1000;
-async function espnDay(code, day, now) {
+async function espnDay(code, day, now, kickoffRefresh = false) {
   const ck = `espn:${code}:${day}`;
   const hit = fbMem.get(ck) || (await cacheGet(ck));
-  if (hit && now - hit.at < ESPN_MS) return hit.data;
+  if (hit && now - hit.at < ESPN_MS && !kickoffRefresh) return hit.data;
+  if (kickoffRefresh) {
+    const mk = `espnkick:${code}:${day}:${Math.floor(now / 60000)}`;
+    if ((await cacheGet(mk))?.data) return hit?.data || null;
+    await cacheSet(mk, true);
+  }
   try {
     const d = await getJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/scoreboard?dates=${day.replace(/-/g, '')}`);
     const list = (d?.events || []).map((e) => {
@@ -368,7 +374,7 @@ async function espnApply(list, res, now, open, onlyPre) {
     const todo = res[i].matches.map((m, j) => [m, j]).filter(([m]) => open(m) && (!onlyPre || m.st === 'pre' || m.hs == null));
     if (!todo.length) continue;
     const days = [...new Set(todo.map(([m]) => m.utc.slice(0, 10)))];
-    const lists = (await Promise.all(days.map((d) => espnDay(code, d, now)))).flatMap((x) => x?.list || []);
+    const lists = (await Promise.all(days.map((d) => espnDay(code, d, now, todo.some(([m]) => m.utc.slice(0, 10) === d && kickoffJustStarted(m, now)))))).flatMap((x) => x?.list || []);
     for (const [m, j] of todo) {
       const t = Date.parse(m.utc);
       const e = lists.find((x) => Math.abs(Date.parse(x.utc) - t) < 40 * 60 * 1000 && (espnSame(m.h, x.h) || espnSame(m.a, x.a)));
@@ -383,8 +389,9 @@ async function espnApply(list, res, now, open, onlyPre) {
 async function bbLeagues(list, now) {
   if (!Deno.env.get('BIGBALLS_KEY')) return list.map(() => ({ status: 'nokey', message: 'Big-Balls-Schlüssel fehlt', matches: [] }));
   const res = await Promise.all(list.map((lg) => bbFixtures(lg, now)));
-  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) < now && now - Date.parse(m.utc) < 30 * 3600e3;
-  if (!res.some((r) => r.matches.some(open))) return res;
+  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 30 * 3600e3;
+  const forceKickoff = res.some((r) => r.matches.some((m) => kickoffJustStarted(m, now)));
+  if (!res.some((r) => r.matches.some(open)) && !forceKickoff) return res;
   // Jeden UTC-Tag mit offenen Spielen abfragen (Abendspiele von gestern stehen nicht in der Liste von heute)
   const days = [...new Set(res.flatMap((r) => r.matches.filter(open).map((m) => m.utc.slice(0, 10))))].sort().slice(-2);
   const liveDay = (d) => res.some((r) => liveWindow(r.matches.filter((m) => m.utc.slice(0, 10) === d), now));
@@ -417,9 +424,9 @@ async function bbLeagues(list, now) {
   // League, Premier League) über die Sportradar-Live-Liste (eine Abfrage für alle Spiele weltweit) nachführen
   if (Deno.env.get('SPORTRADAR_KEY')) {
     const srIdx = list.map((lg, i) => (FB_LEAGUES.find((l) => l.id === lg.id)?.sr ? i : -1)).filter((i) => i >= 0);
-    const need = srIdx.some((i) => res[i].matches.some(open));
+    const need = srIdx.some((i) => res[i].matches.some((m) => open(m) || kickoffJustStarted(m, now)));
     if (need) {
-      const live = srIdx.some((i) => liveWindow(res[i].matches.filter(open), now)) ? await srLive(now).catch(() => null) : null;
+      const live = srIdx.some((i) => liveWindow(res[i].matches, now)) ? await srLive(now, forceKickoff).catch(() => null) : null;
       const byIdSr = new Map((live?.list || []).map((x) => [x.id, x]));
       for (const i of srIdx) {
         const lg = FB_LEAGUES.find((l) => l.id === list[i].id);
@@ -484,7 +491,7 @@ const BB_TABLE = {
   seriea: { key: 'seriea', scorers: 'serie-a', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
   ligue1: { key: 'ligue1', scorers: 'ligue-1', zones: [[1, 3, 'cl'], [4, 4, 'clq'], [5, 5, 'el'], [6, 6, 'co'], [16, 16, 'rel'], [17, 18, 'ab']] },
 };
-async function fbLeague(id, kind, now = Date.now()) {
+async function fbLeague(id, kind, now = Date.now(), force = false) {
   const cfg = BB_TABLE[id];
   if (!cfg) return { available: false };
   if (kind === 'scorers') {
@@ -492,7 +499,7 @@ async function fbLeague(id, kind, now = Date.now()) {
       const season = String(fbSeason(new Date(now)));
       const ck = `oldbsc:${id}:${season}`;
       const hit = await cacheGet(ck);
-      if (hit && now - hit.at < 6 * 3600 * 1000) return hit.data;
+      if (hit && !force && now - hit.at < 24 * 3600 * 1000) return hit.data;
       try {
         const raw = await getJson(`https://api.openligadb.de/getgoalgetters/${id}/${season}`);
         const rows = (Array.isArray(raw) ? raw : []).sort((a, b) => Number(b.goalCount || 0) - Number(a.goalCount || 0))
@@ -505,7 +512,7 @@ async function fbLeague(id, kind, now = Date.now()) {
     if (!Deno.env.get('BIGBALLS_KEY') || !cfg.scorers) return { available: false };
     const ck = `bbsc:${cfg.key}`;
     const hit = await cacheGet(ck);
-    if (hit && now - hit.at < 6 * 3600 * 1000) return hit.data;
+    if (hit && !force && now - hit.at < 24 * 3600 * 1000) return hit.data;
     if (!(await bbAllowed())) return hit?.data || { available: false };
     const d = await bbGet(`leagues/${cfg.scorers}/top-scorers`, { limit: '20' });
     const data = { available: true, source: 'Big Balls', rows: (d?.data || []).map((r) => ({ rank: r.rank, n: String(r.player_name || ''), team: String(r.team || ''), g: r.goals ?? 0, a: r.assists ?? 0, mp: r.matches ?? null })) };
@@ -515,10 +522,7 @@ async function fbLeague(id, kind, now = Date.now()) {
   if (!Deno.env.get('BIGBALLS_KEY')) return { available: false };
   const ck = `bbtab:${cfg.key}`;
   const hit = await cacheGet(ck);
-  const today = new Date(now).toISOString().slice(0, 10);
-  const ov = hit && now - hit.at < 30 * 60 * 1000 ? null : await fbOverview(now).catch(() => null);
-  const playsToday = ov ? ov.matches.some((m) => m.l === id && zurichDay(m.utc) === zurichDay(today + 'T12:00:00Z')) : false;
-  if (hit && now - hit.at < (playsToday ? 30 * 60 * 1000 : 3 * 3600 * 1000)) return hit.data;
+  if (hit && !force && now - hit.at < 24 * 3600 * 1000) return hit.data;
   if (!(await bbAllowed())) return hit?.data || { available: false };
   const params = id === 'ucl'
     ? { sport: 'football', league: cfg.key, season: String(fbSeason(new Date(now))) }
@@ -552,7 +556,7 @@ async function bbLineup(m, now) {
   const uuid = m.id.replace(/^bb-/, '');
   const ck = `bblu:${uuid}`;
   const hit = await cacheGet(ck);
-  if (hit && (hit.data.final || now - hit.at < 10 * 60 * 1000)) return hit.data;
+  if (hit && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await bbAllowed())) return hit?.data || { available: false };
   const d = await bbGet(`stored/matches/${uuid}/lineups`);
@@ -570,21 +574,22 @@ async function bbLineup(m, now) {
   await cacheSet(ck, data);
   return data;
 }
-async function fbDetail(id, kind, now = Date.now()) {
-  const ov = await fbOverview(now);
+async function fbDetail(id, kind, now = Date.now(), overview = null) {
+  const ov = overview || await fbOverview(now);
   const m = ov.matches.find((x) => x.id === id);
   if (!m || !DETAIL_LEAGUES.has(m.l)) return { error: 'nicht verfügbar' };
   if (kind === 'stats') {
     const uuid = id.replace(/^bb-/, '');
     const ck = `bbst:${uuid}`;
     const hit = await cacheGet(ck);
-    if (hit && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
+    if (hit && (hit.data.final || now - hit.at < 30 * 60 * 1000)) return hit.data;
     if (m.st === 'pre') return { available: false };
     if (!(await bbAllowed())) return hit?.data || { available: false };
     const d = await bbGet(`matches/${uuid}/statistics`);
     const side = (x) => x && { poss: x.ball_possession, shots: x.total_shots, on: x.shots_on_target, corners: x.corner_kicks, fouls: x.fouls,
       yellow: x.yellow_cards, red: x.red_cards, passes: x.total_passes, acc: x.accurate_passes, saves: x.goalkeeper_saves, offsides: x.offsides };
-    const data = { available: d?.meta?.available !== false && !!d?.data?.home, home: side(d?.data?.home), away: side(d?.data?.away), final: m.st === 'ft' };
+    const available = d?.meta?.available !== false && !!d?.data?.home;
+    const data = { available, home: side(d?.data?.home), away: side(d?.data?.away), final: m.st === 'ft' && available };
     await cacheSet(ck, data);
     return data;
   }
@@ -595,7 +600,7 @@ async function fbDetail(id, kind, now = Date.now()) {
   const hit = await cacheGet(ck);
   // Vor dem Spielerprofil gespeicherte Aufstellungen haben keine Spieler-IDs: einmal neu laden
   const noIds = hit?.data?.available && !hit.data.home?.start?.[0]?.id;
-  if (hit && !noIds && (hit.data.final || now - hit.at < 10 * 60 * 1000)) return hit.data;
+  if (hit && !noIds && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await srAllowed())) return hit?.data || bbLineup(m, now);
   const d = await srGet(`sport_events/${srUrn(sr.id)}/lineups`).catch(() => null);
@@ -933,13 +938,13 @@ async function srSeason(lg, now) {
   if (id) await cacheSet(ck, id);
   return id;
 }
-// Spielplan der Saison (bis 200 Spiele pro Abfrage), alle 12 Std.; Fehler nur 30 Min. merken
+// Spielplan der Saison (bis 200 Spiele pro Abfrage), täglich; Fehler nur 30 Min. merken
 async function srFixtures(lg, now) {
   const ck = `sr:${lg.key}`;
   const hit = await cacheGet(ck);
   // Genau 100 Spiele = mit dem alten Fehler nur die erste Seite gespeichert: neu laden
   const cut = hit?.data?.matches?.length === 100;
-  if (hit && !cut && now - hit.at < (hit.data.status === 'ok' ? 12 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
+  if (hit && !cut && now - hit.at < (hit.data.status === 'ok' ? 24 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
   try {
     const season = await srSeason(lg, now);
     if (!season) throw new Error('Keine laufende Saison gefunden');
@@ -968,10 +973,15 @@ async function srFixtures(lg, now) {
   }
 }
 // Live-Timelines aller laufenden Spiele weltweit (eine Abfrage): Stand, Minute und Tore
-async function srLive(now) {
+async function srLive(now, kickoffRefresh = false) {
   const ck = 'srlive';
   const hit = await cacheGet(ck);
-  if (hit && now - hit.at < SR_LIVE_MS) return hit.data;
+  if (hit && now - hit.at < SR_LIVE_MS && !kickoffRefresh) return hit.data;
+  if (kickoffRefresh) {
+    const mk = `srlivekick:${Math.floor(now / 60000)}`;
+    if ((await cacheGet(mk))?.data) return hit?.data || null;
+    await cacheSet(mk, true);
+  }
   if (!(await srAllowed())) return hit?.data || null;
   try {
     const d = await srGet('schedules/live/timelines');
@@ -998,9 +1008,10 @@ async function srLeagues(list, now) {
   if (!Deno.env.get('SPORTRADAR_KEY')) return list.map(() => ({ status: 'nokey', message: 'Sportradar-Schlüssel fehlt', matches: [] }));
   const res = [];
   for (const lg of list) res.push(await srFixtures(lg, now)); // nacheinander (1 Abfrage/Sek.)
-  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) < now && now - Date.parse(m.utc) < 12 * 3600e3;
+  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 12 * 3600e3;
   if (!res.some((r) => r.matches.some(open))) return res;
-  const live = res.some((r) => liveWindow(r.matches, now)) ? await srLive(now) : null;
+  const forceKickoff = res.some((r) => r.matches.some((m) => kickoffJustStarted(m, now)));
+  const live = res.some((r) => liveWindow(r.matches, now)) ? await srLive(now, forceKickoff) : null;
   const byId = new Map((live?.list || []).map((x) => [x.id, x]));
   const changed = new Set();
   for (let i = 0; i < res.length; i++) {
@@ -1215,12 +1226,12 @@ export function mapOldb(lg, m, now) {
 }
 async function oldbLeague(lg, season, now) {
   const ck = `oldb:${lg.key}:${season}`;
-  const hit = fbMem.get(ck);
-  if (hit && now - hit.at < (liveWindow(hit.data.matches, now) ? 60 * 1000 : 15 * 60 * 1000)) return hit.data;
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < (liveWindow(hit.data.matches, now) ? 60 * 1000 : 24 * 3600 * 1000)) return hit.data;
   try {
     const raw = await getJson(`https://api.openligadb.de/getmatchdata/${lg.key}/${season}`);
     const data = { status: 'ok', message: '', matches: (Array.isArray(raw) ? raw : []).map((m) => mapOldb(lg, m, now)) };
-    fbMem.set(ck, { data, at: now });
+    await cacheSet(ck, data);
     return data;
   } catch {
     return hit?.data || { status: 'error', message: 'OpenLigaDB nicht erreichbar', matches: [] };
@@ -1254,6 +1265,55 @@ async function fbOverview(now) {
   return { updated: new Date(now).toISOString(), season,
     leagues: FB_LEAGUES.map((lg, i) => ({ id: lg.id, name: lg.name, country: lg.country, short: lg.short, color: lg.color, status: res[i].status, message: res[i].message })),
     matches: res.flatMap((r) => r.matches.filter((m) => { const t = Date.parse(m.utc); return t >= from && t <= to; })) };
+}
+// Vor dem Anpfiff Aufstellungen vorwärmen; nach Spielende Statistiken und nach dem letzten Tages-Spiel Tabellen vorwärmen.
+async function refreshAroundMatches(now, ov) {
+  const matches = ov.matches || [];
+  const today = zurichDay(new Date(now).toISOString());
+  const yesterday = zurichDay(new Date(now - 864e5).toISOString());
+  const refreshed = { lineups: 0, stats: 0, tables: 0, scorers: 0 };
+
+  for (const m of matches) {
+    if (!DETAIL_LEAGUES.has(m.l) || m.st === 'ft' || m.st === 'off') continue;
+    const kickoff = Date.parse(m.utc);
+    if (kickoff - now > 90 * 60 * 1000 || now - kickoff > 130 * 60 * 1000) continue;
+    await fbDetail(m.id, 'lineup', now, ov).catch(() => null);
+    refreshed.lineups++;
+  }
+
+  for (const m of matches) {
+    if (!DETAIL_LEAGUES.has(m.l) || m.st !== 'ft' || now - Date.parse(m.utc) > 8 * 3600e3) continue;
+    const uuid = m.id.replace(/^bb-/, '');
+    const cached = await cacheGet(`bbst:${uuid}`);
+    if (cached?.data?.final) continue;
+    await fbDetail(m.id, 'stats', now, ov).catch(() => null);
+    refreshed.stats++;
+  }
+
+  for (const day of [yesterday, today]) {
+    for (const id of Object.keys(BB_TABLE)) {
+      const dayMatches = matches.filter((m) => m.l === id && zurichDay(m.utc) === day);
+      if (!dayMatches.length || !dayMatches.some((m) => m.st === 'ft') || dayMatches.some((m) => !['ft', 'off'].includes(m.st))) continue;
+      const tableDoneKey = `fbtable_done:${id}:${day}`;
+      const scorerDoneKey = `fbscorer_done:${id}:${day}`;
+      const tableDone = Boolean((await cacheGet(tableDoneKey))?.data);
+      const scorerDone = Boolean((await cacheGet(scorerDoneKey))?.data);
+      if (tableDone && scorerDone) continue;
+      const attemptKey = `fbboardattempt:${id}:${day}`;
+      const attempt = await cacheGet(attemptKey);
+      if (attempt && now - attempt.at < 15 * 60 * 1000) continue;
+      await cacheSet(attemptKey, true);
+      if (!tableDone) {
+        const table = await fbLeague(id, 'table', now, true).catch(() => ({ available: false }));
+        if (table.available) { await cacheSet(tableDoneKey, true); refreshed.tables++; }
+      }
+      if (!scorerDone) {
+        const scorers = await fbLeague(id, 'scorers', now, true).catch(() => ({ available: false }));
+        if (scorers.available) { await cacheSet(scorerDoneKey, true); refreshed.scorers++; }
+      }
+    }
+  }
+  return refreshed;
 }
 async function fbGame(id) {
   if (/^bb-[\w-]+$/.test(String(id))) return bbGame(id);
@@ -1371,25 +1431,34 @@ async function handlePush(body) {
     body: JSON.stringify({ endpoint, profile_key: key, created_at: new Date().toISOString() }) });
   return { ok: r.ok, error: r.ok ? '' : `db ${r.status}` };
 }
-// Jede Minute: Tore seit dem letzten Lauf finden und die passenden Geräte anstossen
+// Jede Minute: Cache-Zeitplan ausführen und Tore seit dem letzten Lauf für Push erkennen
 async function pushTick(now) {
-  if (!Deno.env.get('VAPID_PRIVATE')) return { error: 'VAPID-Secrets fehlen' };
   const ov = await fbOverview(now);
+  const refresh = await refreshAroundMatches(now, ov);
   const prev = (await cacheGet('push:scores'))?.data || {};
-  const cur = {}, events = [];
+  const cur = {}, events = [], scoreChanges = [];
   for (const m of ov.matches) {
     if (m.hs == null || m.as == null || !['live', 'ht', 'ft'].includes(m.st)) continue;
     cur[m.id] = [m.hs, m.as];
     const p = prev[m.id];
     // Nur echte Änderungen (erster Stand nach dem Anpfiff = Ausgangslage, ausser es steht schon ein Tor und das Spiel ist frisch)
-    if (!p) { if (m.hs + m.as > 0 && m.st !== 'ft' && now - Date.parse(m.utc) < 10 * 60 * 1000) events.push({ m, side: m.hs > 0 ? 1 : 2 }); continue; }
+    if (!p) {
+      if (m.hs + m.as > 0 && m.st !== 'ft' && now - Date.parse(m.utc) < 10 * 60 * 1000) {
+        events.push({ m, side: m.hs > 0 ? 1 : 2 });
+        if (!m.goals?.length && /^(bb-|sr-|lf-|af-)/.test(m.id)) scoreChanges.push(m);
+      }
+      continue;
+    }
     if (m.hs > p[0]) events.push({ m, side: 1 });
     if (m.as > p[1]) events.push({ m, side: 2 });
+    if ((m.hs !== p[0] || m.as !== p[1]) && !m.goals?.length && /^(bb-|sr-|lf-|af-)/.test(m.id)) scoreChanges.push(m);
   }
   // Beendete Spiele nach einem Tag aus dem Vergleich nehmen
   for (const [id, v] of Object.entries(prev)) if (!cur[id] && ov.matches.some((m) => m.id === id && now - Date.parse(m.utc) < 864e5)) cur[id] = v;
   await cacheSet('push:scores', cur);
-  if (!events.length) return { events: 0 };
+  for (const m of scoreChanges) await fbGame(m.id).catch(() => null);
+  if (!Deno.env.get('VAPID_PRIVATE')) return { events: 0, sent: 0, refresh };
+  if (!events.length) return { events: 0, sent: 0, refresh };
   const subs = await fetch(`${PUSH_URL}?select=endpoint,profile_key`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
   if (!subs.length) return { events: events.length, sent: 0 };
   const keys = [...new Set(subs.map((x) => x.profile_key))];
@@ -1412,7 +1481,7 @@ async function pushTick(now) {
     if (st === 404 || st === 410) await fetch(`${PUSH_URL}?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: 'DELETE', headers: serviceHeaders() }).catch(() => {});
     else if (st >= 200 && st < 300) sent++;
   }
-  return { events: events.length, sent };
+  return { events: events.length, sent, refresh };
 }
 // Das Gerät holt nach dem Anstoss seine Meldungen ab (nur die der letzten 30 Min.); abgeholt = gelöscht, damit
 // beim nächsten Anstoss nicht ältere Meldungen nochmals erscheinen
