@@ -5,10 +5,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC } from '../config.js';
 
 const DATA_URL = `${SUPABASE_URL}/functions/v1/fussball`;
-// Nur zum Prüfen der Live-Anzeige: /fussball/?live-test=1. Der Test läuft
-// vollständig auf der eigenen Funktion und fragt keine Sportdatenquelle ab.
-const LIVE_TEST = new URLSearchParams(location.search).has('live-test');
-const LIVE_POLL_MS = LIVE_TEST ? 15 * 1000 : 60 * 1000;
+const LIVE_POLL_MS = 60 * 1000;
 const IDLE_POLL_MS = 10 * 60 * 1000;
 const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const MON = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'];
@@ -43,7 +40,6 @@ async function profileCall(body) {
 const profileAuth = () => ({ name: store.get('el-profile-name', ''), pin: store.get('el-profile-pin', '') });
 let favSaveTimer = 0;
 function pushFav() {
-  if (LIVE_TEST) return;
   clearTimeout(favSaveTimer);
   favSaveTimer = setTimeout(async () => {
     const a = profileAuth();
@@ -70,7 +66,6 @@ async function pullFav() {
 // Nach Profil-Antwort und Spielplan: Teams vom Gerät ins leere Profil übernehmen – oder, wenn es nirgends Teams gibt,
 // die Auswahl öffnen (Pflicht, mindestens ein Team)
 function settleFav() {
-  if (LIVE_TEST) return;
   if (!data || profileFav === undefined || profileFav === 'ok') return;
   if (FAV?.size) { if (profileFav === 'none') { pushFav(); profileFav = 'ok'; } return; }
   if (!sheet) openFav(true);
@@ -99,21 +94,6 @@ const detailTab = new Map(); // Premier League aufgeklappt: 'goals' | 'lineup' |
 const detailCache = new Map(); // `${id}|${kind}` → Antwort von ?fbdetail=
 const lastFlaps = new Map();
 
-// Ausschliesslich für den sichtbaren App-Test via /fussball/?live-test=1.
-// Der Ablauf wechselt alle 15 Sekunden und bleibt vollständig im Browser.
-function liveTestData(now) {
-  const phase = Math.floor(now / 15_000) % 4;
-  const states = [
-    { hs: 0, as: 0, min: '12', goals: [] },
-    { hs: 1, as: 0, min: '13', goals: [{ m: '13', n: 'Testspieler Heim', s: 1 }] },
-    { hs: 1, as: 1, min: '14', goals: [{ m: '13', n: 'Testspieler Heim', s: 1 }, { m: '14', n: 'Testspieler Gast', s: 2 }] },
-    { hs: 2, as: 1, min: '15', goals: [{ m: '13', n: 'Testspieler Heim', s: 1 }, { m: '14', n: 'Testspieler Gast', s: 2 }, { m: '15', n: 'Testspieler Heim', s: 1 }] },
-  ][phase];
-  return { updated: new Date(now).toISOString(), testLive: true,
-    leagues: [{ id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', status: 'ok', message: '' }],
-    matches: [{ id: 'test-ucl-live', l: 'ucl', utc: new Date(now - 15 * 60 * 1000).toISOString(), round: 'Live-Test',
-      h: 'FC Test Heim', a: 'FC Test Gast', hl: '', al: '', st: 'live', ht: '', note: '', ...states }] };
-}
 // Blatt von unten mit Tabelle und Torschützen (grosse Ligen)
 const ZONE_NAME = { cl: 'Champions League', clq: 'CL-Qualifikation', el: 'Europa League', co: 'Conference League', rel: 'Relegation', ab: 'Abstieg',
   'ucl-r16': 'Achtelfinale', 'ucl-playoff': 'Play-off-Runde', 'ucl-out': 'Ausgeschieden' };
@@ -350,11 +330,10 @@ function render() {
   };
   const favBar = mineOnly ? `<button type="button" class="fb-fav-edit" data-act="fb-fav" aria-haspopup="dialog">${icon('star')}<span>${FAV?.size ? `${FAV.size} ${FAV.size === 1 ? 'Team' : 'Teams'}: ${esc([...FAV.values()].join(', '))}` : 'Noch keine Teams gewählt'}</span><b>Ändern ›</b></button>` : '';
   const strip = list.querySelector('[data-keep-scroll="fb-live"]'), keep = strip ? strip.scrollLeft : 0;
-  const testHint = data.testLive ? '<p class="fb-warn">Live-Test aktiv: Dieses Champions-League-Spiel und seine Resultate sind simuliert. Die Anzeige aktualisiert sich alle 15 Sekunden.</p>' : '';
-  list.innerHTML = testHint + favBar + liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
+  list.innerHTML = favBar + liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
-  $('#fbFoot').textContent = data.testLive ? `Live-Test · Stand ${zTime(new Date(data.updated))} · keine externen Sportdaten abgefragt` : `Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
+  $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
 }
 
 // ---------- Blatt: Tabelle / Torschützen ----------
@@ -645,13 +624,10 @@ async function togglePush() {
 
 async function load() {
   try {
-    if (LIVE_TEST) data = liveTestData(Date.now());
-    else {
-      const res = await fetch(`${DATA_URL}?fb=1`, { headers: { apikey: SUPABASE_ANON_KEY }, cache: 'no-store', signal: AbortSignal.timeout(30000) });
-      const d = await res.json();
-      if (!res.ok || !Array.isArray(d?.matches)) throw new Error(d?.error || '');
-      data = d;
-    }
+    const res = await fetch(`${DATA_URL}?fb=1`, { headers: { apikey: SUPABASE_ANON_KEY }, cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    const d = await res.json();
+    if (!res.ok || !Array.isArray(d?.matches)) throw new Error(d?.error || '');
+    data = d;
     error = '';
     if (!FAV) { FAV = new Map(allTeams().filter((t) => isFavName(t.n)).map((t) => [t.n.toLowerCase(), t.n])); saveFav(); }
     settleFav();
