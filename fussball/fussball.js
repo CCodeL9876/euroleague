@@ -648,10 +648,13 @@ async function load() {
   // Nur nachladen, solange die Seite sichtbar ist (Hintergrund-Tab oder gesperrtes Handy: keine Abfragen)
   if (document.visibilityState === 'hidden') return;
   const live = data?.matches.some((m) => m.st === 'live' || m.st === 'ht');
-  // Vor dem nächsten Anpfiff nicht 10 Min. warten: kurz danach nachladen, damit das Spiel rasch als live erscheint
-  const nextKo = Math.min(...(data?.matches || []).filter((m) => m.st === 'pre' && Date.parse(m.utc) > Date.now()).map((m) => Date.parse(m.utc)));
-  const untilKo = Number.isFinite(nextKo) ? Math.max(30 * 1000, nextKo - Date.now() + 90 * 1000) : Infinity;
-  timer = setTimeout(load, live ? LIVE_POLL_MS : Math.min(IDLE_POLL_MS, untilKo));
+  // Beim Anpfiff neu laden; falls die Quelle den Start noch nicht meldet, die ersten Minuten häufiger prüfen.
+  const now = Date.now();
+  const matches = data?.matches || [];
+  const nextKo = Math.min(...matches.filter((m) => m.st === 'pre' && Date.parse(m.utc) > now).map((m) => Date.parse(m.utc)));
+  const justStarted = matches.some((m) => m.st === 'pre' && now >= Date.parse(m.utc) && now - Date.parse(m.utc) <= 5 * 60 * 1000);
+  const untilKo = Number.isFinite(nextKo) ? Math.max(5 * 1000, nextKo - now) : Infinity;
+  timer = setTimeout(load, live ? LIVE_POLL_MS : justStarted ? 30 * 1000 : Math.min(IDLE_POLL_MS, untilKo));
 }
 
 async function loadGoals(m) {
