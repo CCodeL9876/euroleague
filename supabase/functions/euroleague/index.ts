@@ -50,6 +50,7 @@
 //   → { ok, name, favorites } oder { ok:false, error:'unbekannt'|'pin' }.
 //   POST { kind: 'profile-save', name, pin, favorites } → speichert die Lieblingsteams des Profils.
 //   → { ok, favorites } oder { ok:false, error:'unbekannt'|'pin' }.
+//   POST { kind: 'profile-mssave', name, pin, msState: { seen, since, spoiler } } → speichert den Stand von «Mein Sport».
 //   Profile liegen in der Tabelle „el_profiles“ (PIN nur als Hash); Zugriff ausschliesslich über diese Funktion
 //   mit dem Secret SUPABASE_SERVICE_ROLE_KEY (Tabelle selbst bleibt per RLS für alle anderen gesperrt).
 //   Einrichtung: README.md.
@@ -853,6 +854,12 @@ function cleanFbFavorites(list) {
   return [...new Set(list.map((n) => String(n || '').trim().slice(0, 60)).filter(Boolean))].slice(0, 40);
 }
 
+// Stand von «Mein Sport» (Spalte ms_state, jsonb): gesehene Resultate, Beginn der Zählung, Spoilerschutz
+function cleanMsState(v) {
+  const seen = Array.isArray(v?.seen) ? [...new Set(v.seen.map((k) => String(k || '').slice(0, 60)).filter(Boolean))].slice(-300) : [];
+  const since = Number(v?.since);
+  return { seen, since: Number.isFinite(since) && since > 0 ? since : Date.now(), spoiler: v?.spoiler !== false };
+}
 async function findProfile(key) {
   // select=* statt fester Spalten: funktioniert auch, solange die Spalte fb_favorites noch nicht angelegt ist
   const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}&select=*`, { headers: serviceHeaders() });
@@ -883,7 +890,17 @@ async function handleProfile(body, cors) {
       if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
       const pin_hash = await sha256Hex(`${pin}:${key}`);
       if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
-      return new Response(JSON.stringify({ ok: true, name: row.name, favorites: row.favorites || [], fbFavorites: Array.isArray(row.fb_favorites) ? row.fb_favorites : null }), { headers });
+      return new Response(JSON.stringify({ ok: true, name: row.name, favorites: row.favorites || [], fbFavorites: Array.isArray(row.fb_favorites) ? row.fb_favorites : null, msState: row.ms_state || null }), { headers });
+    }
+    if (body.kind === 'profile-mssave') {
+      const row = await findProfile(key);
+      if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
+      const pin_hash = await sha256Hex(`${pin}:${key}`);
+      if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
+      const ms_state = cleanMsState(body.msState);
+      const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}`, { method: 'PATCH', headers: { ...serviceHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify({ ms_state, updated_at: new Date().toISOString() }) });
+      if (!res.ok) throw new Error(`mssave ${res.status}`);
+      return new Response(JSON.stringify({ ok: true }), { headers });
     }
     if (body.kind === 'profile-fbsave') {
       const row = await findProfile(key);
