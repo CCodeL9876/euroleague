@@ -864,7 +864,7 @@ function toast(msg) {
 }
 
 // ---------- Spielbericht ----------
-const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', view: 'stats', vid: '', playing: false };
+const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false };
 const pct = (a) => (a[1] ? `${Math.round(a[0] / a[1] * 100)}%` : '–');
 const ratio = (a) => `${a[0]}/${a[1]}`;
 
@@ -883,7 +883,7 @@ async function loadBox(code) {
 
 function openBox(code, view = 'stats') {
   const dlg = $('#box');
-  boxState.code = code; boxState.data = null; boxState.error = ''; boxState.team = 0; boxState.shooter = '';
+  boxState.code = code; boxState.data = null; boxState.error = ''; boxState.team = 0; boxState.shooter = ''; boxState.shotV = 0;
   boxState.view = view; boxState.vid = ''; boxState.playing = false;
   clearInterval(boxState.timer);
   renderBox();
@@ -1062,9 +1062,16 @@ function shotBodyHtml(b, team) {
   const list = (b.shots || []).filter((x) => x.t === team.code && (!boxState.shooter || x.p === boxState.shooter));
   const cnt = (v) => { const l = list.filter((x) => x.v === v); return [l.filter((x) => x.m).length, l.length]; };
   const c2 = cnt(2), c3 = cnt(3);
-  const dots = list.map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
-  return `${courtSvg(dots, `Wurfkarte: ${c2[0] + c3[0]} von ${c2[1] + c3[1]} Würfen getroffen`)}
-    <p class="shots-sum num"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>2P ${c2[0]}/${c2[1]} (${pct(c2)})</span><span>3P ${c3[0]}/${c3[1]} (${pct(c3)})</span></p>`;
+  const shown = list.filter((x) => !boxState.shotV || x.v === boxState.shotV);
+  const dots = shown.map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
+  const filter = (v, c) => `<button type="button" class="shot-f" data-act="shot-v" data-v="${v}" aria-pressed="${boxState.shotV === v}" aria-label="Nur ${v}-Punkte-Würfe zeigen">${v}P ${c[0]}/${c[1]} (${pct(c)})</button>`;
+  return `${courtSvg(dots, `Wurfkarte: ${shown.filter((x) => x.m).length} von ${shown.length} Würfen getroffen`)}
+    <p class="shots-sum num"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span></p>
+    <div class="shot-fs" role="group" aria-label="Würfe filtern">${filter(2, c2)}${filter(3, c3)}</div>`;
+}
+function refreshShots() {
+  const b = boxState.data, team = b?.teams?.[boxState.team] || b?.teams?.[0], body = $('#shotBody');
+  if (body && team) body.innerHTML = shotBodyHtml(b, team);
 }
 function shotsHtml(b, team) {
   const all = (b.shots || []).filter((x) => x.t === team.code);
@@ -1685,7 +1692,13 @@ document.addEventListener('click', (e) => {
   else if (act === 'box-view') { boxState.view = t.dataset.v; boxState.playing = false; renderBox(); }
   else if (act === 'video-play') { boxState.vid = t.dataset.id; boxState.playing = true; renderBox(); $('#box .vstage')?.scrollIntoView({ block: 'nearest' }); }
   else if (act === 'box-close') $('#box').close();
-  else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; renderBox(); }
+  else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; boxState.shotV = 0; renderBox(); }
+  else if (act === 'shot-v') {
+    const v = Number(t.dataset.v);
+    boxState.shotV = boxState.shotV === v ? 0 : v;
+    refreshShots();
+    $(`#shotBody [data-v="${v}"]`)?.focus();
+  }
   else if (act === 'team') openTeam(t.dataset.c);
   else if (act === 'team-close') $('#teamDlg').close();
   else if (act === 'facts') openFacts();
@@ -1753,8 +1766,7 @@ $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarge
 document.addEventListener('change', (e) => {
   if (e.target.id !== 'shotPlayer') return;
   boxState.shooter = e.target.value;
-  const b = boxState.data, team = b?.teams?.[boxState.team] || b?.teams?.[0], body = $('#shotBody');
-  if (body && team) body.innerHTML = shotBodyHtml(b, team);
+  refreshShots();
 });
 document.addEventListener('submit', (e) => { if (e.target.id === 'profileForm') e.preventDefault(); });
 document.addEventListener('input', (e) => {

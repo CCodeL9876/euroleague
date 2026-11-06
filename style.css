@@ -588,6 +588,9 @@ button.box-team:hover{background:var(--card-2);}
 @media (max-width:600px){ .tops-wrap{grid-template-columns:minmax(0,1fr);} }
 .shots{display:flex;flex-direction:column;gap:10px;background:var(--card);border-radius:18px;padding:14px;}
 .shots-body{display:flex;flex-direction:column;gap:10px;}
+.shot-f{min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--text);font:inherit;font-variant-numeric:tabular-nums;cursor:pointer;}
+.shot-f[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:var(--on-color);}
+.shot-fs{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .shots-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
 .shots-head h4{margin:0;font-size:0.95rem;font-weight:600;}
 .shots select{min-height:40px;max-width:100%;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:0 12px;font:inherit;font-size:0.88rem;}
