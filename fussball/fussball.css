@@ -4,8 +4,11 @@
 :root{--frame:#B4D6C0;--bg:#1B3326;--panel:#203B2D;--card:#264534;--card-2:#2D503D;--line:#365C46;--text:#ECF6EF;--dim:#A7C4B1;--faint:#88A894;}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .live-hero{--flap-board:#142A1E;--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;} }
 :root[data-theme="dark"] .live-hero{--flap-board:#142A1E;--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;}
-@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){--pitch:#1F7A45;--pitch-hi:#1F7A45;} }
-:root[data-theme="light"]{--pitch:#1F7A45;--pitch-hi:#1F7A45;}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]) .live-hero{--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;} }
+:root[data-theme="light"] .live-hero{--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;}
+/* Hellmodus: heller Grünton passend zum Tannengrün (statt Lavendel wie im Basketball-Teil) */
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){--pitch:#1F7A45;--pitch-hi:#1B6E3E;--frame:#C4DDCC;--bg:#DDEBE1;--panel:#D3E4D8;--card:#EEF5F0;--card-2:#CCDFD2;--line:#B4CFBD;--text:#12241A;--dim:#33493B;--faint:#465C4E;} }
+:root[data-theme="light"]{--pitch:#1F7A45;--pitch-hi:#1B6E3E;--frame:#C4DDCC;--bg:#DDEBE1;--panel:#D3E4D8;--card:#EEF5F0;--card-2:#CCDFD2;--line:#B4CFBD;--text:#12241A;--dim:#33493B;--faint:#465C4E;}
 body:not(.unlocked) .fb{display:none;}
 .fb{max-width:760px;margin:0 auto;background:var(--bg);border-radius:28px;overflow:hidden;}
 /* Kopf wie im Basketball-Bereich: Zeichen, Titel, Hell/Dunkel, Profil-Kürzel mit Menü */
@@ -84,7 +87,7 @@ body:not(.unlocked) .fb{display:none;}
 .fb-live-head small{font-size:0.75rem;color:var(--dim);}
 .fb-live-card{font:inherit;text-align:left;width:100%;}
 .fb-logo.fb-logo-lg{width:40px;height:40px;}
-.fb-live-goal{font-size:0.74rem;color:var(--flap-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw;}
+.fb-live-goal{font-size:0.74rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw;}
 @media (max-width:520px){ .fb-logo.fb-logo-lg{width:34px;height:34px;} }
 .fb-st .live-dot{margin-right:3px;}
 .fb-ticker{margin-top:2px;}
@@ -171,7 +174,7 @@ body:not(.unlocked) .fb-tabs{display:none;}
 .fb-tabs .icon{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 .fb-tabs button:hover{color:var(--text);}
 .fb-tabs button[aria-current="page"]{color:#fff;background:var(--pitch);box-shadow:0 8px 18px color-mix(in srgb, var(--pitch) 45%, transparent);}
-.fb-tab-bb{color:var(--euroleague);}
+.fb-tab-bb{color:var(--orange);}
 .fb-tab-bb::before{content:"";position:absolute;left:-3px;top:12px;bottom:12px;width:1px;background:var(--line);}
 .fb-tab-bb:active{background:color-mix(in srgb, var(--euroleague) 18%, transparent);}
 .toast{bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
@@ -245,7 +248,7 @@ button.fb-pl:hover .sh, button.fb-pl:focus-visible .sh{background:var(--card-2);
   .fb-nav button,.fb-nav a{display:inline-flex;align-items:center;min-height:38px;padding:0 16px;border:0;border-radius:999px;background:var(--card);color:var(--dim);font:inherit;font-size:0.85rem;font-weight:600;cursor:pointer;text-decoration:none;}
   .fb-nav button:hover,.fb-nav a:hover{color:var(--text);}
   .fb-nav button[aria-current="page"]{background:var(--pitch);color:#fff;}
-  .fb-nav .fb-nav-bb{color:var(--euroleague);}
+  .fb-nav .fb-nav-bb{color:var(--orange);}
   .fb-days{scrollbar-width:thin;scrollbar-color:var(--line) transparent;}
   .fb-days::-webkit-scrollbar{display:block;height:6px;}
   .fb-days::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
