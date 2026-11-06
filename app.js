@@ -1056,20 +1056,25 @@ function playerShotsHtml(d) {
     : '<p class="shots-sum"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>ohne Freiwürfe</span></p>'}</div>`;
 }
 
+// Nur Feld und Summen: beim Wechsel des Spielers wird allein dieser Teil ersetzt. Das Auswahlfeld darf nicht neu gezeichnet
+// und fokussiert werden, sonst klappt es auf dem iPhone gleich wieder auf.
+function shotBodyHtml(b, team) {
+  const list = (b.shots || []).filter((x) => x.t === team.code && (!boxState.shooter || x.p === boxState.shooter));
+  const cnt = (v) => { const l = list.filter((x) => x.v === v); return [l.filter((x) => x.m).length, l.length]; };
+  const c2 = cnt(2), c3 = cnt(3);
+  const dots = list.map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
+  return `${courtSvg(dots, `Wurfkarte: ${c2[0] + c3[0]} von ${c2[1] + c3[1]} Würfen getroffen`)}
+    <p class="shots-sum num"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>2P ${c2[0]}/${c2[1]} (${pct(c2)})</span><span>3P ${c3[0]}/${c3[1]} (${pct(c3)})</span></p>`;
+}
 function shotsHtml(b, team) {
   const all = (b.shots || []).filter((x) => x.t === team.code);
   if (!all.length) return '';
   const shooters = [...new Set(all.map((x) => x.p))].sort((x, y) => x.localeCompare(y, 'de'));
   if (boxState.shooter && !shooters.includes(boxState.shooter)) boxState.shooter = '';
-  const list = all.filter((x) => !boxState.shooter || x.p === boxState.shooter);
-  const cnt = (v) => { const l = list.filter((x) => x.v === v); return [l.filter((x) => x.m).length, l.length]; };
-  const c2 = cnt(2), c3 = cnt(3);
-  const dots = list.map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
   return `<div class="shots"><div class="shots-head"><h4>Wurfkarte</h4>
       <label class="sr-only" for="shotPlayer">Spieler</label>
       <select id="shotPlayer"><option value="">Alle Spieler</option>${shooters.map((p) => `<option value="${esc(p)}"${p === boxState.shooter ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
-    ${courtSvg(dots, `Wurfkarte: ${c2[0] + c3[0]} von ${c2[1] + c3[1]} Würfen getroffen`)}
-    <p class="shots-sum num"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>2P ${c2[0]}/${c2[1]} (${pct(c2)})</span><span>3P ${c3[0]}/${c3[1]} (${pct(c3)})</span></p></div>`;
+    <div class="shots-body" id="shotBody">${shotBodyHtml(b, team)}</div></div>`;
 }
 
 // ---------- Wurfzonen ----------
@@ -1745,7 +1750,12 @@ $('#factsDlg').addEventListener('click', (e) => { if (e.target === e.currentTarg
 $('#statsDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#playerDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-document.addEventListener('change', (e) => { if (e.target.id === 'shotPlayer') { boxState.shooter = e.target.value; renderBox(); $('#shotPlayer')?.focus(); } });
+document.addEventListener('change', (e) => {
+  if (e.target.id !== 'shotPlayer') return;
+  boxState.shooter = e.target.value;
+  const b = boxState.data, team = b?.teams?.[boxState.team] || b?.teams?.[0], body = $('#shotBody');
+  if (body && team) body.innerHTML = shotBodyHtml(b, team);
+});
 document.addEventListener('submit', (e) => { if (e.target.id === 'profileForm') e.preventDefault(); });
 document.addEventListener('input', (e) => {
   if (e.target.id === 'profName') profileDraft.name = e.target.value;
