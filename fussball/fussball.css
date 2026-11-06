@@ -282,3 +282,8 @@ button.fb-pl:hover .sh, button.fb-pl:focus-visible .sh{background:var(--card-2);
 .fb-card .fb-tab{border-radius:0;} .fb-card .fb-tab td.tm{max-width:190px;}
 .fb-card .fb-sc-list{border-radius:0;} .fb-card .fb-scr{padding:8px 14px;}
 .fb-card .fb-x-note{margin:14px;}
+
+/* Link zu «Mein Sport» */
+.fb-tab-ms{color:var(--dim);}
+.fb-tab-ms::before{display:none;}
+.fb-nav-ms{color:var(--dim);text-decoration:none;font-weight:600;}
