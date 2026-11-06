@@ -17,7 +17,7 @@ const store = {
 };
 try { sessionStorage.setItem('el-started', '1'); } catch { /* privates Fenster */ } // siehe start-boot.js
 // Ohne Profil zurück zum Basketball-Bereich (dort Anmeldung)
-if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../basketball/'); }
+if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../basketball/euroleague/'); }
 
 // Lieblingsteams: genaue Teamnamen (lokal gespeichert, im Profilmenü wählbar). Ältere Geräte haben nur Stichwörter
 // (el-fb-fav) – die werden beim ersten Laden der Spiele in Teamnamen umgewandelt.
@@ -822,7 +822,7 @@ document.addEventListener('click', (e) => {
   if (act === 'theme') { toggleTheme(); return; }
   if (act === 'profile-menu') { menuOpen = !menuOpen; renderMenu(); return; }
   if (act === 'copy-link') { menuOpen = false; renderMenu(); copyLink(); return; }
-  if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../basketball/'; return; }
+  if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../basketball/euroleague/'; return; }
   if (act === 'logout') { logout(); return; }
   if (act === 'fb-fav') { menuOpen = false; renderMenu(); openFav(); return; }
   if (act === 'fb-player') { openPlayer(e.target.closest('[data-pid]').dataset.pid); return; }

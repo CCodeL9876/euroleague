@@ -147,8 +147,8 @@ if (unlocked()) {
   boot();
 } else {
   const key = new URLSearchParams(location.search).get('key');
-  // Unterbereich ohne Freischaltung: zur Startseite, danach zurück (el-next, siehe basketball/app.js enterApp)
-  if (!key && !document.body.dataset.root) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../'); }
+  // Unterbereich ohne Freischaltung: zur Startseite, danach zurück (el-next, siehe basketball/euroleague/app.js enterApp)
+  if (!key && !document.body.dataset.root) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace(document.body.dataset.up || '../'); }
   else if (key) showPrompt(key);
   else if (sessionStorage.getItem('el-gate-relogin') === '1') { sessionStorage.removeItem('el-gate-relogin'); showRelinkNotice('Abgemeldet'); }
   // Als Homebildschirm-App gespeichert, aber (noch) nicht angemeldet: Link + Code direkt hier eingeben lassen –
