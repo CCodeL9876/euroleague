@@ -358,8 +358,8 @@ function openPick() {
   renderPick();
 }
 
-const START_NAME = { basketball: 'Basketball', meinsport: 'Mein Sport', fussball: 'Fussball' };
-const startPage = () => { const v = store.get('el-start', 'basketball'); return START_NAME[v] ? v : 'basketball'; };
+const START_NAME = { meinsport: 'Mein Sport', basketball: 'Basketball', fussball: 'Fussball' };
+const startPage = () => { const v = store.get('el-start', 'meinsport'); return START_NAME[v] ? v : 'meinsport'; };
 
 function openMe() {
   const dlg = $('#msMe');
