@@ -154,7 +154,7 @@ body:not(.unlocked) .fb{display:none;}
 .fb-sc-head{font-size:0.68rem;color:var(--dim);padding:0 8px 6px;} .fb-sc-head span:nth-child(n+3){text-align:center;}
 .fb-scr{padding:8px;border-top:1px solid var(--line);font-size:0.86rem;background:var(--card);}
 .fb-sc-list{border-radius:14px;overflow:hidden;} .fb-sc-list .fb-scr:first-child{border-top:0;}
-.fb-scr .pos{color:var(--dim);font-size:0.78rem;} .fb-scr .who{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-width:0;}
+.fb-scr .pos{color:var(--dim);font-size:0.78rem;} .fb-scr .who{display:flex;flex-direction:column;align-items:flex-start;gap:0;text-align:left;min-width:0;}
 .fb-scr .who b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .fb-scr .who small{color:var(--dim);font-size:0.72rem;}
 .fb-scr .g{font-weight:700;text-align:center;} .fb-scr .a{color:var(--dim);text-align:center;}
 
@@ -234,3 +234,48 @@ button.fb-pl:hover .sh, button.fb-pl:focus-visible .sh{background:var(--card-2);
 .fb-ps-youth{margin:6px 0 0;font-size:0.74rem;color:var(--faint);}
 .fb-lu-pl{border:0;background:transparent;padding:0;color:inherit;font:inherit;text-align:inherit;cursor:pointer;overflow:hidden;text-overflow:ellipsis;}
 .fb-lu-pl:hover{text-decoration:underline;}
+/* Desktop-Dashboard: Ligen und Teams | Spiele | Tabelle und Torschützen (Grenze wie DASH in fussball.js); darunter eine Spalte wie am Handy */
+.fb-nav,.fb-side{display:none;}
+@media (min-width:1100px){
+  body{padding-bottom:28px;}
+  .fb-tabs{display:none;}
+  .toast{bottom:24px;}
+  .fb{max-width:1480px;overflow:visible;}
+  .fb-nav{display:flex;gap:6px;margin-right:6px;}
+  .fb-nav button,.fb-nav a{display:inline-flex;align-items:center;min-height:38px;padding:0 16px;border:0;border-radius:999px;background:var(--card);color:var(--dim);font:inherit;font-size:0.85rem;font-weight:600;cursor:pointer;text-decoration:none;}
+  .fb-nav button:hover,.fb-nav a:hover{color:var(--text);}
+  .fb-nav button[aria-current="page"]{background:var(--pitch);color:#fff;}
+  .fb-nav .fb-nav-bb{color:var(--euroleague);}
+  .fb-days{scrollbar-width:thin;scrollbar-color:var(--line) transparent;}
+  .fb-days::-webkit-scrollbar{display:block;height:6px;}
+  .fb-days::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+  .fb-dash{display:grid;grid-template-columns:clamp(200px,17vw,240px) minmax(0,1fr) clamp(320px,26vw,380px);gap:16px;align-items:start;padding:16px;}
+  .fb-list{padding:0;}
+  .fb-side{display:flex;flex-direction:column;gap:14px;position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent;min-width:0;}
+  .fb-side > *{flex:none;}
+  .fb-live .hero-scroll{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));overflow:visible;scroll-snap-type:none;}
+  .fb-live-goal{display:none;} /* steht rechts unter «Letzte Tore» */
+  .fb-side .fb-ticker{margin-top:0;}
+}
+.fb-card{background:var(--card);border-radius:20px;overflow:hidden;}
+.fb-side > .fb-card:first-child:not(:has(.fb-tab,.fb-sc-list)){padding:4px 8px 10px;}
+.fb-side-h{display:flex;align-items:center;justify-content:space-between;margin:12px 8px 6px;font-size:0.68rem;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;}
+.fb-side-more{border:0;background:transparent;padding:0;color:var(--pitch-hi);font:inherit;font-size:0.76rem;font-weight:600;letter-spacing:0;text-transform:none;cursor:pointer;white-space:nowrap;}
+.fb-side-more:hover{text-decoration:underline;}
+.fb-side-note{margin:0 8px;font-size:0.8rem;color:var(--dim);}
+.fb-nav-i{display:flex;align-items:center;gap:10px;width:100%;min-height:40px;padding:6px 8px;border:0;border-radius:10px;background:transparent;color:var(--text);font:inherit;font-size:0.86rem;text-align:left;cursor:pointer;}
+.fb-nav-i:hover:not(:disabled){background:var(--card-2);}
+.fb-nav-i[aria-current="true"]{background:var(--card-2);box-shadow:inset 3px 0 0 var(--pitch-hi);font-weight:600;}
+.fb-nav-i:disabled{color:var(--faint);cursor:default;}
+.fb-nav-i .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fb-nav-i small{font-family:var(--mono);font-size:0.72rem;color:var(--faint);}
+.fb-card-h{display:flex;align-items:center;gap:10px;margin:0;padding:12px 14px;border-bottom:1px solid var(--line);font-size:0.92rem;font-weight:400;}
+.fb-card-h b{font-weight:700;} .fb-card-h small{margin-left:auto;font-size:0.75rem;color:var(--dim);}
+.fb-card-h .fb-side-more{margin-left:auto;}
+.fb-dash-seg{display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px;border-bottom:1px solid var(--line);}
+.fb-dash-seg button{min-height:30px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--dim);font:inherit;font-family:var(--mono);font-size:0.74rem;font-weight:600;cursor:pointer;}
+.fb-dash-seg button:hover{color:var(--text);}
+.fb-dash-seg button[aria-pressed="true"]{background:var(--card-2);color:var(--text);}
+.fb-card .fb-tab{border-radius:0;} .fb-card .fb-tab td.tm{max-width:190px;}
+.fb-card .fb-sc-list{border-radius:0;} .fb-card .fb-scr{padding:8px 14px;}
+.fb-card .fb-x-note{margin:14px;}

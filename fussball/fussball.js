@@ -99,6 +99,9 @@ const ZONE_NAME = { cl: 'Champions League', clq: 'CL-Qualifikation', el: 'Europa
   'ucl-r16': 'Achtelfinale', 'ucl-playoff': 'Play-off-Runde', 'ucl-out': 'Ausgeschieden' };
 const TABLE_LEAGUES = new Set(['ucl', 'pl', 'bl1', 'laliga', 'seriea', 'ligue1']);
 const leagueCache = new Map(); // `${id}|${kind}` → Antwort von ?fbleague=
+// Desktop-Dashboard (drei Spalten, Grenze wie in fussball.css): links Ligen und Teams, rechts Tabelle, Torschützen, letzte Tore
+const DASH = matchMedia('(min-width:1100px)');
+let focusLg = '', tableLg = ''; // Filter der Spielliste; gewählte Tabelle (leer = erste Liga des Tages)
 let sheet = null; // { id, tab: 'table' | 'scorers' } // Spielstand-Zeichen der letzten Anzeige: geänderte Blätter klappen um
 
 function dayLabel(key) {
@@ -252,9 +255,10 @@ function row(m) {
 
 // Live-Tafel zuoberst: alle laufenden Spiele (unabhängig vom gewählten Tag) als Fallblatt-Anzeige wie im Basketball-Bereich
 const isLive = (m) => m.st === 'live' || m.st === 'ht';
+const livesNow = () => data.matches.filter((m) => isLive(m) && (!mineOnly || isFav(m)))
+  .sort((a, b) => isFav(b) - isFav(a) || a.utc.localeCompare(b.utc) || a.h.localeCompare(b.h));
 function liveHtml() {
-  const lives = data.matches.filter((m) => isLive(m) && (!mineOnly || isFav(m)))
-    .sort((a, b) => isFav(b) - isFav(a) || a.utc.localeCompare(b.utc) || a.h.localeCompare(b.h));
+  const lives = livesNow();
   if (!lives.length) return '';
   const cards = lives.map((m) => {
     const hs = String(m.hs ?? 0), as = String(m.as ?? 0);
@@ -277,7 +281,7 @@ function liveHtml() {
         <span class="flap-clock">${goal ? `<span class="fb-live-goal">${goal}</span>` : ''}<span class="flap-more" aria-hidden="true">›</span></span></span></button>`;
   }).join('');
   return `<section class="fb-live" aria-label="Live-Spiele"><div class="fb-live-head"><b><i class="live-dot" aria-hidden="true"></i>Live</b><small>${lives.length} ${lives.length === 1 ? 'Spiel' : 'Spiele'}</small></div>
-    <div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="fb-live">${cards}</div>${tickerHtml(lives)}</section>`;
+    <div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="fb-live">${cards}</div>${DASH.matches ? '' : tickerHtml(lives)}</section>`;
 }
 
 // Konferenz: die letzten Tore aller laufenden Spiele, neustes zuoberst (Zeit = Anpfiff + Minute, nach der Pause 15 Minuten mehr)
@@ -315,10 +319,13 @@ function render() {
   const cur = days.querySelector('[aria-pressed="true"]');
   if (cur && !days.dataset.scrolled) { days.scrollLeft = cur.offsetLeft - days.clientWidth / 2 + cur.clientWidth / 2; days.dataset.scrolled = '1'; }
 
-  const ms = (byDay[sel] || []).sort((a, b) => a.utc.localeCompare(b.utc) || a.h.localeCompare(b.h));
+  const dayMs = (byDay[sel] || []).sort((a, b) => a.utc.localeCompare(b.utc) || a.h.localeCompare(b.h));
+  if (focusLg && !dayMs.some((m) => m.l === focusLg)) focusLg = '';
+  const lgOnly = DASH.matches ? focusLg : '';
+  const ms = lgOnly ? dayMs.filter((m) => m.l === lgOnly) : dayMs;
   const groups = [];
   const fav = ms.filter(isFav);
-  if (fav.length && !mineOnly) groups.push({ star: true, name: 'Meine Spiele', sub: `${fav.length} ${fav.length === 1 ? 'Spiel' : 'Spiele'}`, list: fav });
+  if (fav.length && !mineOnly && !lgOnly) groups.push({ star: true, name: 'Meine Spiele', sub: `${fav.length} ${fav.length === 1 ? 'Spiel' : 'Spiele'}`, list: fav });
   for (const lg of orderedLeagues()) {
     const l = ms.filter((m) => m.l === lg.id);
     if (l.length) groups.push({ ...lg, sub: l[0].round ? (/^\d+$/.test(l[0].round) ? `${l[0].round}. Runde` : l[0].round) : lg.country, list: l });
@@ -334,7 +341,98 @@ function render() {
   list.innerHTML = favBar + liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
+  renderDash(dayMs, matches);
   $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
+}
+
+// ---------- Desktop-Dashboard: Spalten links und rechts ----------
+const LEAGUE_TTL = 30 * 60 * 1000;
+const leagueBusy = new Set();
+// Tabelle oder Torschützen laden (Blatt und Dashboard teilen sich den Speicher; am Desktop bleibt die Seite lange offen, darum nach 30 Minuten frisch)
+async function fetchLeague(id, tab) {
+  const k = `${id}|${tab}`, have = leagueCache.get(k);
+  if ((have && Date.now() - have.at < LEAGUE_TTL) || leagueBusy.has(k)) return false;
+  leagueBusy.add(k);
+  try {
+    const res = await fetch(`${DATA_URL}?fbleague=${encodeURIComponent(id)}&kind=${tab}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(30000) });
+    leagueCache.set(k, { ...(await res.json()), at: Date.now() });
+  } catch { leagueCache.set(k, have?.available ? { ...have, at: Date.now() } : { available: false, at: Date.now() }); } // alter Stand bleibt; nächster Versuch erst nach der Frist
+  leagueBusy.delete(k);
+  return true;
+}
+const countOf = (n) => `<small>${n}</small>`;
+function sideLeftHtml(dayMs, matches) {
+  const lgBtn = (lg, n) => `<button type="button" class="fb-nav-i" data-act="fb-dash-pick" data-id="${esc(lg.id)}"${focusLg === lg.id ? ' aria-current="true"' : ''}><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span><span class="nm">${esc(lg.name)}</span>${n ? countOf(n) : ''}</button>`;
+  const leagues = orderedLeagues();
+  const today = leagues.filter((lg) => dayMs.some((m) => m.l === lg.id));
+  const later = leagues.filter((lg) => !today.includes(lg) && matches.some((m) => m.l === lg.id));
+  const teams = new Map(allTeams().map((t) => [t.n.toLowerCase(), t]));
+  const mine = [...(FAV?.values() || [])];
+  return `<section class="fb-card"><h3 class="fb-side-h">${esc(dayLabel(sel))} · ${new Date(`${sel}T12:00:00`).getDate()}. ${MON[new Date(`${sel}T12:00:00`).getMonth()]}</h3>
+      <button type="button" class="fb-nav-i" data-act="fb-dash-pick" data-id=""${focusLg ? '' : ' aria-current="true"'}><span class="fb-lg" style="--c:var(--pitch)">≡</span><span class="nm">Alle Ligen</span>${countOf(dayMs.length)}</button>
+      ${today.map((lg) => lgBtn(lg, dayMs.filter((m) => m.l === lg.id).length)).join('')}
+      <h3 class="fb-side-h">Meine Teams<button type="button" class="fb-side-more" data-act="fb-fav" aria-haspopup="dialog">Ändern</button></h3>
+      ${mine.map((n) => { const t = teams.get(n.toLowerCase());
+        return `<button type="button" class="fb-nav-i" data-act="fb-dash-team" data-team="${esc(n)}"${teamGame(n) ? '' : ' disabled'}>${logo(t?.logo)}<span class="nm">${esc(n)}</span></button>`; }).join('') || '<p class="fb-side-note">Noch keine Teams gewählt.</p>'}
+      ${later.length ? `<h3 class="fb-side-h">Weitere</h3>${later.map((lg) => lgBtn(lg, 0)).join('')}` : ''}</section>`;
+}
+function sideRightHtml(lg) {
+  const lives = livesNow();
+  const tick = lives.length ? tickerHtml(lives) : '';
+  if (!lg) return tick;
+  const tabs = orderedLeagues().filter((l) => TABLE_LEAGUES.has(l.id));
+  const t = leagueCache.get(`${lg.id}|table`), s = leagueCache.get(`${lg.id}|scorers`);
+  let table = '<p class="fb-x-note">Lade …</p>';
+  if (t && !t.available) table = '<p class="fb-x-note">Gerade nicht verfügbar.</p>';
+  else if (t) {
+    const zone = (rank) => (t.zones || []).find(([a, b]) => rank >= a && rank <= b)?.[2] || '';
+    const rows = t.rows.filter((r) => r.rank <= 12 || isFavName(r.team));
+    table = `<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
+      <tbody>${rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}"><td class="pos">${esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span></span></td>
+        <td>${esc(r.p)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>`;
+  }
+  const scorers = s?.available && s.rows?.length ? `<section class="fb-card"><h3 class="fb-card-h"><b>Torschützen</b><small>${esc(lg.name)}</small></h3>
+    <div class="fb-sc-list">${s.rows.slice(0, 8).map((r) => `<div class="fb-scr compact${isFavName(r.team) ? ' fav' : ''}"><span class="pos">${esc(r.rank)}</span><span class="who"><b>${esc(r.n)}</b>${r.team ? `<small>${esc(r.team)}</small>` : ''}</span><span class="g">${esc(r.g)}</span></div>`).join('')}</div></section>` : '';
+  return `${tick}<section class="fb-card"><h3 class="fb-card-h"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span><b>${esc(lg.name)}</b>
+      <button type="button" class="fb-side-more" data-act="fb-table" data-id="${esc(lg.id)}" aria-haspopup="dialog">Ganze Tabelle ›</button></h3>
+    <div class="fb-dash-seg" role="group" aria-label="Tabelle wählen">${tabs.map((l) => `<button type="button" data-act="fb-dash-lg" data-id="${esc(l.id)}" aria-pressed="${l.id === lg.id}" title="${esc(l.name)}">${esc(l.short)}</button>`).join('')}</div>${table}</section>${scorers}`;
+}
+function renderDash(dayMs, matches) {
+  const left = $('#fbSideL'), right = $('#fbSideR');
+  if (!DASH.matches) { left.innerHTML = ''; right.innerHTML = ''; return; } // Handy: nichts anzeigen und nichts laden
+  const tabs = orderedLeagues().filter((l) => TABLE_LEAGUES.has(l.id));
+  const id = tableLg || (TABLE_LEAGUES.has(focusLg) ? focusLg : '') || tabs.find((l) => dayMs.some((m) => m.l === l.id))?.id || tabs[0]?.id;
+  const lg = tabs.find((l) => l.id === id);
+  const keepL = left.scrollTop, keepR = right.scrollTop;
+  left.innerHTML = sideLeftHtml(dayMs, matches);
+  right.innerHTML = sideRightHtml(lg);
+  left.scrollTop = keepL; right.scrollTop = keepR;
+  if (lg) Promise.all([fetchLeague(lg.id, 'table'), fetchLeague(lg.id, 'scorers')]).then((r) => { if (r.some(Boolean)) render(); });
+}
+// Liga links gewählt: Spielliste filtern, rechts die Tabelle zeigen; ohne Spiele am gewählten Tag zum nächsten Spieltag der Liga
+function pickLeague(id) {
+  focusLg = focusLg === id ? '' : id;
+  if (TABLE_LEAGUES.has(focusLg)) tableLg = focusLg;
+  if (focusLg) {
+    const days = [...new Set(data.matches.filter((m) => m.l === focusLg && (!mineOnly || isFav(m))).map((m) => zDate(new Date(m.utc))))].sort();
+    if (!days.includes(sel)) { const today = zDate(new Date()); sel = days.find((k) => k >= today) || days.at(-1) || sel; delete $('#fbDays').dataset.scrolled; }
+  }
+  open.clear(); render(); scrollTo(0, 0);
+}
+// Team links gewählt: laufendes Spiel, sonst das nächste, sonst das letzte
+function teamGame(n) {
+  const k = n.toLowerCase(), now = Date.now();
+  const all = data.matches.filter((m) => [m.h, m.a].some((x) => x?.toLowerCase() === k)).sort((a, b) => a.utc.localeCompare(b.utc));
+  return all.find(isLive) || all.find((m) => m.st === 'pre' && Date.parse(m.utc) >= now) || all.at(-1);
+}
+// Zu einem Spiel springen und aufklappen (Live-Tafel, Ticker, Team im Dashboard)
+function openMatch(m) {
+  mineOnly = false; focusLg = ''; sel = zDate(new Date(m.utc)); open.add(m.id);
+  document.querySelectorAll('[data-view]').forEach((x) => { if (x.dataset.view === 'all') x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
+  delete $('#fbDays').dataset.scrolled;
+  render();
+  if (m.st !== 'pre' && !m.goals) loadGoals(m);
+  document.querySelector(`.fb-match[data-id="${CSS.escape(m.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ---------- Blatt: Tabelle / Torschützen ----------
@@ -457,13 +555,7 @@ function renderSheet() {
 async function openSheet(id, tab) {
   sheet = { id, tab }; renderSheet();
   document.querySelector('.fb-sheet-x')?.focus();
-  const k = `${id}|${tab}`;
-  if (leagueCache.has(k)) return;
-  try {
-    const res = await fetch(`${DATA_URL}?fbleague=${encodeURIComponent(id)}&kind=${tab}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(30000) });
-    leagueCache.set(k, await res.json());
-  } catch { leagueCache.set(k, { available: false }); }
-  if (sheet && sheet.id === id && sheet.tab === tab) renderSheet();
+  if (await fetchLeague(id, tab) && sheet && sheet.id === id && sheet.tab === tab) renderSheet();
 }
 // ---------- Blatt: Reihenfolge der Ligen (lokal gespeichert) ----------
 let leagueOrder = (() => { try { const v = JSON.parse(store.get('el-fb-order', 'null')); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } })();
@@ -741,10 +833,10 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && menuOpen
 document.addEventListener('click', (e) => {
   const d = e.target.closest('.fb-day');
   if (d) { sel = d.dataset.d; open.clear(); render(); return; }
-  const tab = e.target.closest('.fb-tabs [data-view]');
+  const tab = e.target.closest('[data-view]');
   if (tab) {
-    mineOnly = tab.dataset.view === 'mine'; sel = ''; open.clear();
-    document.querySelectorAll('.fb-tabs [data-view]').forEach((x) => { if (x === tab) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
+    mineOnly = tab.dataset.view === 'mine'; sel = ''; focusLg = ''; open.clear();
+    document.querySelectorAll('[data-view]').forEach((x) => { if (x.dataset.view === tab.dataset.view) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
     render(); scrollTo(0, 0); return;
   }
   const act = e.target.closest('[data-act]')?.dataset.act;
@@ -772,6 +864,9 @@ document.addEventListener('click', (e) => {
   if (act === 'fb-order') { const b = e.target.closest('[data-id]'); moveLeague(b.dataset.id, Number(b.dataset.dir)); return; }
   if (act === 'fb-order-reset') { leagueOrder = []; store.set('el-fb-order', '[]'); renderSheet(); render(); return; }
   if (act === 'fb-fav-toggle') { toggleFav(e.target.closest('[data-team]').dataset.team); return; }
+  if (act === 'fb-dash-pick') { pickLeague(e.target.closest('[data-id]').dataset.id); return; }
+  if (act === 'fb-dash-lg') { tableLg = e.target.closest('[data-id]').dataset.id; render(); return; }
+  if (act === 'fb-dash-team') { const m = teamGame(e.target.closest('[data-team]').dataset.team); if (m) openMatch(m); return; }
   if (act === 'fb-table') { openSheet(e.target.closest('[data-id]').dataset.id, 'table'); return; }
   if (act === 'fb-sheet-close') { closeSheet(); return; }
   if (act === 'fb-sheet-tab') { openSheet(sheet.id, e.target.closest('[data-tab]').dataset.tab); return; }
@@ -786,11 +881,7 @@ document.addEventListener('click', (e) => {
     // Zum Spiel in der Liste springen und Torschützen aufklappen
     const m = data?.matches.find((x) => x.id === e.target.closest('[data-id]').dataset.id);
     if (!m) return;
-    mineOnly = false; sel = zDate(new Date(m.utc)); open.add(m.id);
-    document.querySelectorAll('.fb-tabs [data-view]').forEach((x) => { if (x.dataset.view === 'all') x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
-    render();
-    if (!m.goals) loadGoals(m);
-    document.querySelector(`.fb-match[data-id="${CSS.escape(m.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    openMatch(m);
     return;
   }
   const b = e.target.closest('.fb-match');
@@ -845,6 +936,7 @@ function setupPullToRefresh() {
 }
 // Aus einer Mitteilung geöffnet (?m=<Spiel>): nach dem Laden zum Spiel springen und Torschützen aufklappen
 const openFromPush = new URLSearchParams(location.search).get('m');
+DASH.addEventListener('change', () => { if (data) render(); });
 themeUi();
 renderMenu();
 load().then(() => {
