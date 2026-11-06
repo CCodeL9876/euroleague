@@ -100,7 +100,7 @@ body:not(.unlocked) .fb{display:none;}
 .fb-tick.new{background:color-mix(in srgb, var(--pitch) 16%, transparent);}
 .fb-tick.new .fb-tick-min, .fb-tick.new .fb-tick-sc{color:var(--pitch-hi);}
 
-/* Premier League aufgeklappt: Reiter Tore · Aufstellung · Statistik */
+/* Premier League und Champions League aufgeklappt: Reiter Tore · Aufstellung · Statistik */
 .fb-x{border-bottom:1px solid var(--line);padding:6px 0 12px;}
 .fb-seg{display:flex;gap:6px;margin:4px 12px 10px;padding:4px;border-radius:14px;background:color-mix(in srgb, var(--bg) 55%, var(--card));}
 .fb-seg button{flex:1;min-height:36px;border:0;border-radius:10px;background:transparent;color:var(--dim);font:inherit;font-size:0.84rem;font-weight:600;cursor:pointer;}
