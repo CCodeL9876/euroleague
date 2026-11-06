@@ -437,7 +437,7 @@ function gameRow(m, g, hl) {
     : g.status === 'live' ? `<span class="result live num"><small><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')}</small>${g.hs} : ${g.as}</span>`
     : `<span class="result open num"><small>${esc(rel(g.date))}</small>${esc(g.time)}</span>`;
   const v = done ? mainVideo(g.code) : null;
-  const midCol = v ? `<div class="g-mid">${mid}<button type="button" class="g-video" data-act="box-video" data-code="${g.code}" aria-label="Highlights ansehen, ${mmss(v.d)}">${PLAY_SVG}<span class="num">${mmss(v.d)}</span></button></div>` : mid;
+  const midCol = v ? `<div class="g-mid">${mid}<button type="button" class="g-video" data-act="box-video" data-code="${g.code}" aria-label="Spielzusammenfassung ansehen, ${mmss(v.d)}" title="Spielzusammenfassung">${CAM_SVG}${PLAY_SVG}<span class="num">${mmss(v.d)}</span></button></div>` : mid;
   const row = el('div', `game${g.status === 'live' ? ' is-live' : ''}`, side(g.home, g.hs > g.as, false) + midCol + side(g.away, g.as > g.hs, true));
   boxTarget(row, m, g);
   return row;
@@ -1424,6 +1424,8 @@ const mainVideo = (code) => videosOf(code).find((v) => v.k === 'main') || null;
 const ytThumb = (id) => `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`;
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const VIDEO_KIND = { main: 'Highlights', last5: 'Letzte 5 Minuten', player: 'Spieler', pre: 'Vor dem Spiel', other: 'Video' };
+// Videokamera vor dem Play-Symbol: zeigt in der Spielzeile, dass es die Spielzusammenfassung ist
+const CAM_SVG = '<svg class="cam" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21.5 7v10l-6-3.5z"/></svg>';
 const PLAY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
 
 // Verletzte Spieler (injuries.json, von der täglichen News-Aufgabe gepflegt): id → Eintrag
