@@ -72,6 +72,30 @@ a.live-hero{text-decoration:none;}
 .ms-tc.on .k{color:var(--live);font-weight:600;}
 .ms-tc .v{font-size:0.84rem;font-weight:600;}
 .ms-tc .s{font-size:0.76rem;color:var(--dim);}
+/* Als Nächstes und verpasste Resultate */
+a.ms-next{color:inherit;text-decoration:none;}
+.ms-next{background:var(--card);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.ms-next .k{font-size:0.72rem;color:var(--faint);}
+.ms-next .r{display:flex;align-items:center;gap:10px;min-width:0;}
+.ms-next .n{flex:1;min-width:0;display:flex;flex-direction:column;}
+.ms-next b{font-size:0.92rem;font-weight:600;}
+.ms-next small{font-size:0.76rem;color:var(--dim);}
+.ms-next .cd{font-size:0.8rem;font-weight:600;white-space:nowrap;}
+.ms-tv{display:inline-flex;align-items:center;gap:3px;white-space:nowrap;}
+.ms-tv .icon{width:12px;height:12px;}
+.ms-missed{background:var(--card);border-radius:18px;padding:10px 12px;display:flex;flex-direction:column;}
+.ms-missed .h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:2px 0 6px;font-size:0.84rem;}
+.ms-missed .h b{font-weight:600;}
+.ms-missed .h span{font-size:0.74rem;color:var(--dim);}
+.ms-res{display:flex;align-items:center;gap:8px;min-height:48px;border-top:1px solid var(--line);}
+.ms-res .n{flex:1;min-width:0;display:flex;flex-direction:column;}
+.ms-res b{font-size:0.86rem;font-weight:500;}
+.ms-res small{font-size:0.72rem;color:var(--faint);}
+.ms-res strong{font-family:var(--mono);font-weight:600;font-size:0.92rem;}
+.ms-res i{font-style:normal;font-size:0.68rem;font-weight:700;width:18px;height:18px;border-radius:5px;display:grid;place-items:center;color:var(--on-color);background:var(--faint);}
+.ms-res i.w{background:var(--green);}
+.ms-res i.l{background:var(--coral);}
+.ms-show{min-height:36px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--text);font:inherit;font-size:0.78rem;cursor:pointer;flex:none;}
 /* Leiste */
 .ms-tabs{display:flex;position:fixed;z-index:40;gap:6px;padding:6px;border-radius:24px;left:max(12px, env(safe-area-inset-left, 0px));right:max(12px, env(safe-area-inset-right, 0px));bottom:calc(4px + env(safe-area-inset-bottom, 0px));max-width:520px;margin:0 auto;
   background:color-mix(in srgb, var(--card-2) 94%, transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.08), 0 14px 34px rgba(10,10,32,0.4);}
