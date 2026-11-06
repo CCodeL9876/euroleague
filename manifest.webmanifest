@@ -1,7 +1,7 @@
 {
-  "name": "Sport-News Euroleague",
-  "short_name": "Euroleague",
-  "description": "Euroleague-Tagesüberblick: News, Resultate, Tabelle und Live-Spielstände.",
+  "name": "Mein Sport",
+  "short_name": "Mein Sport",
+  "description": "Mein Sport: deine Teams, Live-Spiele und Resultate aus Basketball und Fussball.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

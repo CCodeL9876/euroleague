@@ -2,7 +2,7 @@
 // Meldungen aus news.json (täglich von einer Claude-Aufgabe geschrieben) und zeichnet daraus das Dashboard.
 // Während ein Spiel läuft, fragt die Seite jede Minute nach, sonst alle 10 Minuten und beim Zurückkehren zur Seite.
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY, KI_NEWS_URL, RUBRIKEN } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, KI_NEWS_URL, RUBRIKEN } from '../config.js';
 
 const FAV_COLOR = { PAN: '#4CC38A', OLY: '#EE5F68', PAM: '#E8935F', ULK: '#5B7CFA' };
 const FAV_PALETTE = ['#4CC38A', '#EE5F68', '#E8935F', '#5B7CFA', '#C86DD7', '#2EC4C6', '#D4A72C', '#8E8CFF'];
@@ -192,7 +192,7 @@ function enterApp() {
   // Kam man aus einem Unterbereich (z. B. Fussball-App ohne Anmeldung): nach der Anmeldung dorthin zurück
   let next = '';
   try { next = sessionStorage.getItem('el-next') || ''; sessionStorage.removeItem('el-next'); } catch { /* privates Fenster */ }
-  const base = location.pathname.replace(/[^/]*$/, '');
+  const base = location.pathname.replace(/basketball\/?(index\.html)?$/, '');
   if (next && next !== location.pathname && next.startsWith(base) && /^[\w\-/.]+$/.test(next)) { location.replace(next); return; }
   document.body.classList.remove('needs-profile');
   document.getElementById('profileGate')?.remove();
@@ -268,7 +268,7 @@ async function profileCreate(name, pin) {
 async function copyAccessLink() {
   const key = store.get('el-gate-key', '');
   if (!key) { toast('Link nicht gespeichert – einmal oben rechts abmelden und mit dem Zugangslink neu anmelden.'); return; }
-  const url = `${location.origin}${location.pathname}?key=${encodeURIComponent(key)}`;
+  const url = `${location.origin}${location.pathname.replace(/basketball\/?(index\.html)?$/, '')}?key=${encodeURIComponent(key)}`;
   try { await navigator.clipboard.writeText(url); toast('Link kopiert – in der Home-App bei «Zugang nötig» einfügen.'); }
   catch { window.prompt('Link kopieren:', url); }
 }
@@ -1621,7 +1621,7 @@ const PLAY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15
 let injuries = new Map();
 async function loadInjuries() {
   try {
-    const res = await fetch('injuries.json', { cache: 'no-cache' });
+    const res = await fetch('../injuries.json', { cache: 'no-cache' });
     const d = await res.json();
     if (Array.isArray(d?.players)) { injuries = new Map(d.players.map((p, k) => [p.id ? String(p.id) : `n${k}`, p])); return true; }
   } catch { /* ohne Liste weiter */ }
@@ -1642,7 +1642,7 @@ const dmy = (iso) => { const [y, m, d] = String(iso || '').split('-'); return d 
 
 async function loadNews() {
   try {
-    const res = await fetch('news.json', { cache: 'no-cache' });
+    const res = await fetch('../news.json', { cache: 'no-cache' });
     const n = await res.json();
     if (Array.isArray(n?.items)) { const changed = JSON.stringify(n) !== JSON.stringify(news); news = n; await loadInjuries(); return changed; }
   } catch { /* behalten, was da ist */ }
@@ -1745,7 +1745,7 @@ function logout() {
     localStorage.removeItem('el-gate-key');
     if (!key) sessionStorage.setItem('el-gate-relogin', '1');
   } catch { /* privates Fenster */ }
-  const url = new URL(location.href);
+  const url = new URL('../', location.href);
   url.search = key ? `?key=${encodeURIComponent(key)}` : '';
   location.href = url.toString();
 }
@@ -1894,7 +1894,7 @@ function setupInstallHint() {
       ? `Tippe in Safari auf ${shareIcon} <b>Teilen</b> (bei neueren iPhones im Menü <b>«…»</b>) und dann auf <b>«Zum Home-Bildschirm»</b>. Danach öffnet sich die Seite wie eine App – ohne Adresszeile.`
       : installEvent ? 'Mit einem Tipp auf «Installieren» liegt die Seite wie eine App auf deinem Startbildschirm.'
       : 'Öffne im Browser das Menü <b>⋮</b> und wähle <b>«App installieren»</b> bzw. <b>«Zum Startbildschirm hinzufügen»</b>.';
-    const box = el('section', 'install', `<img src="icon-180.png" alt="" width="44" height="44">
+    const box = el('section', 'install', `<img src="../icon-180.png" alt="" width="44" height="44">
       <div class="ins-text"><h2>App auf Homebildschirm speichern</h2><p>${howto}</p>
         <div class="ins-acts">${!ios && installEvent ? '<button type="button" class="ins-go" data-ins="go">Installieren</button>' : ''}<button type="button" class="ins-later" data-ins="later">Später</button></div></div>
       <button type="button" class="ins-close" data-ins="later" aria-label="Hinweis schliessen">×</button>`);
@@ -1913,5 +1913,5 @@ setupInstallHint();
 
 // Offline-Modus: sw.js hält den letzten Stand bereit (nur über https bzw. localhost)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
 }

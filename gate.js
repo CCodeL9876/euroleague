@@ -21,10 +21,10 @@ function remember(key) {
   } catch {}
 }
 
-// Lädt die Seite des Bereichs: Basketball (app.js) oder z. B. Fussball (<body data-app="./fussball/fussball.js">)
+// Lädt die Seite des Bereichs (<body data-app="./fussball/fussball.js">); die Startseite trägt zusätzlich data-root
 function boot() {
   document.body.classList.add('unlocked');
-  import(/^\.\/[\w/-]+\.js$/.test(document.body.dataset.app || '') ? document.body.dataset.app : './app.js');
+  import(/^\.\/[\w/-]+\.js$/.test(document.body.dataset.app || '') ? document.body.dataset.app : './meinsport/meinsport.js');
 }
 
 function cleanUrl() {
@@ -147,8 +147,8 @@ if (unlocked()) {
   boot();
 } else {
   const key = new URLSearchParams(location.search).get('key');
-  // Unterbereich ohne Anmeldung: zur Startseite, nach der Anmeldung zurück (el-next, siehe app.js enterApp)
-  if (!key && document.body.dataset.app) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../'); }
+  // Unterbereich ohne Freischaltung: zur Startseite, danach zurück (el-next, siehe basketball/app.js enterApp)
+  if (!key && !document.body.dataset.root) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../'); }
   else if (key) showPrompt(key);
   else if (sessionStorage.getItem('el-gate-relogin') === '1') { sessionStorage.removeItem('el-gate-relogin'); showRelinkNotice('Abgemeldet'); }
   // Als Homebildschirm-App gespeichert, aber (noch) nicht angemeldet: Link + Code direkt hier eingeben lassen –

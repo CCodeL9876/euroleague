@@ -1,5 +1,5 @@
 // Mein Sport: gemeinsame Startseite. Liest dieselben Daten wie die Bereiche Basketball und Fussball und führt für Details
-// dorthin (../?game=, ../?team=, ../fussball/?m=). Zugang und Profil wie dort (gate.js, Lieblingsteams im Gerät und im Profil).
+// dorthin (basketball/?game=, basketball/?team=, fussball/?m=). Zugang und Profil wie dort (gate.js, Lieblingsteams im Gerät und im Profil).
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 import { tvOf } from '../fussball/tv.js';
 
@@ -17,7 +17,7 @@ const store = {
 const readList = (k) => { try { const v = JSON.parse(store.get(k, 'null')); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } };
 try { sessionStorage.setItem('el-started', '1'); } catch { /* privates Fenster */ } // siehe start-boot.js
 // Ohne Profil zur Anmeldung im Basketball-Bereich, danach zurück hierher (el-next)
-if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../'); }
+if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('basketball/'); }
 
 let elFav = readList('el-fav-teams'), fbFav = readList('el-fb-fav2');
 let el = null, fb = null, elFailed = false, fbFailed = false;
@@ -74,14 +74,14 @@ function games() {
   for (const g of el?.games || []) {
     const at = Date.parse(g.utc), st = g.status === 'final' ? 'ft' : g.status;
     list.push({ sport: 'b', id: g.code, at, st, h: t[g.home]?.short || g.home, a: t[g.away]?.short || g.away, hl: t[g.home]?.crest, al: t[g.away]?.crest, hk: g.home, ak: g.away,
-      hs: g.hs, as: g.as, period: g.period, clock: g.clock, round: g.round, label: st === 'live' ? bkLabel(g) : '', lg: 'EuroLeague', href: `../?game=${g.code}`, fav: elFav.includes(g.home) || elFav.includes(g.away) });
+      hs: g.hs, as: g.as, period: g.period, clock: g.clock, round: g.round, label: st === 'live' ? bkLabel(g) : '', lg: 'EuroLeague', href: `basketball/?game=${g.code}`, fav: elFav.includes(g.home) || elFav.includes(g.away) });
   }
   const names = new Set(fbFav.map((n) => n.toLowerCase())), lg = new Map((fb?.leagues || []).map((l) => [l.id, l.name]));
   for (const m of fb?.matches || []) {
     if (m.st === 'off') continue;
     const st = m.st === 'ht' ? 'live' : m.st;
     list.push({ sport: 'f', id: m.id, l: m.l, utc: m.utc, at: Date.parse(m.utc), st, h: m.h, a: m.a, hl: m.hl, al: m.al, hk: m.h, ak: m.a, hs: m.hs, as: m.as, goals: m.goals, min: m.min,
-      label: m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft', lg: lg.get(m.l) || '', href: `../fussball/?m=${encodeURIComponent(m.id)}`, fav: names.has(m.h.toLowerCase()) || names.has(m.a.toLowerCase()) });
+      label: m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft', lg: lg.get(m.l) || '', href: `fussball/?m=${encodeURIComponent(m.id)}`, fav: names.has(m.h.toLowerCase()) || names.has(m.a.toLowerCase()) });
   }
   return list.sort((x, y) => x.at - y.at);
 }
@@ -190,7 +190,7 @@ function teamCards(list) {
     const home = (g) => g.hk === key || g.h === key, us = (g) => (home(g) ? g.hs : g.as), them = (g) => (home(g) ? g.as : g.hs), opp = (g) => (home(g) ? g.a : g.h);
     const form = done.filter((g) => !hidden(g)).slice(-5).map((g) => (us(g) > them(g) ? 'w' : us(g) < them(g) ? 'l' : 'd'));
     const shown = live || next || done.filter((g) => !hidden(g)).at(-1);
-    const href = sport === 'b' ? `../?team=${encodeURIComponent(key)}` : shown?.href || '../fussball/';
+    const href = sport === 'b' ? `basketball/?team=${encodeURIComponent(key)}` : shown?.href || 'fussball/';
     const sub = shown ? `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}` : 'im Moment kein Spiel geplant';
     const x = editTeams ? `<button type="button" class="ms-x" data-act="team-x" data-s="${sport}" data-k="${esc(key)}" aria-label="${esc(name)} entfernen">×</button>` : '';
     cards.push({ rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg')}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
@@ -450,8 +450,10 @@ function rememberSeen() {
 }
 addEventListener('pagehide', rememberSeen);
 document.addEventListener('visibilitychange', () => { if (document.hidden) rememberSeen(); else refresh(); });
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 setupPullToRefresh();
 syncProfile();
 refresh();
+// Leiste erst einblenden, wenn Schrift und Sicherheitsabstände stehen: sonst springt sie beim Seitenwechsel sichtbar
+Promise.race([document.fonts?.ready, new Promise((r) => { setTimeout(r, 250); })]).then(() => document.body.classList.add('ms-ready'), () => document.body.classList.add('ms-ready'));

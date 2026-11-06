@@ -119,13 +119,14 @@ a.ms-next{color:inherit;text-decoration:none;}
 .ms-pr i{font-style:normal;font-size:1.05rem;color:var(--faint);}
 .ms-pr[aria-pressed="true"] i{color:var(--gold);}
 /* Leiste */
-.ms-tabs{display:flex;position:fixed;z-index:40;gap:6px;padding:6px;border-radius:24px;left:max(12px, env(safe-area-inset-left, 0px));right:max(12px, env(safe-area-inset-right, 0px));bottom:calc(4px + env(safe-area-inset-bottom, 0px));max-width:520px;margin:0 auto;
+.ms-tabs{opacity:0;display:flex;position:fixed;z-index:40;gap:6px;padding:6px;border-radius:24px;left:max(12px, env(safe-area-inset-left, 0px));right:max(12px, env(safe-area-inset-right, 0px));bottom:calc(4px + env(safe-area-inset-bottom, 0px));max-width:520px;margin:0 auto;
   background:color-mix(in srgb, var(--card-2) 94%, transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.08), 0 14px 34px rgba(10,10,32,0.4);}
 .ms-tabs a,.ms-tabs button{flex:1;min-height:58px;border:0;border-radius:18px;background:transparent;color:var(--dim);font:inherit;font-size:0.78rem;font-weight:600;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;}
 .ms-tabs .icon{width:23px;height:23px;}
 .ms-tabs a[aria-current="page"]{color:var(--on-color);background:var(--blue);}
 .ms-tabs .bk{color:var(--bk);}
 .ms-tabs .fbl{color:var(--fb);}
+body.ms-ready .ms-tabs{opacity:1;}
 /* Ich */
 .ms-me{width:min(420px, calc(100% - 32px));border:0;border-radius:22px;background:var(--panel);color:var(--text);padding:18px;}
 .ms-me::backdrop{background:rgba(10,10,32,0.55);}
