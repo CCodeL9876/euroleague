@@ -1,7 +1,106 @@
 {
-  "issue": 35,
-  "updated": "3. November 2026 · 07:15 Uhr (CH)",
+  "issue": 36,
+  "updated": "6. November 2026 · 07:16 Uhr (CH)",
   "items": [
+    {
+      "tag": "Resultat · Fenerbahce",
+      "title": "Fenerbahce schlägt Baskonia, Powell debütiert",
+      "text": "Fenerbahce hat Baskonia in Istanbul 84:65 geschlagen und den siebten EuroLeague-Sieg der Saison gefeiert. Neuzugang Dwight Powell kam bei seinem Debüt in 14 Minuten auf 3 Punkte und 7 Rebounds. Trainer Sarunas Jasikevicius lobte ihn: «Sein Motor ist unglaublich», mahnte nach erst zwei Trainings aber zur Geduld.",
+      "time": "05.11.2026 · 21:21",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031192/dwight-powell-debuts-in-the-euroleague-he-was-very-good/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Resultat · Paris",
+      "title": "Paris siegt trotz 33 Punkten von Payne in Istanbul",
+      "text": "Paris hat bei Anadolu Efes 95:90 gewonnen und den dritten EuroLeague-Sieg in Folge geholt. Nadir Hifi überragte mit 28 Punkten und 9 Assists, Cameron Payne kam für Efes auf 33 Punkte mit sieben Dreiern. In Tel Aviv setzte sich Barcelona bei Hapoel 93:90 durch, Dario Brizuela erzielte 22 Punkte.",
+      "time": "05.11.2026 · 20:25",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031067/euroleague-roundup-payne-scores-33-put-paris-wins-third-in-a-row/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Resultat · Valencia",
+      "title": "Valencia dreht Spiel in Mailand, Bayern gewinnt in Lyon",
+      "text": "Valencia hat bei Olimpia Milano 84:73 gewonnen, nachdem Milano vor dem Schlussviertel 59:51 geführt hatte. Milano steht damit bei 1:9 Siegen. Bayern siegte bei ASVEL 99:95, Austin Wiley kam auf 22 Punkte und 9 Rebounds.",
+      "time": "05.11.2026 · 20:24",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031067/euroleague-roundup-payne-scores-33-put-paris-wins-third-in-a-row/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Kader · Crvena Zvezda",
+      "title": "Navarro lässt Motley in Belgrad, Koloko spielberechtigt",
+      "text": "Crvena Zvezda reist ohne Johnathan Motley zum Spiel bei Olympiacos am Freitag. Laut Meridian Sport entschied Trainer Ibon Navarro so, weil Motley die Erwartungen bisher nicht erfüllt. Christian Koloko steht nach Problemen mit den Einreisepapieren im Aufgebot.",
+      "time": "05.11.2026 · 16:45",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031071/navarro-leaves-motley-in-belgrade-koloko-in-the-team-for-olympiacos/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Transfergerücht · Maccabi",
+      "title": "Maccabi erwägt Trennung von Daniel Theis",
+      "text": "Maccabi Tel Aviv prüft laut Walla Sport eine Trennung von Daniel Theis, sofern ein anderer Klub seinen Vertrag übernimmt. Theis hat im Sommer einen Zweijahresvertrag über rund 4,5 Millionen Dollar unterschrieben und gilt als Topverdiener im Kader. In sieben EuroLeague-Spielen kommt er auf 7,4 Punkte und 3,4 Rebounds.",
+      "time": "05.11.2026 · 15:32",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/maccabi-tel-aviv-reportedly-considering-daniel-theis-exit/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Transfergerücht · Hapoel Tel Aviv",
+      "title": "Hapoel bemüht sich um Tyler Dorsey",
+      "text": "Hapoel-Besitzer Ofer Yannai hat laut einem griechischen Bericht bei den Olympiacos-Eignern wegen Tyler Dorsey vorgesprochen und ein finanzielles Angebot abgegeben. Olympiacos hatte Dorsey nach kritischen Aussagen über den Trainerstab suspendiert. Ein Wechsel hängt von den Absichten von Olympiacos und der geforderten Ablöse ab.",
+      "time": "05.11.2026 · 14:46",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/hapoel-tel-aviv-reportedly-makes-move-for-tyler-dorsey/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Verletzungen · EuroLeague",
+      "title": "Booker fällt bei Milano aus, Bolmaro einsatzbereit",
+      "text": "Olimpia Milano muss auf Devin Booker verzichten, der eine Sehnenverletzung im rechten Oberschenkel erlitten hat. Leandro Bolmaro ist nach muskulären Problemen wieder verfügbar. Bei Hapoel Tel Aviv fehlt Tomas Satoransky mit einer Gehirnerschütterung, bei Valencia fallen Nikola Mirotic und Nate Reuvers aus.",
+      "time": "05.11.2026 · 12:57",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Stimmen · Real Madrid",
+      "title": "Martinez: «Keine Ausreden»",
+      "text": "Real-Madrid-Trainer Pedro Martinez wollte die Niederlage gegen Panathinaikos nicht mit den fünf Ausfällen erklären: «Es gibt keine Ausreden. Wir haben mit den Spielern, die wir hatten, gut gekämpft.» Neben Campazzo und Maledon fehlten Deck, Jantunen und Garuba. Die Niederlage beendete Reals Serie von elf Siegen in Liga und EuroLeague.",
+      "time": "05.11.2026 · 12:17",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/pedro-martinez-after-panathinaikos-loss-no-excuses-we-competed-well/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Stimmen · Panathinaikos",
+      "title": "Obradovic: «Mehr Spiele als Trainings»",
+      "text": "Panathinaikos-Trainer Zeljko Obradovic sprach nach dem Sieg in Madrid von einem «unglaublichen Spiel». Über Kendrick Nunn sagte er: «Ich hatte noch nie einen Spieler mit mehr Spielen als Trainings», er habe keine normale Vorbereitung gehabt. Offensiv sei Nunn aber «unglaublich» gewesen.",
+      "time": "05.11.2026 · 12:12",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/obradovic-after-real-madrid-win-ive-never-experienced-anything-like-this-with-nunn/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Resultat · Panathinaikos",
+      "title": "Nunn mit Rekord, Panathinaikos siegt in Madrid nach Verlängerung",
+      "text": "Panathinaikos hat Real Madrid zum Auftakt der 10. Runde 115:112 nach Verlängerung geschlagen. Kendrick Nunn erzielte 33 Punkte, davon 23 im vierten Viertel, EuroLeague-Rekord für ein Schlussviertel. Bei Real, das ohne Campazzo und Maledon antrat, kam Andres Feliz auf 27 Punkte.",
+      "time": "04.11.2026 · 23:05",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2030637/nunn-explodes-for-33-points-and-makes-history-panathinaikos-wins-it-against-real-after-ot-drama/",
+      "firstShown": "06.11.2026"
+    },
+    {
+      "tag": "Stimmen · ASVEL",
+      "title": "Crowder verteidigt den europäischen Basketball",
+      "text": "ASVEL-Forward Jae Crowder hat Kritik von Gilbert Arenas am europäischen Basketball zurückgewiesen. Gegenüber BasketNews sagte er: «Ich finde, das ist respektlos gegenüber der europäischen Kultur.» Die Teams seien zwar vielleicht nicht athletischer, aber «sehr klug», das verdiene Respekt.",
+      "time": "04.11.2026 · 20:56",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/jae-crowder-defends-european-basketball-its-great-basketball-and-deserves-respect/",
+      "firstShown": "06.11.2026"
+    },
     {
       "tag": "Liga national · Virtus Bologna",
       "title": "Virtus verliert erstmals in der Serie A, Milano siegt in Cantu",
@@ -46,105 +145,6 @@
       "source": "Sportando",
       "url": "https://sportando.basketball/en/real-madrids-facundo-campazzo-suffers-muscle-injury-tests-pending/",
       "firstShown": "03.11.2026"
-    },
-    {
-      "tag": "Stimmen · Maccabi Tel Aviv",
-      "title": "Coldebella: «Kattash zu entlassen ist nicht realistisch»",
-      "text": "Maccabi-Manager Claudio Coldebella hat nach der Derby-Niederlage gegen Hapoel die volle Verantwortung übernommen und Trainer Oded Kattash den Rücken gestärkt. «Oded ist unser Trainer», sagte er. Zudem bestätigte er, dass der Klub im Rückraum Verstärkung sucht: «Wir sprechen mit Spielern und ich hoffe, dass in den nächsten Tagen etwas passiert.»",
-      "time": "02.11.2026 · 12:11",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/coldebella-on-maccabis-crisis-i-take-full-responsibility-firing-kattash-is-not-realistic/",
-      "firstShown": "03.11.2026"
-    },
-    {
-      "tag": "Liga national · Hapoel Tel Aviv",
-      "title": "Micic führt Hapoel mit 31 Punkten zum Derbysieg",
-      "text": "Hapoel Tel Aviv hat das Stadtderby in der israelischen Liga gegen Maccabi Tel Aviv 105:87 gewonnen. Vasilije Micic erzielte 31 Punkte und traf 9 von 13 Dreipunktewürfen. Hapoel steht nun bei 3:1 Siegen, Maccabi bei 2:2.",
-      "time": "02.11.2026 · 07:26",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/others/2029621/vasilije-micic-scores-31-points-hapoel-tel-aviv-beats-maccabi-tel-aviv-israel/",
-      "firstShown": "03.11.2026"
-    },
-    {
-      "tag": "Stimmen · Panathinaikos",
-      "title": "Spanoulis: «Keine persönliche Rivalität» mit Obradovic",
-      "text": "Aris hat Panathinaikos in der fünften Runde der griechischen Meisterschaft mit 101:91 geschlagen; es war die erste Saisonniederlage des EuroLeague-Klubs unter Zeljko Obradovic. Für Aris-Trainer Vassilis Spanoulis war es der erste Sieg im direkten Duell mit Obradovic. Er nannte ihn einen der grössten Trainer der Geschichte: «It is not a personal rivalry between me and Mr. Obradovic.»",
-      "time": "01.11.2026 · 21:41",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/heba/2029577/spanoulis-on-obradovic-he-is-one-of-the-greatest-this-is-not-a-personal-rivalry/",
-      "firstShown": "02.11.2026"
-    },
-    {
-      "tag": "Transfergerücht · Real Madrid",
-      "title": "Martinez prüft Rückholung von Eli Ndiaye",
-      "text": "Real-Madrid-Trainer Pedro Martinez hat nach dem 90:79 gegen San Pablo Burgos bestätigt, dass der Klub Optionen prüft, darunter die Rückholung des an Joventut ausgeliehenen Eli Ndiaye. Mit Maledon und Campazzo fehlen zwei Spieler verletzt. Fix sei nichts, sonst gehe man mit dem aktuellen Kader weiter, so Martinez.",
-      "time": "01.11.2026 · 19:29",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2029528/pedro-martinez-wants-to-bring-back-eli-ndiaye/",
-      "firstShown": "02.11.2026"
-    },
-    {
-      "tag": "Liga national · ASVEL",
-      "title": "ASVEL verliert erstmals in der französischen Liga",
-      "text": "ASVEL hat in der sechsten Runde der LNB Pro A mit 94:99 in Saint-Quentin die erste Liganiederlage kassiert; Tremont Waters erzielte 24 Punkte, Patty Mills fehlte. Paris gewann daheim gegen Chalon 116:112 nach Verlängerung und steht bei 6:0 Siegen, Nadir Hifi kam auf 27 Punkte.",
-      "time": "01.11.2026 · 19:22",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/proa/2029521/saint-quentin-hands-asvel-its-first-loss-in-the-french-league/",
-      "firstShown": "02.11.2026"
-    },
-    {
-      "tag": "Verletzung · Olympiacos",
-      "title": "Bartzokas rechnet mit Fournier gegen Zvezda",
-      "text": "Olympiacos hat in der griechischen Liga Peristeri 91:62 geschlagen. Trainer Georgios Bartzokas geht davon aus, dass Evan Fournier am Freitag in der EuroLeague gegen Crvena Zvezda spielen kann; die Trainingseinheiten zeigten, dass es ihm gut gehe.",
-      "time": "01.11.2026 · 17:49",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2029476/bartzokas-believes-that-fournier-will-be-ready-for-zvezda-thats-the-schedule-hes-doing-well/",
-      "firstShown": "02.11.2026"
-    },
-    {
-      "tag": "Liga national · Fenerbahce",
-      "title": "Fenerbahce meldet sich mit 88:77 gegen Tofas zurück",
-      "text": "Nach zwei EuroLeague-Niederlagen hat Fenerbahce in der türkischen Liga Tofas mit 88:77 bezwungen. Talen Horton-Tucker erzielte 18 Punkte, Braxton Key 17. Das Team von Sarunas Jasikevicius steht in der BSL bei 4:2 Siegen.",
-      "time": "01.11.2026 · 15:45",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/tbl/2029421/fenerbahce-bounces-back-with-a-win-against-tofas/",
-      "firstShown": "02.11.2026"
-    },
-    {
-      "tag": "Stimmen · Olimpia Milano",
-      "title": "Mathews: «Wir werden besser»",
-      "text": "Olimpia Milano steht in der EuroLeague nach neun Spielen bei einem Sieg. Garrison Mathews sprach in seiner ersten Europa-Saison von einer Umstellung und deutlich mehr Druck als in der NBA: «I don't know what the future holds, but all I know is we're getting better.» Er kommt in LBA und EuroLeague auf 9,2 Punkte im Schnitt.",
-      "time": "01.11.2026 · 15:33",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/garrison-mathews-i-dont-know-what-the-future-holds-but-all-i-know-is-were-getting-better/",
-      "firstShown": "02.11.2026"
-    },
-    {
-      "tag": "Liga national · Crvena Zvezda",
-      "title": "Vierter Sieg in Folge für Zvezda in der ABA-Liga",
-      "text": "Crvena Zvezda hat Siroki Brijeg mit 100:82 geschlagen, Ognjen Dobric und Jared Butler erzielten je 17 Punkte. Trainer Ibon Navarro schonte Tyson Carter, Chima Moneke, Dejan Davidovac und Christian Koloko. Es war das dritte Spiel in Folge mit über 100 Punkten.",
-      "time": "01.11.2026 · 15:14",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/aba/2029401/fourth-win-in-a-row-for-crvena-zvezda-in-the-aba-league/",
-      "firstShown": "02.11.2026"
-    },
-    {
-      "tag": "Liga national · Real Madrid",
-      "title": "Real bleibt in der ACB ungeschlagen",
-      "text": "Real Madrid hat ohne den verletzten Theo Maledon San Pablo Burgos 90:79 geschlagen und steht bei 6:0 Siegen; Timothe Luwawu-Cabarrot war mit 17 Punkten Topskorer. Baskonia gewann gegen Manresa 106:83, Valencia in Andorra 111:79 und Barcelona bei Unicaja 92:89.",
-      "time": "01.11.2026 · 14:36",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/acb/2029380/real-gets-the-win-as-tavares-makes-history/",
-      "firstShown": "02.11.2026"
-    },
-    {
-      "tag": "Transfers · Maccabi Tel Aviv",
-      "title": "Kattash: Hayes-Transfer knapp gescheitert",
-      "text": "Maccabi Tel Aviv war laut Trainer Oded Kattash nahe an einer Verpflichtung von Killian Hayes, der Wechsel kam trotz Annahme aller Bedingungen nicht zustande. «We were very close to Killian Hayes. We agreed to all his conditions, but it didn't happen», sagte Kattash. Wegen der Verletzung von Iffe Lundberg sucht der Klub weiter einen Aufbauspieler.",
-      "time": "31.10.2026 · 18:59",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2029152/oded-kattash-on-killian-hayes-we-agreed-to-all-his-conditions/",
-      "firstShown": "01.11.2026"
     }
   ]
 }

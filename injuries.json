@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-03",
+ "updated": "2026-11-06",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -20,11 +20,11 @@
    "team": "BAR",
    "status": "out",
    "since": "2026-10-29",
-   "note": "Verstauchung am rechten Knöchel",
+   "note": "Verstauchung am rechten Knöchel; fehlte auch gegen Hapoel",
    "back": "ca. 10 Tage",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/barcelona-juan-nunez-suffers-right-ankle-sprain-expected-to-miss-around-10-days/",
-   "reported": "2026-10-29"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
   },
   {
    "id": "003941",
@@ -68,11 +68,11 @@
    "team": "MAD",
    "status": "out",
    "since": "2026-10-30",
-   "note": "vollständiger Riss der Plantarfaszie im linken Fuss",
+   "note": "vollständiger Riss der Plantarfaszie im linken Fuss; fehlte gegen Panathinaikos",
    "back": "offen",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/real-madrids-mikael-jantunen-suffers-complete-plantar-fascia-tear/",
-   "reported": "2026-10-30"
+   "url": "https://sportando.basketball/en/pedro-martinez-after-panathinaikos-loss-no-excuses-we-competed-well/",
+   "reported": "2026-11-06"
   },
   {
    "id": "007027",
@@ -80,23 +80,23 @@
    "team": "MAD",
    "status": "out",
    "since": "2026-10-30",
-   "note": "Verstauchung im rechten Knie",
+   "note": "Verstauchung im rechten Knie; fehlte gegen Panathinaikos",
    "back": "offen",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/real-madrids-theo-maledon-suffers-right-knee-sprain/",
-   "reported": "2026-10-30"
+   "url": "https://sportando.basketball/en/pedro-martinez-after-panathinaikos-loss-no-excuses-we-competed-well/",
+   "reported": "2026-11-06"
   },
   {
    "id": "002939",
    "name": "Tomas Satoransky",
    "team": "HTA",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-10-30",
-   "note": "nach Sturz auf den Rücken auf der Trage vom Feld; fühlt sich laut eigener Aussage deutlich besser, hofft auf baldige Rückkehr",
+   "note": "Gehirnerschütterung nach Sturz in Runde 9; fehlte gegen Barcelona",
    "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2028976/tomas-satoransky-talks-injury-hapoel-euroleague/",
-   "reported": "2026-11-01"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
   },
   {
    "id": "",
@@ -140,11 +140,215 @@
    "team": "MAD",
    "status": "out",
    "since": "2026-11-01",
-   "note": "Muskelverletzung; weitere Untersuchungen sollen Ausmass und Ausfalldauer klären",
+   "note": "Muskelverletzung; fehlte gegen Panathinaikos",
    "back": "offen",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/real-madrids-facundo-campazzo-suffers-muscle-injury-tests-pending/",
-   "reported": "2026-11-03"
+   "url": "https://sportando.basketball/en/pedro-martinez-after-panathinaikos-loss-no-excuses-we-competed-well/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Devin Booker",
+   "team": "MIL",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Sehnenverletzung im rechten Oberschenkel; Ausfalldauer noch offen",
+   "back": "offen",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Isaia Cordinier",
+   "team": "IST",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "in der Rehabilitation nach Operation",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "P.J. Dozier",
+   "team": "IST",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Rückenprobleme",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Mike James",
+   "team": "IST",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Achillessehnenverletzung",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Rodions Kurucs",
+   "team": "BAS",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Hüftverletzung",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Tadas Sedekerskis",
+   "team": "BAS",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Verletzung am rechten Oberschenkel",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Márcio Santos",
+   "team": "BAS",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Verletzung an der linken Wade",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Tyler Ennis",
+   "team": "HTA",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Achillessehnenverletzung",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Umoja Gibson",
+   "team": "BAR",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Knieverletzung",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Yoan Makoundou",
+   "team": "BAR",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Verletzung am linken Knie",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Nikola Mirotic",
+   "team": "PAM",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Muskelverletzung",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Nate Reuvers",
+   "team": "PAM",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Knochenverletzung im Fuss",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Mouhamadou Gueye",
+   "team": "PAM",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "Verletzung, nicht näher bezeichnet",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Daulton Hommes",
+   "team": "PRS",
+   "status": "doubtful",
+   "since": "2026-11-05",
+   "note": "Gehirnerschütterung; wird untersucht",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Mathis Dossou-Yovo",
+   "team": "ASV",
+   "status": "doubtful",
+   "since": "2026-11-05",
+   "note": "Adduktorenprobleme; wird untersucht",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Gabriel Deck",
+   "team": "MAD",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "fehlte gegen Panathinaikos",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/pedro-martinez-after-panathinaikos-loss-no-excuses-we-competed-well/",
+   "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Usman Garuba",
+   "team": "MAD",
+   "status": "out",
+   "since": "2026-11-05",
+   "note": "fehlte gegen Panathinaikos",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/pedro-martinez-after-panathinaikos-loss-no-excuses-we-competed-well/",
+   "reported": "2026-11-06"
   }
  ]
 }
