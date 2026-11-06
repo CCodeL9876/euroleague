@@ -1,11 +1,12 @@
 // Mein Sport: gemeinsame Startseite. Liest dieselben Daten wie die Bereiche Basketball und Fussball und führt für Details
 // dorthin (../?game=, ../?team=, ../fussball/?m=). Zugang und Profil wie dort (gate.js, Lieblingsteams im Gerät und im Profil).
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
+import { tvOf } from '../fussball/tv.js';
 
 const EL_URL = `${SUPABASE_URL}/functions/v1/euroleague`, FB_URL = `${SUPABASE_URL}/functions/v1/fussball`;
 const HEAD = { apikey: SUPABASE_ANON_KEY };
 const LIVE_POLL_MS = 60 * 1000, IDLE_POLL_MS = 10 * 60 * 1000;
-const TODAY_MAX = 8, FEED_MAX = 6, RECENT_MS = 30 * 60 * 1000;
+const TODAY_MAX = 8, MISSED_MAX = 6, MISSED_DAYS = 7, FIRST_DAYS = 3, FEED_MAX = 6, RECENT_MS = 30 * 60 * 1000;
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -21,6 +22,14 @@ let elFav = readList('el-fav-teams'), fbFav = readList('el-fb-fav2');
 let el = null, fb = null, elFailed = false, fbFailed = false;
 const flows = new Map(); // Spielcode → Spielverlauf der laufenden Basketball-Spiele, für den Feed
 const show = { today: false };
+// Verpasste Resultate: gesehene Spiele bleiben im Gerät gespeichert. Beim allerersten Besuch zählen nur die letzten Tage.
+const seen = new Set(readList('el-ms-seen'));
+const revealed = new Set(); // in dieser Sitzung aufgedeckt: bleibt bis zum nächsten Öffnen sichtbar
+let since = Number(store.get('el-ms-since', '0'));
+if (!since) { since = Date.now() - FIRST_DAYS * 864e5; store.set('el-ms-since', String(since)); }
+const spoilerOn = () => store.get('el-ms-spoiler', '1') !== '0';
+const saveSeen = () => store.set('el-ms-seen', JSON.stringify([...seen].slice(-300)));
+const gkey = (g) => `${g.sport}${g.id}`;
 const lastFlaps = new Map(); // letzter Stand pro Spiel: geänderte Blätter klappen um, wie in den Bereichen
 
 const zone = (d, o) => Object.fromEntries(new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', ...o }).formatToParts(d).map((p) => [p.type, p.value]));
@@ -56,18 +65,53 @@ function games() {
   for (const m of fb?.matches || []) {
     if (m.st === 'off') continue;
     const st = m.st === 'ht' ? 'live' : m.st;
-    list.push({ sport: 'f', id: m.id, at: Date.parse(m.utc), st, h: m.h, a: m.a, hl: m.hl, al: m.al, hk: m.h, ak: m.a, hs: m.hs, as: m.as, goals: m.goals, min: m.min,
+    list.push({ sport: 'f', id: m.id, l: m.l, utc: m.utc, at: Date.parse(m.utc), st, h: m.h, a: m.a, hl: m.hl, al: m.al, hk: m.h, ak: m.a, hs: m.hs, as: m.as, goals: m.goals, min: m.min,
       label: m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft', lg: lg.get(m.l) || '', href: `../fussball/?m=${encodeURIComponent(m.id)}`, fav: names.has(m.h.toLowerCase()) || names.has(m.a.toLowerCase()) });
   }
   return list.sort((x, y) => x.at - y.at);
 }
 
 const crest = (u, cls = '') => (u ? `<img class="ms-logo ${cls}" src="${esc(u)}" alt="" loading="lazy">` : `<span class="ms-logo none ${cls}"></span>`);
+const TV_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M9 2l3 4 3-4"/></svg>';
+const tvText = (g) => (g.sport === 'f' && g.st !== 'ft' ? tvOf({ l: g.l, utc: g.utc, h: g.h, a: g.a }).ch : '');
+const tvTag = (g) => { const t = tvText(g); return t ? ` · <span class="ms-tv">${TV_ICON}${esc(t)}</span>` : ''; };
 function rowHtml(g) {
-  const score = g.st === 'ft' && g.hs != null;
+  const score = g.st === 'ft' && g.hs != null && !hidden(g);
   const side = (n, u, s) => `<span class="tm">${crest(u)}<b>${esc(n)}</b>${score ? `<em class="num">${s}</em>` : ''}</span>`;
-  return `<a class="ms-row ${g.sport}${g.fav ? ' fav' : ''}" href="${esc(g.href)}"><span class="t num">${g.st === 'ft' ? 'Ende' : hhmm(g.at)}</span>${side(g.h, g.hl, g.hs)}${side(g.a, g.al, g.as)}<span class="lg">${esc(g.lg)}</span></a>`;
+  return `<a class="ms-row ${g.sport}${g.fav ? ' fav' : ''}" href="${esc(g.href)}"><span class="t num">${g.st === 'ft' ? 'Ende' : hhmm(g.at)}</span>${side(g.h, g.hl, g.hs)}${side(g.a, g.al, g.as)}<span class="lg">${esc(g.lg)}${tvTag(g)}</span></a>`;
 }
+
+// Spiel deiner Teams, dessen Resultat du noch nicht gesehen hast
+const missed = (g) => g.fav && g.st === 'ft' && g.hs != null && g.at > since && g.at > Date.now() - MISSED_DAYS * 864e5 && !seen.has(gkey(g));
+const hidden = (g) => spoilerOn() && missed(g) && !revealed.has(gkey(g));
+
+const favSide = (g) => (g.sport === 'b' ? [elFav.includes(g.hk), elFav.includes(g.ak)] : [fbFav.some((n) => n.toLowerCase() === g.h.toLowerCase()), fbFav.some((n) => n.toLowerCase() === g.a.toLowerCase())]);
+function nextHtml(list, live) {
+  if (live.some((g) => g.fav)) return '';
+  const g = list.find((x) => x.fav && x.st === 'pre' && x.at > Date.now());
+  if (!g) return '';
+  const [fh, fa] = favSide(g), mins = Math.max(1, Math.round((g.at - Date.now()) / 60000));
+  const left = mins < 60 ? `in ${mins} Min.` : mins < 36 * 60 ? `in ${Math.round(mins / 60)} Std.` : `in ${Math.round(mins / 1440)} Tagen`;
+  const title = fh ? `${g.h} gegen ${g.a}` : `${g.a} bei ${g.h}`;
+  return `<a class="ms-next" href="${esc(g.href)}"><span class="k">Als Nächstes</span><span class="r">${crest(fh || !fa ? g.hl : g.al, 'lg')}<span class="n"><b>${esc(title)}</b><small>${esc(whenText(g.at))} · ${esc(g.lg)}${tvTag(g)}</small></span><span class="cd num">${left}</span></span></a>`;
+}
+function missedHtml(list) {
+  const rows = list.filter(missed).reverse().slice(0, MISSED_MAX);
+  if (!rows.length) return '';
+  const off = !spoilerOn();
+  const item = (g) => {
+    const [fh, fa] = favSide(g), home = fh, both = fh && fa, k = gkey(g);
+    const title = both ? `${g.h} – ${g.a}` : home ? g.h : g.a;
+    const wd = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', weekday: 'short' }).format(new Date(g.at)).replace('.', '');
+    const sub = both ? `${g.lg} · ${wd}` : `${home ? 'gegen' : 'bei'} ${home ? g.a : g.h} · ${wd}`;
+    const us = home ? g.hs : g.as, them = home ? g.as : g.hs;
+    const res = us > them ? ['w', 'S'] : us < them ? ['l', 'N'] : ['d', 'U'];
+    const show = off || revealed.has(k);
+    return `<div class="ms-res">${crest(fh || !fa ? g.hl : g.al)}<span class="n"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${show ? `${both ? '' : `<i class="${res[0]}">${res[1]}</i>`}<strong class="num">${both ? `${g.hs}:${g.as}` : `${us}:${them}`}</strong>` : `<button type="button" class="ms-show" data-act="reveal" data-k="${esc(k)}" aria-label="Resultat von ${esc(title)} zeigen">Zeigen</button>`}</div>`;
+  };
+  return `<section class="ms-missed" aria-label="Seit deinem letzten Besuch"><div class="h"><b>Seit deinem letzten Besuch</b>${off ? '' : '<span>Spoilerschutz an</span>'}</div>${rows.map(item).join('')}</section>`;
+}
+
 // Fallblatt-Tafel wie auf den Seiten Basketball und Fussball; die ganze Tafel führt zum Spiel
 function liveCard(g) {
   const bk = g.sport === 'b';
@@ -97,7 +141,7 @@ function liveCard(g) {
 function feedItems(list) {
   const out = [], now = Date.now();
   const recent = (g) => g.st === 'ft' && now - g.at < 3.5 * 3600e3 && now - endsAt(g) < RECENT_MS;
-  for (const g of list.filter((x) => x.st === 'live' || recent(x))) {
+  for (const g of list.filter((x) => x.st === 'live' || (recent(x) && !hidden(x)))) {
     if (g.sport === 'f') {
       let h = 0, a = 0;
       for (const x of g.goals || []) {
@@ -129,8 +173,8 @@ function teamCards(list) {
   const add = (sport, key, name, logo, mine) => {
     const done = mine.filter((g) => g.st === 'ft' && g.hs != null), live = mine.find((g) => g.st === 'live'), next = mine.find((g) => g.st === 'pre' && g.at > Date.now());
     const home = (g) => g.hk === key || g.h === key, us = (g) => (home(g) ? g.hs : g.as), them = (g) => (home(g) ? g.as : g.hs), opp = (g) => (home(g) ? g.a : g.h);
-    const form = done.slice(-5).map((g) => (us(g) > them(g) ? 'w' : us(g) < them(g) ? 'l' : 'd'));
-    const shown = live || next || done.at(-1);
+    const form = done.filter((g) => !hidden(g)).slice(-5).map((g) => (us(g) > them(g) ? 'w' : us(g) < them(g) ? 'l' : 'd'));
+    const shown = live || next || done.filter((g) => !hidden(g)).at(-1);
     if (!shown) return;
     const href = sport === 'b' ? `../?team=${encodeURIComponent(key)}` : shown.href;
     const sub = `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}`;
@@ -154,11 +198,16 @@ function render() {
   pill.innerHTML = live.length ? `<i class="ms-dot"></i>${live.length} live` : '';
   $('#msDate').textContent = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
+  // Live gesehene Spiele deiner Teams brauchen keinen Spoilerschutz mehr
+  let added = false;
+  for (const g of live) if (g.fav && !seen.has(gkey(g))) { seen.add(gkey(g)); added = true; }
+  if (added) saveSeen();
   const feed = feedItems(list);
   const liveHtml = live.length ? `<section class="ms-live" aria-label="Live-Spiele"><div class="ms-live-h"><b><i class="live-dot" aria-hidden="true"></i>Live</b><small>${live.length} ${live.length === 1 ? 'Spiel' : 'Spiele'}</small></div>
     <div class="hero-scroll${live.length > 1 ? ' multi' : ''}" data-keep="live">${live.map(liveCard).join('')}</div>
     ${feed.length ? `<div class="ms-feedbox"><h3>Live-Feed</h3><ul class="ms-feed">${feed.map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul></div>` : ''}</section>` : '';
 
+  const topHtml = `${nextHtml(list, live)}${missedHtml(list)}`;
   const cards = teamCards(list);
   const teamsHtml = `<h2 class="ms-h">Deine Teams</h2>${cards ? `<div class="ms-teams" data-keep="teams">${cards}</div>` : '<p class="ms-note">Noch keine Teams gewählt. Tippe unten auf «Ich».</p>'}`;
 
@@ -177,7 +226,7 @@ function render() {
   const main = $('#msMain');
   const keep = [...main.querySelectorAll('[data-keep]')].map((n) => [n.dataset.keep, n.scrollLeft]);
   main.classList.toggle('solo', !live.length);
-  main.innerHTML = live.length ? `<div class="ms-col">${liveHtml}</div><div class="ms-col">${note}${teamsHtml}${todayHtml}</div>` : `<div class="ms-col">${note}${teamsHtml}${todayHtml}</div>`;
+  main.innerHTML = live.length ? `<div class="ms-col">${liveHtml}</div><div class="ms-col">${note}${topHtml}${teamsHtml}${todayHtml}</div>` : `<div class="ms-col">${note}${topHtml}${teamsHtml}${todayHtml}</div>`;
   for (const [k, x] of keep) { const n = main.querySelector(`[data-keep="${k}"]`); if (n) n.scrollLeft = x; }
 }
 
@@ -224,7 +273,7 @@ function openMe() {
   const dlg = $('#msMe');
   dlg.innerHTML = `<h2 id="msMeT">${esc(store.get('el-profile-name', 'Profil'))}</h2><p>Deine Teams gelten für Basketball und Fussball.</p>
     <a href="../?fav=1">Basketball-Teams wählen</a><a href="../fussball/?fav=1">Fussball-Teams wählen</a>
-    <button type="button" data-act="theme">Hell oder dunkel</button><button type="button" class="x" data-act="me-close">Schliessen</button>`;
+    <button type="button" data-act="spoiler" id="msSpoiler">Spoilerschutz: ${spoilerOn() ? 'Ein' : 'Aus'}</button><button type="button" data-act="theme">Hell oder dunkel</button><button type="button" class="x" data-act="me-close">Schliessen</button>`;
   dlg.showModal();
 }
 function toggleTheme() {
@@ -237,10 +286,19 @@ document.addEventListener('click', (e) => {
   if (act === 'me') openMe();
   else if (act === 'me-close') $('#msMe').close();
   else if (act === 'theme') toggleTheme();
+  else if (act === 'spoiler') { store.set('el-ms-spoiler', spoilerOn() ? '0' : '1'); $('#msSpoiler').textContent = `Spoilerschutz: ${spoilerOn() ? 'Ein' : 'Aus'}`; render(); }
+  else if (act === 'reveal') { const k = e.target.closest('[data-k]').dataset.k; revealed.add(k); render(); }
   else if (act === 'more-today') { show.today = !show.today; render(); }
   else if (e.target === $('#msMe')) $('#msMe').close();
 });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+// Beim Verlassen merken, was gesehen wurde: es erscheint beim nächsten Öffnen nicht mehr
+function rememberSeen() {
+  for (const k of revealed) seen.add(k);
+  if (!spoilerOn()) for (const g of games().filter(missed)) seen.add(gkey(g));
+  saveSeen();
+}
+addEventListener('pagehide', rememberSeen);
+document.addEventListener('visibilitychange', () => { if (document.hidden) rememberSeen(); else refresh(); });
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
 
 syncProfile();
