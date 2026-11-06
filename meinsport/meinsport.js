@@ -391,6 +391,49 @@ document.addEventListener('click', (e) => {
   else if (e.target === $('#msMe')) $('#msMe').close();
   else if (e.target === $('#msPick')) $('#msPick').close();
 });
+// Herunterziehen lädt neu wie in den Bereichen. Nur die Daten, nicht die ganze Seite: so bleibt die Leiste ruhig.
+function setupPullToRefresh() {
+  const THRESHOLD = 70, MAX = 110;
+  const ind = document.createElement('div');
+  ind.className = 'ptr';
+  ind.setAttribute('aria-hidden', 'true');
+  ind.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>`;
+  document.body.append(ind);
+  let startY = null, startX = 0, dy = 0, busy = false;
+  const show = (d) => {
+    const pos = Math.min(d, MAX);
+    ind.style.transform = `translate(-50%, ${pos - 50}px) rotate(${pos * 3}deg)`;
+    ind.style.opacity = String(Math.min(pos / THRESHOLD, 1));
+    ind.classList.toggle('is-ready', d >= THRESHOLD);
+  };
+  const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready', 'is-loading'); };
+  addEventListener('touchstart', (e) => {
+    if (busy || e.touches.length !== 1 || scrollY > 0 || $('#msMe').open || $('#msPick').open) return;
+    startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
+  }, { passive: true });
+  addEventListener('touchmove', (e) => {
+    if (startY == null) return;
+    const y = e.touches[0].clientY - startY, x = e.touches[0].clientX - startX;
+    // Seitwärts wischen (Tafeln, Teamkarten) oder nach oben scrollen: kein Aktualisieren
+    if (y <= 0 || Math.abs(x) > y || scrollY > 0) { startY = null; reset(); return; }
+    dy = y * 0.6;
+    show(dy);
+  }, { passive: true });
+  addEventListener('touchend', async () => {
+    if (startY == null) return;
+    startY = null;
+    if (dy < THRESHOLD) return reset();
+    busy = true;
+    ind.classList.add('is-loading');
+    ind.style.transform = 'translate(-50%, 20px)';
+    ind.style.opacity = '1';
+    await Promise.all([refresh(), syncProfile()]).catch(() => {});
+    busy = false;
+    reset();
+  });
+  addEventListener('touchcancel', () => { startY = null; reset(); });
+}
+
 // Beim Verlassen merken, was gesehen wurde: es erscheint beim nächsten Öffnen nicht mehr
 function rememberSeen() {
   for (const k of revealed) seen.add(k);
@@ -401,5 +444,6 @@ addEventListener('pagehide', rememberSeen);
 document.addEventListener('visibilitychange', () => { if (document.hidden) rememberSeen(); else refresh(); });
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
 
+setupPullToRefresh();
 syncProfile();
 refresh();
