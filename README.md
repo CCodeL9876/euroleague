@@ -3,6 +3,11 @@
 Euroleague-Tagesüberblick als eigene Website: News, Resultate, Tabelle, nächste Spiele und Live-Spielstände.
 Läuft auf GitHub Pages, ohne Build-Schritt (reines HTML/CSS/JavaScript).
 
+
+## Aufbau
+
+Drei gleichgestellte Bereiche: `/` ist «Mein Sport» (`index.html`, `meinsport/`), dazu `basketball/` und `fussball/`. Gemeinsam im Hauptordner liegen `gate.js`, `config.js`, `style.css`, `sw.js`, `news.json` und `injuries.json`. Die Anmeldung läuft über `basketball/`.
+
 ## Woher die Daten kommen
 
 | Teil | Quelle | Aktualisierung |
