@@ -6,7 +6,7 @@ Läuft auf GitHub Pages, ohne Build-Schritt (reines HTML/CSS/JavaScript).
 
 ## Aufbau
 
-Drei gleichgestellte Bereiche: `/` ist «Mein Sport» (`index.html`, `meinsport/`), dazu `basketball/` und `fussball/`. Gemeinsam im Hauptordner liegen `gate.js`, `config.js`, `style.css`, `sw.js`, `news.json` und `injuries.json`. Die Anmeldung läuft über `basketball/`.
+Drei gleichgestellte Bereiche: `/` ist «Mein Sport» (`index.html`, `meinsport/`), dazu `basketball/euroleague/` und `fussball/`. Gemeinsam im Hauptordner liegen `gate.js`, `config.js`, `style.css`, `sw.js`, `news.json` und `injuries.json`. Die Anmeldung läuft über `basketball/euroleague/`. `basketball/` selbst hat keinen Inhalt und leitet dorthin weiter.
 
 ## Woher die Daten kommen
 

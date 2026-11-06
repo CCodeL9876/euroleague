@@ -1,5 +1,5 @@
 // Mein Sport: gemeinsame Startseite. Liest dieselben Daten wie die Bereiche Basketball und Fussball und führt für Details
-// dorthin (basketball/?game=, basketball/?team=, fussball/?m=). Zugang und Profil wie dort (gate.js, Lieblingsteams im Gerät und im Profil).
+// dorthin (basketball/euroleague/?game=, ?team=, fussball/?m=). Zugang und Profil wie dort (gate.js, Lieblingsteams im Gerät und im Profil).
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 import { tvOf } from '../fussball/tv.js';
 
@@ -17,7 +17,7 @@ const store = {
 const readList = (k) => { try { const v = JSON.parse(store.get(k, 'null')); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } };
 try { sessionStorage.setItem('el-started', '1'); } catch { /* privates Fenster */ } // siehe start-boot.js
 // Ohne Profil zur Anmeldung im Basketball-Bereich, danach zurück hierher (el-next)
-if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('basketball/'); }
+if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('basketball/euroleague/'); }
 
 let elFav = readList('el-fav-teams'), fbFav = readList('el-fb-fav2');
 let el = null, fb = null, elFailed = false, fbFailed = false;
@@ -74,7 +74,7 @@ function games() {
   for (const g of el?.games || []) {
     const at = Date.parse(g.utc), st = g.status === 'final' ? 'ft' : g.status;
     list.push({ sport: 'b', id: g.code, at, st, h: t[g.home]?.short || g.home, a: t[g.away]?.short || g.away, hl: t[g.home]?.crest, al: t[g.away]?.crest, hk: g.home, ak: g.away,
-      hs: g.hs, as: g.as, period: g.period, clock: g.clock, round: g.round, label: st === 'live' ? bkLabel(g) : '', lg: 'EuroLeague', href: `basketball/?game=${g.code}`, fav: elFav.includes(g.home) || elFav.includes(g.away) });
+      hs: g.hs, as: g.as, period: g.period, clock: g.clock, round: g.round, label: st === 'live' ? bkLabel(g) : '', lg: 'EuroLeague', href: `basketball/euroleague/?game=${g.code}`, fav: elFav.includes(g.home) || elFav.includes(g.away) });
   }
   const names = new Set(fbFav.map((n) => n.toLowerCase())), lg = new Map((fb?.leagues || []).map((l) => [l.id, l.name]));
   for (const m of fb?.matches || []) {
@@ -190,7 +190,7 @@ function teamCards(list) {
     const home = (g) => g.hk === key || g.h === key, us = (g) => (home(g) ? g.hs : g.as), them = (g) => (home(g) ? g.as : g.hs), opp = (g) => (home(g) ? g.a : g.h);
     const form = done.filter((g) => !hidden(g)).slice(-5).map((g) => (us(g) > them(g) ? 'w' : us(g) < them(g) ? 'l' : 'd'));
     const shown = live || next || done.filter((g) => !hidden(g)).at(-1);
-    const href = sport === 'b' ? `basketball/?team=${encodeURIComponent(key)}` : shown?.href || 'fussball/';
+    const href = sport === 'b' ? `basketball/euroleague/?team=${encodeURIComponent(key)}` : shown?.href || 'fussball/';
     const sub = shown ? `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}` : 'im Moment kein Spiel geplant';
     const x = editTeams ? `<button type="button" class="ms-x" data-act="team-x" data-s="${sport}" data-k="${esc(key)}" aria-label="${esc(name)} entfernen">×</button>` : '';
     cards.push({ rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg')}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>

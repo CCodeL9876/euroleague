@@ -2,13 +2,13 @@
 // aktuell ist); ohne Netz kommt der letzte Stand – bei den Spieldaten mit Kopfzeile „x-offline“, damit die Seite
 // „Offline – Stand von …“ anzeigt. Logos und Spielerfotos: zuerst aus dem Zwischenspeicher (ändern sich kaum).
 
-const CACHE = 'euroleague-v109';
+const CACHE = 'euroleague-v110';
 const IMAGES = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//;
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 const DATA = /\/functions\/v1\/euroleague/;
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', 'index.html', 'gate.js', 'basketball/', 'basketball/app.js', 'meinsport/meinsport.js', 'meinsport/meinsport.css', 'fussball/tv.js', 'style.css', 'config.js', 'theme-boot.js', 'start-boot.js', 'news.json', 'icon.svg', 'manifest.webmanifest', 'fussball/', 'fussball/fussball.js', 'fussball/fussball.css', 'fussball/manifest.webmanifest', 'fussball/icon.svg'])).catch(() => {}));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', 'index.html', 'gate.js', 'basketball/euroleague/', 'basketball/euroleague/app.js', 'meinsport/meinsport.js', 'meinsport/meinsport.css', 'fussball/tv.js', 'style.css', 'config.js', 'theme-boot.js', 'start-boot.js', 'news.json', 'icon.svg', 'manifest.webmanifest', 'fussball/', 'fussball/fussball.js', 'fussball/fussball.css', 'fussball/manifest.webmanifest', 'fussball/icon.svg'])).catch(() => {}));
   self.skipWaiting();
 });
 
