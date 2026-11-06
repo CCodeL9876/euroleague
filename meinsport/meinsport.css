@@ -21,29 +21,35 @@ body:not(.unlocked) .ms, body:not(.unlocked) .ms-tabs{display:none;}
 .ms-logo{width:20px;height:20px;object-fit:contain;flex:none;}
 .ms-logo.lg{width:34px;height:34px;}
 .ms-logo.none{display:inline-block;}
-a.ms-row, a.ms-lr, a.ms-tc{color:inherit;text-decoration:none;}
+a.ms-row, a.ms-tc{color:inherit;text-decoration:none;}
 /* Spiele */
 .ms-list{display:flex;flex-direction:column;gap:6px;}
 .ms-row{display:grid;grid-template-columns:54px minmax(0,1fr);grid-template-areas:"t a" "t b" "t c";column-gap:10px;row-gap:1px;align-items:center;background:var(--card);border-radius:14px;padding:9px 12px 9px 11px;border-left:4px solid var(--c);}
-.ms-row.b,.ms-lr.b,.ms-tc.b,.ms-feed li.b{--c:var(--bk);}
-.ms-row.f,.ms-lr.f,.ms-tc.f,.ms-feed li.f{--c:var(--fb);}
+.ms-row.b,.ms-tc.b,.ms-feed li.b{--c:var(--bk);}
+.ms-row.f,.ms-tc.f,.ms-feed li.f{--c:var(--fb);}
 .ms-row .t{grid-area:t;font-family:var(--mono);font-weight:600;font-size:0.82rem;}
 .ms-row .tm{display:flex;align-items:center;gap:7px;font-size:0.88rem;min-width:0;}
 .ms-row .tm:nth-of-type(2){grid-area:a;}
 .ms-row .tm:nth-of-type(3){grid-area:b;}
-.ms-row .tm b,.ms-lr .tm b{font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ms-row .tm em,.ms-lr .tm em{font-family:var(--mono);font-style:normal;font-weight:600;}
+.ms-row .tm b{font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ms-row .tm em{font-family:var(--mono);font-style:normal;font-weight:600;}
 .ms-row .lg{grid-area:c;font-size:0.72rem;color:var(--faint);margin-top:2px;}
 .ms-row.fav .lg::after{content:" · Dein Team";color:var(--gold);}
-/* Live */
-.ms-live{background:var(--card);border:1px solid var(--live);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:6px;}
-.ms-live h2{margin:2px 4px;font-size:0.9rem;font-weight:600;}
-.ms-lr{position:relative;display:flex;flex-direction:column;gap:2px;background:var(--panel);border-radius:12px;padding:8px 10px;border-left:4px solid var(--c);}
-.ms-lr .st{display:flex;align-items:center;gap:6px;font-size:0.74rem;font-weight:600;color:var(--live);}
-.ms-lr .tm{display:flex;align-items:center;gap:7px;font-size:0.9rem;}
-.ms-lr .fv{position:absolute;top:7px;right:10px;font-size:0.7rem;color:var(--gold);}
+/* Live: Fallblatt-Tafeln aus style.css, Fussball in Grün wie im Fussball-Bereich */
+.ms-live{display:flex;flex-direction:column;gap:10px;min-width:0;}
+.ms-live-h{display:flex;align-items:baseline;gap:8px;padding:0 4px;}
+.ms-live-h b{font-size:0.92rem;font-weight:600;}
+.ms-live-h small{font-size:0.75rem;color:var(--dim);}
+a.live-hero{text-decoration:none;}
+.ms-logo.flag{width:40px;height:40px;}
+.ms-fv{margin-left:6px;color:var(--gold);}
+.ms-goal{font-size:0.74rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw;}
+.live-hero.f{--flap-board:#142A1E;--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]) .live-hero.f{--flap-board:var(--panel);} }
+:root[data-theme="light"] .live-hero.f{--flap-board:var(--panel);}
 .ms-more{border:0;background:none;color:var(--text);font:inherit;font-size:0.84rem;font-weight:500;padding:6px 4px;min-height:36px;text-align:left;cursor:pointer;}
-.ms-live h3{margin:4px 4px 0;font-size:0.78rem;font-weight:600;color:var(--dim);}
+.ms-feedbox{background:var(--card);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:2px;}
+.ms-feedbox h3{margin:2px 4px 0;font-size:0.78rem;font-weight:600;color:var(--dim);}
 .ms-feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
 .ms-feed li{display:grid;grid-template-columns:38px minmax(0,1fr);gap:8px;padding:6px 4px;border-top:1px solid var(--line);align-items:baseline;}
 .ms-feed li:first-child{border-top:0;}

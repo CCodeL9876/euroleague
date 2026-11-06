@@ -5,7 +5,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 const EL_URL = `${SUPABASE_URL}/functions/v1/euroleague`, FB_URL = `${SUPABASE_URL}/functions/v1/fussball`;
 const HEAD = { apikey: SUPABASE_ANON_KEY };
 const LIVE_POLL_MS = 60 * 1000, IDLE_POLL_MS = 10 * 60 * 1000;
-const LIVE_MAX = 4, TODAY_MAX = 8, FEED_MAX = 6, RECENT_MS = 30 * 60 * 1000;
+const TODAY_MAX = 8, FEED_MAX = 6, RECENT_MS = 30 * 60 * 1000;
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -20,7 +20,8 @@ if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next',
 let elFav = readList('el-fav-teams'), fbFav = readList('el-fb-fav2');
 let el = null, fb = null, elFailed = false, fbFailed = false;
 const flows = new Map(); // Spielcode → Spielverlauf der laufenden Basketball-Spiele, für den Feed
-const show = { live: false, today: false };
+const show = { today: false };
+const lastFlaps = new Map(); // letzter Stand pro Spiel: geänderte Blätter klappen um, wie in den Bereichen
 
 const zone = (d, o) => Object.fromEntries(new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', ...o }).formatToParts(d).map((p) => [p.type, p.value]));
 const dayKey = (ms) => { const o = zone(new Date(ms), { year: 'numeric', month: '2-digit', day: '2-digit' }); return `${o.year}-${o.month}-${o.day}`; };
@@ -49,14 +50,14 @@ function games() {
   for (const g of el?.games || []) {
     const at = Date.parse(g.utc), st = g.status === 'final' ? 'ft' : g.status;
     list.push({ sport: 'b', id: g.code, at, st, h: t[g.home]?.short || g.home, a: t[g.away]?.short || g.away, hl: t[g.home]?.crest, al: t[g.away]?.crest, hk: g.home, ak: g.away,
-      hs: g.hs, as: g.as, label: st === 'live' ? bkLabel(g) : '', lg: 'EuroLeague', href: `../?game=${g.code}`, fav: elFav.includes(g.home) || elFav.includes(g.away) });
+      hs: g.hs, as: g.as, period: g.period, clock: g.clock, round: g.round, label: st === 'live' ? bkLabel(g) : '', lg: 'EuroLeague', href: `../?game=${g.code}`, fav: elFav.includes(g.home) || elFav.includes(g.away) });
   }
   const names = new Set(fbFav.map((n) => n.toLowerCase())), lg = new Map((fb?.leagues || []).map((l) => [l.id, l.name]));
   for (const m of fb?.matches || []) {
     if (m.st === 'off') continue;
     const st = m.st === 'ht' ? 'live' : m.st;
     list.push({ sport: 'f', id: m.id, at: Date.parse(m.utc), st, h: m.h, a: m.a, hl: m.hl, al: m.al, hk: m.h, ak: m.a, hs: m.hs, as: m.as, goals: m.goals, min: m.min,
-      label: m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}'` : 'Live', lg: lg.get(m.l) || '', href: `../fussball/?m=${encodeURIComponent(m.id)}`, fav: names.has(m.h.toLowerCase()) || names.has(m.a.toLowerCase()) });
+      label: m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft', lg: lg.get(m.l) || '', href: `../fussball/?m=${encodeURIComponent(m.id)}`, fav: names.has(m.h.toLowerCase()) || names.has(m.a.toLowerCase()) });
   }
   return list.sort((x, y) => x.at - y.at);
 }
@@ -67,9 +68,28 @@ function rowHtml(g) {
   const side = (n, u, s) => `<span class="tm">${crest(u)}<b>${esc(n)}</b>${score ? `<em class="num">${s}</em>` : ''}</span>`;
   return `<a class="ms-row ${g.sport}${g.fav ? ' fav' : ''}" href="${esc(g.href)}"><span class="t num">${g.st === 'ft' ? 'Ende' : hhmm(g.at)}</span>${side(g.h, g.hl, g.hs)}${side(g.a, g.al, g.as)}<span class="lg">${esc(g.lg)}</span></a>`;
 }
-function liveRow(g) {
-  const side = (n, u, s) => `<span class="tm">${crest(u)}<b>${esc(n)}</b><em class="num">${s ?? 0}</em></span>`;
-  return `<a class="ms-lr ${g.sport}" href="${esc(g.href)}"><span class="st"><i class="ms-dot"></i>${esc(g.label)}</span>${g.fav ? '<span class="fv">Dein Team</span>' : ''}${side(g.h, g.hl, g.hs)}${side(g.a, g.al, g.as)}</a>`;
+// Fallblatt-Tafel wie auf den Seiten Basketball und Fussball; die ganze Tafel führt zum Spiel
+function liveCard(g) {
+  const bk = g.sport === 'b';
+  const n = Number((/\d+/.exec(g.period || '') || [])[0]);
+  const running = bk && n >= 1 && /^\d{1,2}:\d\d$/.test(g.clock || '') && g.clock !== '00:00';
+  const state = running ? (n > 4 ? 'Verlängerung' : `${n}. Viertel`) : g.label;
+  const clock = running ? g.clock.replace(/^0(?=\d:)/, '') : '';
+  const hs = bk ? String(g.hs ?? 0).padStart(3, ' ') : String(g.hs ?? 0), as = bk ? String(g.as ?? 0).padStart(3, ' ') : String(g.as ?? 0);
+  const key = `${g.sport}${g.id}`, chars = [...hs, ...as, ...clock], before = lastFlaps.get(key) || [];
+  lastFlaps.set(key, chars);
+  let i = 0;
+  const tiles = (str) => `<span class="flaps">${[...str].map((ch) => {
+    const flip = before.length && before[i] !== ch; i += 1;
+    return `<span class="flap${ch === ':' ? ' sep' : ''}${flip ? ' flip' : ''}">${ch === ' ' ? '' : esc(ch)}</span>`;
+  }).join('')}</span>`;
+  const last = (g.goals || []).at(-1);
+  const goal = last ? `Tor ${last.n || (last.s === 1 ? g.h : g.a)}${last.m !== '' ? ` ${last.m}'` : ''}` : '';
+  const row1 = `<span class="flap-row">${crest(g.hl, 'flag')}<span class="flap-name">${esc(g.h)}</span>${tiles(hs)}</span>`;
+  const row2 = `<span class="flap-row">${crest(g.al, 'flag')}<span class="flap-name">${esc(g.a)}</span>${tiles(as)}</span>`;
+  return `<a class="live-hero ${g.sport}" href="${esc(g.href)}" aria-label="${esc(`${g.h} ${g.hs ?? 0}, ${g.a} ${g.as ?? 0}, ${state}`)}">${row1}${row2}
+    <span class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)}<span class="flap-round">&nbsp;· ${esc(bk ? `Spieltag ${g.round}` : g.lg)}</span>${g.fav ? '<span class="ms-fv" title="Dein Team">★</span>' : ''}</span>
+      <span class="flap-clock">${goal ? `<span class="ms-goal">${esc(goal)}</span>` : ''}${clock ? tiles(clock) : ''}<span class="flap-more" aria-hidden="true">›</span></span></span></a>`;
 }
 
 // Feed: Tore laufender Fussballspiele, Läufe und Viertelenden laufender Basketballspiele, Endstände der letzten halben Stunde.
@@ -134,14 +154,13 @@ function render() {
   pill.innerHTML = live.length ? `<i class="ms-dot"></i>${live.length} live` : '';
   $('#msDate').textContent = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
-  const shownLive = show.live ? live : live.slice(0, LIVE_MAX);
   const feed = feedItems(list);
-  const liveHtml = live.length ? `<section class="ms-live" aria-label="Jetzt live"><h2>Jetzt live</h2>${shownLive.map(liveRow).join('')}
-    ${live.length > LIVE_MAX ? `<button type="button" class="ms-more" data-act="more-live">${show.live ? 'Weniger zeigen' : `Alle ${live.length} Spiele`}</button>` : ''}
-    ${feed.length ? `<h3>Live-Feed</h3><ul class="ms-feed">${feed.map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul>` : ''}</section>` : '';
+  const liveHtml = live.length ? `<section class="ms-live" aria-label="Live-Spiele"><div class="ms-live-h"><b><i class="live-dot" aria-hidden="true"></i>Live</b><small>${live.length} ${live.length === 1 ? 'Spiel' : 'Spiele'}</small></div>
+    <div class="hero-scroll${live.length > 1 ? ' multi' : ''}" data-keep="live">${live.map(liveCard).join('')}</div>
+    ${feed.length ? `<div class="ms-feedbox"><h3>Live-Feed</h3><ul class="ms-feed">${feed.map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul></div>` : ''}</section>` : '';
 
   const cards = teamCards(list);
-  const teamsHtml = `<h2 class="ms-h">Deine Teams</h2>${cards ? `<div class="ms-teams">${cards}</div>` : '<p class="ms-note">Noch keine Teams gewählt. Tippe unten auf «Ich».</p>'}`;
+  const teamsHtml = `<h2 class="ms-h">Deine Teams</h2>${cards ? `<div class="ms-teams" data-keep="teams">${cards}</div>` : '<p class="ms-note">Noch keine Teams gewählt. Tippe unten auf «Ich».</p>'}`;
 
   // Heute, oder der nächste Tag mit Spielen
   const open = list.filter((g) => g.st !== 'live');
@@ -156,8 +175,10 @@ function render() {
   const fails = [elFailed && 'Basketball', fbFailed && 'Fussball'].filter(Boolean);
   const note = fails.length ? `<p class="ms-note">${fails.join(' und ')} gerade nicht erreichbar, angezeigt wird der letzte Stand.</p>` : '';
   const main = $('#msMain');
+  const keep = [...main.querySelectorAll('[data-keep]')].map((n) => [n.dataset.keep, n.scrollLeft]);
   main.classList.toggle('solo', !live.length);
   main.innerHTML = live.length ? `<div class="ms-col">${liveHtml}</div><div class="ms-col">${note}${teamsHtml}${todayHtml}</div>` : `<div class="ms-col">${note}${teamsHtml}${todayHtml}</div>`;
+  for (const [k, x] of keep) { const n = main.querySelector(`[data-keep="${k}"]`); if (n) n.scrollLeft = x; }
 }
 
 const getJson = async (url, ms) => {
@@ -216,7 +237,6 @@ document.addEventListener('click', (e) => {
   if (act === 'me') openMe();
   else if (act === 'me-close') $('#msMe').close();
   else if (act === 'theme') toggleTheme();
-  else if (act === 'more-live') { show.live = !show.live; render(); }
   else if (act === 'more-today') { show.today = !show.today; render(); }
   else if (e.target === $('#msMe')) $('#msMe').close();
 });
