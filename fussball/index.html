@@ -25,12 +25,21 @@
     <header class="fb-top">
       <div class="fb-brand"><svg class="fb-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 7.6l3.7 2.7-1.4 4.4H9.7l-1.4-4.4z"/><path d="M12 7.6V2.6M15.7 10.3l4.6-1.6M14.3 14.7l3 4M9.7 14.7l-3 4M8.3 10.3l-4.6-1.6"/></svg>
         <h1>Sport<span class="t-long">-News</span><span class="t-short"> -</span> <em>Fussball</em></h1></div>
+      <nav class="fb-nav" aria-label="Ansicht">
+        <button type="button" data-view="all" aria-current="page">Spiele</button>
+        <button type="button" data-view="mine">Meine</button>
+        <a class="fb-nav-bb" href="../">Basketball</a>
+      </nav>
       <button type="button" class="theme-btn" id="themeBtn" data-act="theme" aria-label="Hell oder dunkel"></button>
       <button type="button" class="theme-btn profile-btn" id="profileBtn" data-act="profile-menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profileMenu" aria-label="Profil"></button>
       <div class="profile-menu" id="profileMenu" role="menu" aria-label="Profil" hidden></div>
     </header>
     <nav class="fb-days" id="fbDays" aria-label="Tag"></nav>
-    <main class="fb-list" id="fbList" aria-live="polite"><p class="fb-empty">Lade Spiele …</p></main>
+    <div class="fb-dash">
+      <aside class="fb-side" id="fbSideL" aria-label="Ligen und Teams"></aside>
+      <main class="fb-list" id="fbList" aria-live="polite"><p class="fb-empty">Lade Spiele …</p></main>
+      <aside class="fb-side" id="fbSideR" aria-label="Tabelle und Torschützen"></aside>
+    </div>
     <p class="fb-foot" id="fbFoot"></p>
   </div>
   <nav class="fb-tabs" aria-label="Ansicht">
