@@ -15,6 +15,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* privates Fenster */ } },
 };
 const readList = (k) => { try { const v = JSON.parse(store.get(k, 'null')); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } };
+try { sessionStorage.setItem('el-started', '1'); } catch { /* privates Fenster */ } // siehe start-boot.js
 // Ohne Profil zur Anmeldung im Basketball-Bereich, danach zurück hierher (el-next)
 if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('../'); }
 
@@ -357,10 +358,14 @@ function openPick() {
   renderPick();
 }
 
+const START_NAME = { basketball: 'Basketball', meinsport: 'Mein Sport', fussball: 'Fussball' };
+const startPage = () => { const v = store.get('el-start', 'basketball'); return START_NAME[v] ? v : 'basketball'; };
+
 function openMe() {
   const dlg = $('#msMe');
   dlg.innerHTML = `<h2 id="msMeT">${esc(store.get('el-profile-name', 'Profil'))}</h2><p>Deine Teams gelten für Basketball und Fussball.</p>
     <button type="button" data-act="add-team">Teams wählen</button>
+    <button type="button" data-act="start" id="msStart">Start der App: ${START_NAME[startPage()]}</button>
     <button type="button" data-act="spoiler" id="msSpoiler">Spoilerschutz: ${spoilerOn() ? 'Ein' : 'Aus'}</button><button type="button" data-act="theme">Hell oder dunkel</button><button type="button" class="x" data-act="me-close">Schliessen</button>`;
   dlg.showModal();
 }
@@ -384,7 +389,10 @@ document.addEventListener('click', (e) => {
   else if (act === 'spoiler') { store.set(msKey('spoiler'), spoilerOn() ? '0' : '1'); $('#msSpoiler').textContent = `Spoilerschutz: ${spoilerOn() ? 'Ein' : 'Aus'}`; saveSeen(); render(); }
   else if (act === 'reveal') { const k = e.target.closest('[data-k]').dataset.k; revealed.add(k); render(); }
   else if (act === 'add-team') { if ($('#msMe').open) $('#msMe').close(); openPick(); }
-  else if (act === 'pick-close') $('#msPick').close();
+  else if (act === 'start') {
+    const keys = Object.keys(START_NAME), next = keys[(keys.indexOf(startPage()) + 1) % keys.length];
+    store.set('el-start', next); $('#msStart').textContent = `Start der App: ${START_NAME[next]}`;
+  } else if (act === 'pick-close') $('#msPick').close();
   else if (act === 'pick' || act === 'team-x') { const d = e.target.closest('[data-k]').dataset; e.preventDefault(); toggleTeam(d.s, d.k); }
   else if (act === 'edit-teams') { editTeams = !editTeams; render(); }
   else if (act === 'more-today') { show.today = !show.today; render(); }
