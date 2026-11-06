@@ -940,6 +940,7 @@ DASH.addEventListener('change', () => { if (data) render(); });
 themeUi();
 renderMenu();
 load().then(() => {
+  if (new URLSearchParams(location.search).get('fav') === '1') { history.replaceState(null, '', location.pathname); openFav(); }
   const m = openFromPush && data?.matches.find((x) => x.id === openFromPush);
   if (!m) return;
   mineOnly = false; sel = zDate(new Date(m.utc)); open.add(m.id); render();

@@ -1846,7 +1846,16 @@ $('#siteLink').href = KI_NEWS_URL;
 function boot() {
   setTab(tab, false);
   setupPullToRefresh();
-  refresh({ withNews: true }).then(() => loadPlayers()).then(render);
+  refresh({ withNews: true }).then(openFromLink).then(() => loadPlayers()).then(render);
+}
+
+// Aus «Mein Sport»: direkt in einen Spielbericht, eine Teamseite oder die Teamwahl
+function openFromLink() {
+  const game = Number(params.get('game')), team = params.get('team');
+  if (game && data?.games?.some((g) => g.code === game)) openBox(game);
+  else if (team && data?.teams?.[team]) openTeam(team);
+  else if (params.get('fav') === '1') { favEdit = true; renderFavSheet(); }
+  if (game || team || params.has('fav')) history.replaceState(null, '', location.pathname);
 }
 
 // Teamdaten (für die Logos in der Favoriten-Auswahl) schon vor der Anmeldung laden, unabhängig vom Profilstatus.

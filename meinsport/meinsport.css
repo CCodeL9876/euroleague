@@ -1,0 +1,88 @@
+/* Mein Sport: gemeinsame Startseite für Basketball und Fussball. Fläche und Schrift kommen aus style.css (Euroleague-Töne),
+   Orange steht für Basketball, Grün für Fussball. Handy: eine Spalte, breit: Live links, Teams und Tag rechts. */
+:root{--bk:#F2975A;--fb:#5BD08A;--live:var(--coral);}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){--bk:#B24F0E;--fb:#1B6E3E;} }
+:root[data-theme="light"]{--bk:#B24F0E;--fb:#1B6E3E;}
+:root[data-theme="dark"]{--bk:#F2975A;--fb:#5BD08A;}
+body{padding:0;background:var(--bg);}
+body::before{background:var(--bg);}
+body:not(.unlocked) .ms, body:not(.unlocked) .ms-tabs{display:none;}
+.ms{max-width:1120px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) calc(104px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));}
+.ms-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 4px 12px;}
+.ms-top h1{margin:0;font-size:1.45rem;font-weight:600;letter-spacing:-0.02em;line-height:1.15;}
+.ms-top small{color:var(--dim);font-size:0.8rem;}
+.ms-pill{display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;font-weight:600;color:var(--live);border:1px solid var(--live);border-radius:999px;padding:3px 10px;white-space:nowrap;}
+.ms-pill[hidden]{display:none;}
+.ms-main{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start;}
+.ms-col{display:flex;flex-direction:column;gap:12px;min-width:0;}
+.ms-h{margin:2px 4px -4px;font-size:0.84rem;font-weight:600;color:var(--dim);}
+.ms-note{margin:0;font-size:0.84rem;color:var(--dim);padding:0 4px;}
+.ms-dot{width:8px;height:8px;border-radius:50%;background:var(--live);flex:none;}
+.ms-logo{width:20px;height:20px;object-fit:contain;flex:none;}
+.ms-logo.lg{width:34px;height:34px;}
+.ms-logo.none{display:inline-block;}
+a.ms-row, a.ms-lr, a.ms-tc{color:inherit;text-decoration:none;}
+/* Spiele */
+.ms-list{display:flex;flex-direction:column;gap:6px;}
+.ms-row{display:grid;grid-template-columns:54px minmax(0,1fr);grid-template-areas:"t a" "t b" "t c";column-gap:10px;row-gap:1px;align-items:center;background:var(--card);border-radius:14px;padding:9px 12px 9px 11px;border-left:4px solid var(--c);}
+.ms-row.b,.ms-lr.b,.ms-tc.b,.ms-feed li.b{--c:var(--bk);}
+.ms-row.f,.ms-lr.f,.ms-tc.f,.ms-feed li.f{--c:var(--fb);}
+.ms-row .t{grid-area:t;font-family:var(--mono);font-weight:600;font-size:0.82rem;}
+.ms-row .tm{display:flex;align-items:center;gap:7px;font-size:0.88rem;min-width:0;}
+.ms-row .tm:nth-of-type(2){grid-area:a;}
+.ms-row .tm:nth-of-type(3){grid-area:b;}
+.ms-row .tm b,.ms-lr .tm b{font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ms-row .tm em,.ms-lr .tm em{font-family:var(--mono);font-style:normal;font-weight:600;}
+.ms-row .lg{grid-area:c;font-size:0.72rem;color:var(--faint);margin-top:2px;}
+.ms-row.fav .lg::after{content:" · Dein Team";color:var(--gold);}
+/* Live */
+.ms-live{background:var(--card);border:1px solid var(--live);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:6px;}
+.ms-live h2{margin:2px 4px;font-size:0.9rem;font-weight:600;}
+.ms-lr{position:relative;display:flex;flex-direction:column;gap:2px;background:var(--panel);border-radius:12px;padding:8px 10px;border-left:4px solid var(--c);}
+.ms-lr .st{display:flex;align-items:center;gap:6px;font-size:0.74rem;font-weight:600;color:var(--live);}
+.ms-lr .tm{display:flex;align-items:center;gap:7px;font-size:0.9rem;}
+.ms-lr .fv{position:absolute;top:7px;right:10px;font-size:0.7rem;color:var(--gold);}
+.ms-more{border:0;background:none;color:var(--text);font:inherit;font-size:0.84rem;font-weight:500;padding:6px 4px;min-height:36px;text-align:left;cursor:pointer;}
+.ms-live h3{margin:4px 4px 0;font-size:0.78rem;font-weight:600;color:var(--dim);}
+.ms-feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
+.ms-feed li{display:grid;grid-template-columns:38px minmax(0,1fr);gap:8px;padding:6px 4px;border-top:1px solid var(--line);align-items:baseline;}
+.ms-feed li:first-child{border-top:0;}
+.ms-feed span{font-family:var(--mono);font-weight:600;font-size:0.72rem;color:var(--c);}
+.ms-feed p{margin:0;color:var(--dim);font-size:0.82rem;}
+.ms-feed b{font-weight:600;color:var(--text);}
+/* Teams */
+.ms-teams{display:flex;gap:8px;overflow-x:auto;margin:0 -14px;padding:2px 14px 6px;scrollbar-width:none;scroll-snap-type:x proximity;scroll-padding-left:14px;}
+.ms-teams::-webkit-scrollbar{display:none;}
+.ms-tc{flex:0 0 156px;scroll-snap-align:start;background:var(--card);border-radius:16px;padding:10px;border-top:4px solid var(--c);display:flex;flex-direction:column;gap:2px;min-width:0;}
+.ms-tc.on{outline:1px solid var(--live);}
+.ms-tc .th{display:flex;gap:8px;align-items:center;min-width:0;margin-bottom:6px;}
+.ms-tc .th div{min-width:0;display:flex;flex-direction:column;gap:3px;}
+.ms-tc .th b{font-size:0.86rem;font-weight:600;line-height:1.15;overflow-wrap:anywhere;}
+.ms-form{display:flex;gap:3px;min-height:8px;}
+.ms-form i{width:8px;height:8px;border-radius:50%;background:var(--faint);}
+.ms-form .w{background:var(--green);}
+.ms-form .l{background:var(--coral);}
+.ms-tc .k{display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--faint);}
+.ms-tc.on .k{color:var(--live);font-weight:600;}
+.ms-tc .v{font-size:0.84rem;font-weight:600;}
+.ms-tc .s{font-size:0.76rem;color:var(--dim);}
+/* Leiste */
+.ms-tabs{display:flex;position:fixed;z-index:40;gap:6px;padding:6px;border-radius:24px;left:max(12px, env(safe-area-inset-left, 0px));right:max(12px, env(safe-area-inset-right, 0px));bottom:calc(4px + env(safe-area-inset-bottom, 0px));max-width:520px;margin:0 auto;
+  background:color-mix(in srgb, var(--card-2) 94%, transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.08), 0 14px 34px rgba(10,10,32,0.4);}
+.ms-tabs a,.ms-tabs button{flex:1;min-height:58px;border:0;border-radius:18px;background:transparent;color:var(--dim);font:inherit;font-size:0.78rem;font-weight:600;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;}
+.ms-tabs .icon{width:23px;height:23px;}
+.ms-tabs a[aria-current="page"]{color:var(--on-color);background:var(--blue);}
+.ms-tabs .bk{color:var(--bk);}
+.ms-tabs .fbl{color:var(--fb);}
+/* Ich */
+.ms-me{width:min(420px, calc(100% - 32px));border:0;border-radius:22px;background:var(--panel);color:var(--text);padding:18px;}
+.ms-me::backdrop{background:rgba(10,10,32,0.55);}
+.ms-me h2{margin:0;font-size:1.1rem;font-weight:600;}
+.ms-me p{margin:4px 0 14px;font-size:0.84rem;color:var(--dim);}
+.ms-me a,.ms-me button{display:flex;align-items:center;width:100%;min-height:46px;margin-top:6px;padding:0 14px;border:0;border-radius:14px;background:var(--card);color:var(--text);font:inherit;font-size:0.9rem;text-decoration:none;text-align:left;cursor:pointer;}
+.ms-me button.x{justify-content:center;background:none;color:var(--dim);}
+@media (min-width:1000px){
+  .ms-main{grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:22px;}
+  .ms-teams{margin:0;padding:2px 0 6px;flex-wrap:wrap;overflow:visible;}
+  .ms-main.solo{grid-template-columns:minmax(0,1fr);max-width:760px;margin:0 auto;}
+}
