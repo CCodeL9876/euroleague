@@ -119,7 +119,7 @@ nach Liga gruppiert, eigene Teams oben); das Fussball-Symbol führt zurück. Zug
 
 | Liga | Quelle |
 |---|---|
-| Champions League, Premier League, Bundesliga, La Liga, Serie A, Ligue 1, Nationalteam-Wettbewerbe | Big Balls; Sportradar ergänzt Live-Stände und Aufstellungen für UCL/PL; ESPN ist Live-Ersatz |
+| Champions League, Premier League, Bundesliga, La Liga, Serie A, Ligue 1, Nationalteam-Wettbewerbe | Big Balls; Sportradar ergänzt Live-Stände und Aufstellungen für UCL/PL; ESPN ist Live-Ersatz und liefert die Live-Statistik |
 | Super League, Challenge League | Sportradar |
 | 2. Bundesliga | OpenLigaDB |
 
@@ -138,6 +138,7 @@ Einrichtung (einmalig):
 Der vorhandene `pg_cron`-Zeitplan muss mindestens jede Minute `?fbpushtick=1` auf der Funktion `fussball` aufrufen.
 Dieser Tick prüft nun auch fällige Vor-/Nach-Spiel-Aktualisierungen: Aufstellungen bis 90 Minuten vor Anpfiff,
 Statistiken nach Spielende sowie Tabellen und Torschützenlisten nach dem letzten beendeten Spiel der Liga am lokalen Tag.
+Live-Teamstatistiken der grossen Ligen und der Champions League kommen bei geöffnetem Statistik-Reiter von ESPN (drei Minuten zwischengespeichert), nach Spielende von Big Balls (dauerhaft im Cache); Sportradar ist für UCL/PL der Ersatz.
 Spielpläne werden täglich zwischengespeichert; Live-Spielstände behalten ihre eigenen kürzeren Intervalle.
 
 Lieblingsteams (vorerst lokal, Stichwörter im Teamnamen): Liverpool, Chelsea, Basel, Mainz.

@@ -14,8 +14,8 @@
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
 //   GET ?fbleague=ucl|pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste; nach letztem Spiel am Tag vorgewärmt, sonst Cache bis zu 24 Std.
-//   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung bzw. Teamstatistik (Big Balls) eines Spiels der grossen Ligen und der Champions League;
-//     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst von Big Balls
+//   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung bzw. Teamstatistik eines Spiels;
+//     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst Big Balls; Statistik live von ESPN, nach Spielende von Big Balls, Sportradar als Ersatz
 //   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
 //     Karriere und Foto aus Wikipedia/Wikidata
@@ -352,7 +352,7 @@ async function espnDay(code, day, now, kickoffRefresh = false) {
       const goals = (c.details || []).filter((x) => x.scoringPlay).map((x) => ({
         m: String(x.clock?.displayValue || '').replace(/'/g, ''), s: x.team?.id === home.team?.id ? 1 : 2,
         n: `${String(x.athletesInvolved?.[0]?.displayName || '')}${x.penaltyKick ? ' (Pen.)' : x.ownGoal ? ' (Eigentor)' : ''}` }));
-      return { utc: String(e.date || ''), h: String(home.team?.displayName || ''), a: String(away.team?.displayName || ''), hs: home.score != null ? Number(home.score) : null,
+      return { id: String(e.id || ''), utc: String(e.date || ''), h: String(home.team?.displayName || ''), a: String(away.team?.displayName || ''), hs: home.score != null ? Number(home.score) : null,
         as: away.score != null ? Number(away.score) : null, st: state, min: state === 'live' && /^\d/.test(clock) ? clock : null, goals };
     });
     const data = { list };
@@ -360,6 +360,28 @@ async function espnDay(code, day, now, kickoffRefresh = false) {
     await cacheSet(ck, data);
     return data;
   } catch { return hit?.data || null; }
+}
+// Teamstatistik eines Spiels während des Spiels (ESPN-Spielzusammenfassung), höchstens alle 3 Min. pro Spiel
+async function espnStats(m, now) {
+  const code = ESPN_LG[m.l];
+  if (!code) return null;
+  const t = Date.parse(m.utc);
+  const e = (await espnDay(code, m.utc.slice(0, 10), now))?.list?.find((x) => Math.abs(Date.parse(x.utc) - t) < 40 * 60 * 1000 && (espnSame(m.h, x.h) || espnSame(m.a, x.a)));
+  if (!e?.id) return null;
+  const ck = `espnst:${e.id}`;
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < 3 * 60 * 1000) return hit.data;
+  const d = await getJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/summary?event=${encodeURIComponent(e.id)}`);
+  const teams = d?.boxscore?.teams || [];
+  const homeId = (d?.header?.competitions?.[0]?.competitors || []).find((c) => c.homeAway === 'home')?.team?.id ?? (d?.header?.competitions?.[0]?.competitors || []).find((c) => c.homeAway === 'home')?.id;
+  const home = teams.find((x) => x.homeAway === 'home') || teams.find((x) => x.team?.id === homeId) || teams[0], away = teams.find((x) => x !== home);
+  const side = (x) => { const s = Object.fromEntries((x?.statistics || []).map((v) => [v.name, v.displayValue]));
+    return { poss: num(s.possessionPct), shots: num(s.totalShots), on: num(s.shotsOnTarget), corners: num(s.wonCorners), fouls: num(s.foulsCommitted), yellow: num(s.yellowCards), red: num(s.redCards),
+      passes: num(s.totalPasses), acc: num(s.accuratePasses), saves: num(s.saves), offsides: num(s.offsides) }; };
+  const h = side(home), a = side(away);
+  const data = { available: h.shots != null || h.poss != null, home: h, away: a, final: false, ended: m.st === 'ft', src: 'ESPN' };
+  await cacheSet(ck, data);
+  return data;
 }
 // Namen über Wortanfänge vergleichen («Internazionale» ~ «Inter Milan», «Bodo/Glimt» ~ «FK Bodø/Glimt»)
 const espnTok = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ø/gi, 'o').toLowerCase().split(/[^a-z0-9]+/)
@@ -540,7 +562,7 @@ async function fbLeague(id, kind, now = Date.now(), force = false) {
   return data;
 }
 const zurichDay = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich' }).format(new Date(iso));
-// Premier League im Detail: Aufstellung von Sportradar (Spiel über Anstoss und Heimteam zugeordnet), Teamstatistik von Big Balls
+// Premier League und Champions League: Aufstellung und Live-Spielstatistik nach Möglichkeit von Sportradar
 const nameKey = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\b(fc|afc|cf)\b/g, '').replace(/[^a-z]/g, '').slice(0, 6);
 async function srMatchFor(m, now) {
   const lg = FB_LEAGUES.find((l) => l.id === m.l);
@@ -579,19 +601,35 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const m = ov.matches.find((x) => x.id === id);
   if (!m || !DETAIL_LEAGUES.has(m.l)) return { error: 'nicht verfügbar' };
   if (kind === 'stats') {
-    const uuid = id.replace(/^bb-/, '');
-    const ck = `bbst:${uuid}`;
-    const hit = await cacheGet(ck);
-    if (hit && (hit.data.final || now - hit.at < 30 * 60 * 1000)) return hit.data;
+    // Während des Spiels ESPN (alle grossen Ligen, kein Kontingent), nach Spielende Big Balls (dauerhaft gespeichert);
+    // ESPN überbrückt die rund 30 Min., bis Big Balls die Statistik hat. Sportradar nur, wenn beide nichts liefern.
     if (m.st === 'pre') return { available: false };
-    if (!(await bbAllowed())) return hit?.data || { available: false };
-    const d = await bbGet(`matches/${uuid}/statistics`);
-    const side = (x) => x && { poss: x.ball_possession, shots: x.total_shots, on: x.shots_on_target, corners: x.corner_kicks, fouls: x.fouls,
-      yellow: x.yellow_cards, red: x.red_cards, passes: x.total_passes, acc: x.accurate_passes, saves: x.goalkeeper_saves, offsides: x.offsides };
-    const available = d?.meta?.available !== false && !!d?.data?.home;
-    const data = { available, home: side(d?.data?.home), away: side(d?.data?.away), final: m.st === 'ft' && available };
-    await cacheSet(ck, data);
-    return data;
+    const bbStats = async () => {
+      const uuid = id.replace(/^bb-/, '');
+      const ck = `bbst:${uuid}`;
+      const hit = await cacheGet(ck);
+      if (hit && (hit.data.final || now - hit.at < 30 * 60 * 1000)) return hit.data;
+      if (!(await bbAllowed())) return hit?.data || { available: false };
+      const d = await bbGet(`matches/${uuid}/statistics`);
+      const side = (x) => x && { poss: x.ball_possession, shots: x.total_shots, on: x.shots_on_target, corners: x.corner_kicks, fouls: x.fouls,
+        yellow: x.yellow_cards, red: x.red_cards, passes: x.total_passes, acc: x.accurate_passes, saves: x.goalkeeper_saves, offsides: x.offsides };
+      const available = d?.meta?.available !== false && !!d?.data?.home;
+      const data = { available, home: side(d?.data?.home), away: side(d?.data?.away), final: m.st === 'ft' && available, src: 'Big Balls' };
+      await cacheSet(ck, data);
+      return data;
+    };
+    const srStats = async () => {
+      if (!['ucl', 'pl'].includes(m.l) || !Deno.env.get('SPORTRADAR_KEY')) return null;
+      const sr = await srMatchFor(m, now).catch(() => null);
+      return sr ? srMatchStats(sr, m, now).catch(() => null) : null;
+    };
+    const done = m.st === 'ft' ? await bbStats().catch(() => null) : null;
+    if (done?.available) return done;
+    const espn = await espnStats(m, now).catch(() => null);
+    if (espn?.available) return espn;
+    const sr = await srStats();
+    if (sr?.available) return sr;
+    return done || (await bbStats().catch(() => ({ available: false })));
   }
   // Aufstellung: erst ab 90 Min. vor Anpfiff sinnvoll; nach Spielende dauerhaft. Sportradar, wo vorhanden, sonst Big Balls
   const sr = await srMatchFor(m, now).catch(() => null);
@@ -827,6 +865,7 @@ async function fbPlayer(pid, now = Date.now()) {
 const srBase = () => `https://api.sportradar.com/soccer/${Deno.env.get('SPORTRADAR_LEVEL') || 'trial'}/v4/en`;
 const srDailyMax = () => Number(Deno.env.get('SPORTRADAR_DAILY')) || 60;
 const SR_LIVE_MS = 7 * 60 * 1000; // Sonntage mit Spielen von 14 bis 19 Uhr bleiben so unter 60 Abfragen
+const SR_STATS_MS = 5 * 60 * 1000;
 const srAllowed = () => dailyAllowed('srcount', srDailyMax());
 // Test-Zugang: höchstens 1 Abfrage pro Sekunde, darum nacheinander mit Abstand
 let srLast = 0;
@@ -1001,6 +1040,27 @@ async function srTimeline(id, now = Date.now()) {
   const d = await srGet(`sport_events/${srUrn(id)}/timeline`);
   const es = d?.sport_event_status || {};
   const data = { goals: srGoals(d?.timeline), final: srState(es) === 'ft', es };
+  await cacheSet(ck, data);
+  return data;
+}
+// Live-Teamstatistik aus derselben Sportradar-Timeline wie Tore und Spielereignisse.
+async function srMatchStats(sr, match, now) {
+  const ck = `srstats:${sr.id}`;
+  const hit = await cacheGet(ck);
+  if (hit && (hit.data.final || now - hit.at < SR_STATS_MS)) return hit.data;
+  if (match.st === 'pre') return { available: false, final: false, message: 'Die Live-Statistik erscheint nach Anpfiff.', src: 'Sportradar' };
+  if (!Deno.env.get('SPORTRADAR_KEY') || !(await srAllowed())) return hit?.data || { available: false, final: false, src: 'Sportradar' };
+  const d = await srGet(`sport_events/${srUrn(sr.id)}/timeline`);
+  const teams = d?.statistics?.totals?.competitors || d?.statistics?.competitors || [];
+  const raw = (qualifier) => teams.find((x) => x.qualifier === qualifier)?.statistics || null;
+  const side = (x) => x && ({
+    poss: num(x.ball_possession), shots: num(x.shots_total), on: num(x.shots_on_target), corners: num(x.corner_kicks),
+    fouls: num(x.fouls), yellow: num(x.yellow_cards), red: x.red_cards == null && x.yellow_red_cards == null ? null : (num(x.red_cards) || 0) + (num(x.yellow_red_cards) || 0),
+    passes: num(x.passes_total), acc: num(x.passes_successful), saves: num(x.shots_saved), offsides: num(x.offsides),
+  });
+  const home = side(raw('home')), away = side(raw('away'));
+  const available = !!home && !!away && Object.keys(home).some((key) => home[key] != null && away[key] != null);
+  const data = { available, home, away, final: match.st === 'ft' && available, src: 'Sportradar' };
   await cacheSet(ck, data);
   return data;
 }
@@ -1473,7 +1533,10 @@ async function pushTick(now) {
     const old = (await cacheGet(`pushmsg:${hash}`))?.data || [];
     const msgs = mine.map(({ m, side }) => {
       const team = side === 1 ? m.h : m.a, last = (m.goals || []).filter((g) => g.s === side).at(-1);
-      return { id: m.id, tag: `${m.id}-${m.hs}-${m.as}`, at: now, title: `⚽ Tor für ${team}`,
+      const scorerIsFavorite = f.has(team.toLowerCase());
+      const favoriteTeam = [m.h, m.a].find((name) => f.has(name.toLowerCase()));
+      return { id: m.id, tag: `${m.id}-${m.hs}-${m.as}`, at: now,
+        title: scorerIsFavorite ? `⚽ Vamooooos! - Tor für ${team}` : `⚠️ Gegentor für ${favoriteTeam}`,
         body: `${m.h} ${m.hs}:${m.as} ${m.a}${last?.n ? ` · ${last.n}${last.m ? ` (${last.m}')` : ''}` : m.min ? ` · ${m.min}'` : ''}` };
     });
     await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), ...msgs].slice(-10));

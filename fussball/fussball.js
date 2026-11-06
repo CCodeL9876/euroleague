@@ -1,6 +1,6 @@
 // Fussball-Bereich: Spielübersicht (Resultate und anstehende Spiele) pro Tag, nach Liga gruppiert, eigene Teams oben.
 // Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): grosse Ligen, Champions League und Nationalteams aus Big Balls,
-// 2. Bundesliga aus OpenLigaDB, Schweizer Ligen aus Sportradar. Premier League mit Aufstellung und Teamstatistik (?fbdetail=). Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
+// 2. Bundesliga aus OpenLigaDB, Schweizer Ligen aus Sportradar. UCL/PL mit Sportradar-Aufstellungen und Live-Statistik (?fbdetail=). Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC } from '../config.js';
 
@@ -181,14 +181,14 @@ function lineupHtml(m) {
 function statsHtml(m) {
   const d = detailCache.get(`${m.id}|stats`);
   if (!d) return '<p class="fb-x-note">Lade Statistik …</p>';
-  if (!d.available || !d.home || !d.away) return `<p class="fb-x-note">${m.st === 'pre' ? 'Die Statistik gibt es nach dem Spiel.' : 'Statistik folgt etwa 30 Minuten nach Spielende.'}</p>`;
+  if (!d.available || !d.home || !d.away) return `<p class="fb-x-note">${m.st === 'pre' ? 'Die Live-Statistik erscheint nach Anpfiff.' : 'Live-Statistik für dieses Spiel aktuell nicht verfügbar.'}</p>`;
   const pct = (x) => (x.passes ? Math.round((x.acc / x.passes) * 100) : null);
   const lines = [['Ballbesitz', d.home.poss, d.away.poss, '%'], ['Schüsse', d.home.shots, d.away.shots], ['Aufs Tor', d.home.on, d.away.on], ['Ecken', d.home.corners, d.away.corners],
     ['Fouls', d.home.fouls, d.away.fouls], ['Gelbe Karten', d.home.yellow, d.away.yellow], ['Rote Karten', d.home.red, d.away.red], ['Pässe', d.home.passes, d.away.passes],
-    ['Passquote', pct(d.home), pct(d.away), '%'], ['Paraden', d.home.saves, d.away.saves]].filter((l) => l[1] != null && l[2] != null && !(l[0] === 'Rote Karten' && !l[1] && !l[2]));
+    ['Passquote', pct(d.home), pct(d.away), '%'], ['Paraden', d.home.saves, d.away.saves], ['Abseits', d.home.offsides, d.away.offsides]].filter((l) => l[1] != null && l[2] != null && !(l[0] === 'Rote Karten' && !l[1] && !l[2]));
   return `<div class="fb-stats">${lines.map(([n, a, b, u = '']) => { const t = (Number(a) || 0) + (Number(b) || 0), p = t ? Math.round(((Number(a) || 0) / t) * 100) : 50;
     return `<div class="fb-st-row"><span class="v">${esc(a)}${u ? ` ${u}` : ''}</span><span class="n">${esc(n)}</span><span class="v r">${esc(b)}${u ? ` ${u}` : ''}</span><span class="bar"><i style="width:${p}%"></i><i class="b" style="width:${100 - p}%"></i></span></div>`; }).join('')}
-    <p class="fb-x-src">Statistik: Big Balls</p></div>`;
+    <p class="fb-x-src">Statistik: ${esc(d.src || 'Big Balls')}${d.final || d.ended ? ' · Endstand' : ' · Live'}</p></div>`;
 }
 function extraHtml(m) {
   const tab = detailTab.get(m.id) || 'goals';
@@ -196,9 +196,10 @@ function extraHtml(m) {
   const body = tab === 'lineup' ? lineupHtml(m) : tab === 'stats' ? statsHtml(m) : `<div class="fb-detail fb-detail-in">${goalsHtml(m)}</div>`;
   return `<div class="fb-x">${seg}${body}</div>`;
 }
-async function loadDetail(m, kind) {
+async function loadDetail(m, kind, refresh = false) {
   const k = `${m.id}|${kind}`;
-  if (detailCache.has(k) && (m.st === 'ft' || detailCache.get(k)?.available)) return;
+  const cached = detailCache.get(k);
+  if (!refresh && cached && (cached.final || cached.available)) return;
   try {
     const res = await fetch(`${DATA_URL}?fbdetail=${encodeURIComponent(m.id)}&kind=${kind}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(30000) });
     detailCache.set(k, await res.json());
@@ -636,7 +637,11 @@ async function load() {
   }
   render();
   // Aufgeklappte Spiele: Torschützen nachführen, bis die Quelle das Spiel als beendet meldet
-  for (const id of open) { const m = data?.matches.find((x) => x.id === id); if (m && m.st !== 'pre' && !m.goals && !goalsCache.get(id)?.final) loadGoals(m); }
+  for (const id of open) {
+    const m = data?.matches.find((x) => x.id === id);
+    if (m && m.st !== 'pre' && !m.goals && !goalsCache.get(id)?.final) loadGoals(m);
+    if (m && document.visibilityState !== 'hidden' && detailTab.get(id) === 'stats' && m.st !== 'pre' && !detailCache.get(`${id}|stats`)?.final) loadDetail(m, 'stats', true);
+  }
   // Spiele ohne mitgelieferte Tore (Big Balls): bei einem neuen Tor eines Lieblingsteams die Torschützen holen, damit
   // «Letzte Tore» und die Live-Tafel sie zeigen (nicht für alle Spiele – das kostet Abfragen)
   for (const m of data?.matches || []) {
