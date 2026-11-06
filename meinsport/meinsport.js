@@ -23,12 +23,24 @@ let el = null, fb = null, elFailed = false, fbFailed = false;
 const flows = new Map(); // Spielcode → Spielverlauf der laufenden Basketball-Spiele, für den Feed
 const show = { today: false };
 // Verpasste Resultate: gesehene Spiele bleiben im Gerät gespeichert. Beim allerersten Besuch zählen nur die letzten Tage.
-const seen = new Set(readList('el-ms-seen'));
+// Der Stand hängt am Profil (Spalte ms_state); lokal bleibt pro Profil eine Kopie für den schnellen Start und ohne Netz.
+const msKey = (k) => `el-ms-${k}:${store.get('el-profile-name', '').toLowerCase()}`;
+const seen = new Set(readList(msKey('seen')));
 const revealed = new Set(); // in dieser Sitzung aufgedeckt: bleibt bis zum nächsten Öffnen sichtbar
-let since = Number(store.get('el-ms-since', '0'));
-if (!since) { since = Date.now() - FIRST_DAYS * 864e5; store.set('el-ms-since', String(since)); }
-const spoilerOn = () => store.get('el-ms-spoiler', '1') !== '0';
-const saveSeen = () => store.set('el-ms-seen', JSON.stringify([...seen].slice(-300)));
+let since = Number(store.get(msKey('since'), '0'));
+if (!since) { since = Date.now() - FIRST_DAYS * 864e5; store.set(msKey('since'), String(since)); }
+const spoilerOn = () => store.get(msKey('spoiler'), '1') !== '0';
+let lastSent = '';
+function saveSeen(leaving = false) {
+  const list = [...seen].slice(-300);
+  store.set(msKey('seen'), JSON.stringify(list));
+  const msState = { seen: list, since, spoiler: spoilerOn() }, text = JSON.stringify(msState);
+  const name = store.get('el-profile-name', ''), pin = store.get('el-profile-pin', '');
+  if (text === lastSent || !name || !pin) return;
+  lastSent = text;
+  // keepalive: die Anfrage läuft auch noch, wenn die Seite gerade geschlossen wird
+  fetch(EL_URL, { method: 'POST', keepalive: leaving, headers: { ...HEAD, 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'profile-mssave', name, pin, msState }) }).catch(() => { lastSent = ''; });
+}
 const gkey = (g) => `${g.sport}${g.id}`;
 const lastFlaps = new Map(); // letzter Stand pro Spiel: geänderte Blätter klappen um, wie in den Bereichen
 
@@ -265,6 +277,12 @@ async function syncProfile() {
     if (!d?.ok) return;
     if (Array.isArray(d.favorites)) { elFav = d.favorites.map(String); store.set('el-fav-teams', JSON.stringify(elFav)); }
     if (Array.isArray(d.fbFavorites)) { fbFav = d.fbFavorites.map(String); store.set('el-fb-fav2', JSON.stringify(fbFav)); }
+    if (d.msState) {
+      for (const k of d.msState.seen || []) seen.add(String(k));
+      if (Number(d.msState.since) > 0) { since = Number(d.msState.since); store.set(msKey('since'), String(since)); }
+      store.set(msKey('spoiler'), d.msState.spoiler === false ? '0' : '1');
+    }
+    saveSeen();
     if (el || fb) render();
   } catch { /* ohne Netz bleibt die lokale Kopie */ }
 }
@@ -286,7 +304,7 @@ document.addEventListener('click', (e) => {
   if (act === 'me') openMe();
   else if (act === 'me-close') $('#msMe').close();
   else if (act === 'theme') toggleTheme();
-  else if (act === 'spoiler') { store.set('el-ms-spoiler', spoilerOn() ? '0' : '1'); $('#msSpoiler').textContent = `Spoilerschutz: ${spoilerOn() ? 'Ein' : 'Aus'}`; render(); }
+  else if (act === 'spoiler') { store.set(msKey('spoiler'), spoilerOn() ? '0' : '1'); $('#msSpoiler').textContent = `Spoilerschutz: ${spoilerOn() ? 'Ein' : 'Aus'}`; saveSeen(); render(); }
   else if (act === 'reveal') { const k = e.target.closest('[data-k]').dataset.k; revealed.add(k); render(); }
   else if (act === 'more-today') { show.today = !show.today; render(); }
   else if (e.target === $('#msMe')) $('#msMe').close();
@@ -295,7 +313,7 @@ document.addEventListener('click', (e) => {
 function rememberSeen() {
   for (const k of revealed) seen.add(k);
   if (!spoilerOn()) for (const g of games().filter(missed)) seen.add(gkey(g));
-  saveSeen();
+  saveSeen(true);
 }
 addEventListener('pagehide', rememberSeen);
 document.addEventListener('visibilitychange', () => { if (document.hidden) rememberSeen(); else refresh(); });
