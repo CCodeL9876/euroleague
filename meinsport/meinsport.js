@@ -370,6 +370,13 @@ function toggleTheme() {
   r.dataset.theme = next; store.set('el-theme', next);
 }
 document.addEventListener('click', (e) => {
+  // «Heute» auf «Heute»: die Seite nicht neu laden (die Leiste würde dabei springen), nur nach oben und frische Daten holen
+  if (e.target.closest?.('.ms-tabs a[aria-current="page"]')) {
+    e.preventDefault();
+    scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    refresh();
+    return;
+  }
   const act = e.target.closest?.('[data-act]')?.dataset.act;
   if (act === 'me') openMe();
   else if (act === 'me-close') $('#msMe').close();
