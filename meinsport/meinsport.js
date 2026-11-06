@@ -22,6 +22,8 @@ let elFav = readList('el-fav-teams'), fbFav = readList('el-fb-fav2');
 let el = null, fb = null, elFailed = false, fbFailed = false;
 const flows = new Map(); // Spielcode → Spielverlauf der laufenden Basketball-Spiele, für den Feed
 const show = { today: false };
+let editTeams = false; // × auf den Teamkarten sichtbar
+const EL_FAV_MAX = 14, FB_FAV_MAX = 40, PICK_MAX = 12;
 // Verpasste Resultate: gesehene Spiele bleiben im Gerät gespeichert. Beim allerersten Besuch zählen nur die letzten Tage.
 // Der Stand hängt am Profil (Spalte ms_state); lokal bleibt pro Profil eine Kopie für den schnellen Start und ohne Netz.
 const msKey = (k) => `el-ms-${k}:${store.get('el-profile-name', '').toLowerCase()}`;
@@ -187,11 +189,11 @@ function teamCards(list) {
     const home = (g) => g.hk === key || g.h === key, us = (g) => (home(g) ? g.hs : g.as), them = (g) => (home(g) ? g.as : g.hs), opp = (g) => (home(g) ? g.a : g.h);
     const form = done.filter((g) => !hidden(g)).slice(-5).map((g) => (us(g) > them(g) ? 'w' : us(g) < them(g) ? 'l' : 'd'));
     const shown = live || next || done.filter((g) => !hidden(g)).at(-1);
-    if (!shown) return;
-    const href = sport === 'b' ? `../?team=${encodeURIComponent(key)}` : shown.href;
-    const sub = `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}`;
-    cards.push({ rank: live ? 0 : next ? next.at : Infinity, html: `<a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg')}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
-      <span class="k">${live ? '<i class="ms-dot"></i>Live' : next ? 'Nächstes' : 'Zuletzt'}</span><span class="v num">${live ? `${us(live) ?? 0}:${them(live) ?? 0}` : next ? esc(whenText(next.at)) : `${us(shown)}:${them(shown)}`}</span><span class="s">${esc(sub)}</span></a>` });
+    const href = sport === 'b' ? `../?team=${encodeURIComponent(key)}` : shown?.href || '../fussball/';
+    const sub = shown ? `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}` : 'im Moment kein Spiel geplant';
+    const x = editTeams ? `<button type="button" class="ms-x" data-act="team-x" data-s="${sport}" data-k="${esc(key)}" aria-label="${esc(name)} entfernen">×</button>` : '';
+    cards.push({ rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg')}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
+      <span class="k">${live ? '<i class="ms-dot"></i>Live' : next ? 'Nächstes' : shown ? 'Zuletzt' : 'Spielplan'}</span><span class="v num">${live ? `${us(live) ?? 0}:${them(live) ?? 0}` : next ? esc(whenText(next.at)) : shown ? `${us(shown)}:${them(shown)}` : '–'}</span><span class="s">${esc(sub)}</span></a>${x}</div>` });
   };
   for (const c of elFav) add('b', c, el?.teams?.[c]?.short || c, el?.teams?.[c]?.crest, list.filter((g) => g.sport === 'b' && (g.hk === c || g.ak === c)));
   for (const n of fbFav) {
@@ -221,7 +223,8 @@ function render() {
 
   const topHtml = `${nextHtml(list, live)}${missedHtml(list)}`;
   const cards = teamCards(list);
-  const teamsHtml = `<h2 class="ms-h">Deine Teams</h2>${cards ? `<div class="ms-teams" data-keep="teams">${cards}</div>` : '<p class="ms-note">Noch keine Teams gewählt. Tippe unten auf «Ich».</p>'}`;
+  const teamsHtml = `<div class="ms-hrow"><h2 class="ms-h">Deine Teams</h2>${cards ? `<button type="button" class="ms-edit" data-act="edit-teams" aria-pressed="${editTeams}">${editTeams ? 'Fertig' : 'Bearbeiten'}</button>` : ''}</div>
+    <div class="ms-teams" data-keep="teams">${cards}<button type="button" class="ms-add" data-act="add-team" aria-haspopup="dialog"><b aria-hidden="true">+</b>Team hinzufügen</button></div>`;
 
   // Heute, oder der nächste Tag mit Spielen
   const open = list.filter((g) => g.st !== 'live');
@@ -287,10 +290,77 @@ async function syncProfile() {
   } catch { /* ohne Netz bleibt die lokale Kopie */ }
 }
 
+// ---------- Teamwahl ----------
+const plain = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function catalog() {
+  const list = Object.entries(el?.teams || {}).map(([k, t]) => ({ s: 'b', k, n: t.short || k, logo: t.crest, lg: 'EuroLeague' }));
+  const lg = new Map((fb?.leagues || []).map((l) => [l.id, l.name])), byName = new Map();
+  for (const m of fb?.matches || []) {
+    for (const [n, logo] of [[m.h, m.hl], [m.a, m.al]]) {
+      const old = byName.get(n);
+      // Liga vor Champions League, damit der Verein unter seiner Liga steht
+      if (!old || (old.l === 'ucl' && m.l !== 'ucl')) byName.set(n, { s: 'f', k: n, n, logo: logo || old?.logo, lg: lg.get(m.l) || '', l: m.l });
+    }
+  }
+  return [...list, ...byName.values()].sort((a, b) => a.n.localeCompare(b.n, 'de'));
+}
+const isFavTeam = (t) => (t.s === 'b' ? elFav.includes(t.k) : fbFav.some((n) => n.toLowerCase() === t.k.toLowerCase()));
+let saveTimer = 0;
+function saveFavs(sport) {
+  store.set('el-fav-teams', JSON.stringify(elFav));
+  store.set('el-fb-fav2', JSON.stringify(fbFav));
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const name = store.get('el-profile-name', ''), pin = store.get('el-profile-pin', '');
+    const body = sport === 'b' ? { kind: 'profile-save', name, pin, favorites: elFav } : { kind: 'profile-fbsave', name, pin, fbFavorites: fbFav };
+    const ok = await fetch(EL_URL, { method: 'POST', headers: { ...HEAD, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) }).then((r) => r.json()).then((d) => d?.ok).catch(() => false);
+    if (!ok) toast('Teams nur auf diesem Gerät gespeichert, das Profil ist gerade nicht erreichbar.');
+  }, 500);
+}
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
+}
+// Die Bereiche Basketball und Fussball brauchen je mindestens ein Team, darum bleibt das letzte gewählt
+function toggleTeam(s, k) {
+  if (s === 'b') {
+    if (elFav.includes(k)) { if (elFav.length <= 1) return toast('Mindestens ein Basketball-Team bleibt gewählt.'); elFav = elFav.filter((c) => c !== k); }
+    else if (elFav.length >= EL_FAV_MAX) return toast(`Höchstens ${EL_FAV_MAX} Basketball-Teams.`);
+    else elFav = [...elFav, k];
+  } else {
+    const low = k.toLowerCase();
+    if (fbFav.some((n) => n.toLowerCase() === low)) { if (fbFav.length <= 1) return toast('Mindestens ein Fussball-Team bleibt gewählt.'); fbFav = fbFav.filter((n) => n.toLowerCase() !== low); }
+    else if (fbFav.length >= FB_FAV_MAX) return toast(`Höchstens ${FB_FAV_MAX} Fussball-Teams.`);
+    else fbFav = [...fbFav, k];
+  }
+  saveFavs(s);
+  render();
+  if ($('#msPick').open) renderPick();
+}
+function renderPick() {
+  const all = catalog(), q = plain($('#msQ')?.value.trim());
+  const mine = new Set(all.filter((t) => t.s === 'f' && isFavTeam(t)).map((t) => t.lg));
+  const list = q ? all.filter((t) => plain(t.n).includes(q) || plain(t.lg).includes(q))
+    : [...all.filter((t) => !isFavTeam(t) && t.s === 'f' && mine.has(t.lg)), ...all.filter((t) => !isFavTeam(t) && t.s === 'b'), ...all.filter((t) => !isFavTeam(t) && t.s === 'f' && !mine.has(t.lg))];
+  const rows = list.slice(0, PICK_MAX).map((t) => `<button type="button" class="ms-pr" data-act="pick" data-s="${t.s}" data-k="${esc(t.k)}" aria-pressed="${isFavTeam(t)}">${crest(t.logo)}<span>${esc(t.n)}<small>${esc(t.lg)}</small></span><i aria-hidden="true">★</i></button>`).join('');
+  $('#msPickH').textContent = q ? 'Treffer' : 'Vorschläge';
+  $('#msRes').innerHTML = rows || '<p class="ms-note">Kein Team gefunden.</p>';
+}
+function openPick() {
+  const dlg = $('#msPick');
+  dlg.innerHTML = `<div class="ms-pick-h"><h2 id="msPickT">Team hinzufügen</h2><button type="button" class="ms-close" data-act="pick-close">Fertig</button></div>
+    <input class="ms-q" id="msQ" type="search" placeholder="Team suchen, zum Beispiel Basel" aria-label="Team suchen" autocomplete="off">
+    <h3 id="msPickH">Vorschläge</h3><div class="ms-results" id="msRes"></div>`;
+  if (!dlg.open) dlg.showModal();
+  $('#msQ').addEventListener('input', renderPick);
+  renderPick();
+}
+
 function openMe() {
   const dlg = $('#msMe');
   dlg.innerHTML = `<h2 id="msMeT">${esc(store.get('el-profile-name', 'Profil'))}</h2><p>Deine Teams gelten für Basketball und Fussball.</p>
-    <a href="../?fav=1">Basketball-Teams wählen</a><a href="../fussball/?fav=1">Fussball-Teams wählen</a>
+    <button type="button" data-act="add-team">Teams wählen</button>
     <button type="button" data-act="spoiler" id="msSpoiler">Spoilerschutz: ${spoilerOn() ? 'Ein' : 'Aus'}</button><button type="button" data-act="theme">Hell oder dunkel</button><button type="button" class="x" data-act="me-close">Schliessen</button>`;
   dlg.showModal();
 }
@@ -306,8 +376,13 @@ document.addEventListener('click', (e) => {
   else if (act === 'theme') toggleTheme();
   else if (act === 'spoiler') { store.set(msKey('spoiler'), spoilerOn() ? '0' : '1'); $('#msSpoiler').textContent = `Spoilerschutz: ${spoilerOn() ? 'Ein' : 'Aus'}`; saveSeen(); render(); }
   else if (act === 'reveal') { const k = e.target.closest('[data-k]').dataset.k; revealed.add(k); render(); }
+  else if (act === 'add-team') { if ($('#msMe').open) $('#msMe').close(); openPick(); }
+  else if (act === 'pick-close') $('#msPick').close();
+  else if (act === 'pick' || act === 'team-x') { const d = e.target.closest('[data-k]').dataset; e.preventDefault(); toggleTeam(d.s, d.k); }
+  else if (act === 'edit-teams') { editTeams = !editTeams; render(); }
   else if (act === 'more-today') { show.today = !show.today; render(); }
   else if (e.target === $('#msMe')) $('#msMe').close();
+  else if (e.target === $('#msPick')) $('#msPick').close();
 });
 // Beim Verlassen merken, was gesehen wurde: es erscheint beim nächsten Öffnen nicht mehr
 function rememberSeen() {
