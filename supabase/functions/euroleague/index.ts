@@ -11,8 +11,16 @@
 //   GET ?game=83  → Spielbericht eines Spiels (auch während es läuft):
 //   → { code, live, quarters: [[…Heim], […Gast]], teams: [{ code, name, coach, totals, players: [{ no, name, start, on,
 //       min, pts, fg2, fg3, ft, oreb, dreb, reb, ast, stl, tov, blk, pf, pir, pm }] }],
-//       shots: [{ t: Team, p: Spieler, x, y, m: getroffen, v: 2|3 }] }   (fg2/fg3/ft: [Treffer, Versuche];
+//       shots: [{ t: Team, p: Spieler, x, y, m: getroffen, v: 2|3 }],   (fg2/fg3/ft: [Treffer, Versuche];
 //       x/y in cm vom Korb aus, y Richtung Mittellinie)
+//       flow: { end, ev: [[Sekunde, Heim, Gast]], runs: [{ s: 1 Heim | -1 Gast, t0, t1, f: [Heim, Gast], to: [Heim, Gast],
+//       ra, rb, who: [Werfer] }], dec: Index des entscheidenden Laufs oder -1 } }
+//
+//   GET ?teamstats=1 → Teamwerte und Liga-Quoten für Team-Analyse, Teamprofil und Wurfzonen:
+//   → { updated, pending, teams: { CODE: { gp, ortg, drtg, net, pace, efg, p3, tov, oreb, ftr, bench, start, share } },
+//       zones: { rim|short|m2l|m2c|m2r|c3l|c3r|w3l|w3r|t3: [Treffer, Versuche] } }
+//     (bench/start: Punkte pro Spiel; pending: Spiele, die noch nicht ausgewertet sind. Einmal ausgewertete Spiele
+//     bleiben in der Tabelle el_fb_cache, jeder Abruf arbeitet nur die neuen ab.)
 //
 //   GET ?players=1 → Saisonwerte aller Spieler (pro Spiel) für Bestenlisten, Kader und Vorschau:
 //   → { updated, players: [{ id, name, team, img, gp, gs, min, pts, reb, oreb, ast, stl, blk, tov, pir, fg2p, fg3p, ftp, fg3m }] }
@@ -72,6 +80,7 @@ const ROSTER_MS = 6 * 3600 * 1000;
 const HISTORY_MS = 24 * 3600 * 1000;
 const FACTS_MS = 12 * 3600 * 1000;
 const POINTS_MS = 30 * 60 * 1000;
+const TEAMSTATS_MS = 10 * 60 * 1000;
 const WIKI_UA = 'euroleague-pwa/1.0 (https://github.com/CCodeL9876/euroleague)';
 // Stand abfragen ab 5 Minuten vor dem angesetzten Beginn bis 4 Stunden danach (solange nicht „played“)
 const EARLY_MS = 5 * 60 * 1000;
@@ -159,6 +168,106 @@ export function buildShots(points) {
     const [v, m] = kinds[String(r.ID_ACTION).trim()];
     return { t: String(r.TEAM || '').trim(), p: playerName(r.PLAYER), id: String(r.ID_PLAYER || '').trim().replace(/^P/, ''), x: Number(r.COORD_X) || 0, y: Number(r.COORD_Y) || 0, m, v };
   });
+}
+
+// Spielverlauf aus dem Play-by-Play: Stand nach jedem Korb und alle Läufe. Ein Lauf ist ein Abschnitt von höchstens
+// 4:30 Minuten, der mit einem Korb des Teams beginnt und endet und den es mit mindestens 8 Punkten gewinnt.
+const RUN_SECONDS = 270, RUN_MIN = 8;
+export function buildFlow(pbp, live) {
+  if (!pbp) return null;
+  const ev = [];
+  let a = 0, b = 0, last = 0;
+  const walk = (rows, base, len) => {
+    for (const r of rows) {
+      const c = /^(\d+):(\d+)$/.exec(String(r.MARKERTIME || '').trim());
+      if (c) last = Math.max(last, base + len - (Number(c[1]) * 60 + Number(c[2])));
+      if (r.POINTS_A == null && r.POINTS_B == null) continue;
+      const pa = r.POINTS_A ?? a, pb = r.POINTS_B ?? b;
+      if (pa === a && pb === b) continue;
+      ev.push({ t: last, a: pa, b: pb, da: pa - a, db: pb - b, p: playerName(r.PLAYER).replace(/^.\. /, '').replace(/ (Iv|Iii|Ii|Jr\.?)$/, '') });
+      a = pa; b = pb;
+    }
+  };
+  [['FirstQuarter', 0], ['SecondQuarter', 600], ['ThirdQuarter', 1200], ['ForthQuarter', 1800]].forEach(([k, base]) => walk(pbp[k] || [], base, 600));
+  // Alle Verlängerungen stehen in derselben Liste, jede beginnt mit „BP“
+  const parts = [];
+  for (const r of pbp.ExtraTime || []) {
+    if (String(r.PLAYTYPE).trim() === 'BP' || !parts.length) parts.push([]);
+    parts.at(-1).push(r);
+  }
+  parts.forEach((rows, i) => walk(rows, 2400 + 300 * i, 300));
+  const end = 2400 + 300 * parts.length;
+  const net = (e, s) => (e.da - e.db) * s;
+  const free = ev.map(() => true), runs = [];
+  for (;;) {
+    let best = null;
+    for (const s of [1, -1]) {
+      for (let i = 0; i < ev.length; i++) {
+        if (!free[i] || net(ev[i], s) <= 0) continue;
+        let sum = 0;
+        for (let j = i; j < ev.length && free[j] && ev[j].t - ev[i].t <= RUN_SECONDS; j++) {
+          sum += net(ev[j], s);
+          if (net(ev[j], s) > 0 && (!best || sum > best.sum)) best = { sum, i, j, s };
+        }
+      }
+    }
+    if (!best || best.sum < RUN_MIN) break;
+    const part = ev.slice(best.i, best.j + 1);
+    for (let k = best.i; k <= best.j; k++) free[k] = false;
+    const who = new Map();
+    for (const e of part) if (net(e, best.s) > 0 && e.p) who.set(e.p, (who.get(e.p) || 0) + e.da + e.db);
+    const first = part[0], lastEv = part.at(-1);
+    runs.push({ s: best.s, t0: first.t, t1: lastEv.t, f: [first.a - first.da, first.b - first.db], to: [lastEv.a, lastEv.b],
+      ra: part.reduce((x, e) => x + e.da, 0), rb: part.reduce((x, e) => x + e.db, 0),
+      who: [...who].sort((x, y) => y[1] - x[1]).slice(0, 3).map((x) => x[0]) });
+  }
+  runs.sort((x, y) => x.t0 - y.t0);
+  return { end, ev: ev.map((e) => [e.t, e.a, e.b]), runs, dec: live ? -1 : decisiveRun(ev, runs) };
+}
+
+// Der Lauf des Siegers, in dem er die Führung für immer übernommen hat. Wenn das in keinen Lauf fällt und das Spiel klar
+// ausging: sein grösster Lauf. Enge Spiele ohne solchen Lauf haben keine entscheidende Phase.
+function decisiveRun(ev, runs) {
+  const end = ev.at(-1);
+  if (!end || end.a === end.b) return -1;
+  const w = end.a > end.b ? 1 : -1;
+  let take = 0;
+  ev.forEach((e, i) => { if ((e.a - e.b) * w <= 0) take = i + 1; });
+  const at = ev[Math.min(take, ev.length - 1)].t;
+  const mine = runs.filter((r) => r.s === w);
+  const hit = mine.find((r) => r.t0 <= at && at <= r.t1);
+  if (hit) return runs.indexOf(hit);
+  if (Math.abs(end.a - end.b) < 10 || !mine.length) return -1;
+  const size = (r) => Math.abs(r.ra - r.rb);
+  return runs.indexOf(mine.reduce((x, y) => (size(y) > size(x) ? y : x)));
+}
+
+// Team-Kennzahlen pro 100 Ballbesitze. Die Schnittstelle liefert keine Ballbesitze für Teams, darum die übliche Schätzung.
+export function buildTeamStats(trad, adv, oppTrad, oppAdv) {
+  const byCode = (raw) => new Map((raw?.teams || []).map((t) => [String(t.team?.code || ''), t]));
+  const a = byCode(adv), o = byCode(oppTrad), oa = byCode(oppAdv);
+  const poss = (t) => (Number(t.twoPointersAttempted) || 0) + (Number(t.threePointersAttempted) || 0) + 0.44 * (Number(t.freeThrowsAttempted) || 0)
+    - (Number(t.offensiveRebounds) || 0) + (Number(t.turnovers) || 0);
+  const teams = {};
+  for (const t of trad?.teams || []) {
+    const code = String(t.team?.code || ''), op = o.get(code), ad = a.get(code);
+    if (!code || !op || !ad || !oa.get(code)) continue;
+    const p = poss(t), q = poss(op);
+    if (!p || !q) continue;
+    const ortg = r1(t.pointsScored / p * 100), drtg = r1(op.pointsScored / q * 100);
+    teams[code] = { gp: Number(t.gamesPlayed) || 0, ortg, drtg, net: r1(ortg - drtg), pace: r1((p + q) / 2), efg: pctNum(ad.effectiveFieldGoalPercentage),
+      p3: pctNum(t.threePointersPercentage), tov: pctNum(ad.turnoversRatio), oreb: pctNum(ad.offensiveReboundsPercentage), ftr: pctNum(ad.freeThrowsRate) };
+  }
+  return teams;
+}
+
+// Wurfzone wie auf der Spielerseite (app.js, shotZone): Würfe von weit hinter der Mittellinie und ohne Ort zählen nicht
+export function shotZone(x, y, v) {
+  if (y > 900 || (x === 0 && y === 0)) return '';
+  const side = x < 0 ? 'l' : 'r', angle = Math.atan2(Math.abs(x), y) * 180 / Math.PI;
+  if (v === 3) return y < 141.5 ? `c3${side}` : angle < 22 ? 't3' : `w3${side}`;
+  const d = Math.hypot(x, y);
+  return d <= 150 ? 'rim' : d <= 300 ? 'short' : angle < 30 ? 'm2c' : `m2${side}`;
 }
 
 // Saisonwerte (pro Spiel) der EuroLeague → kompakte Liste. Bei Wechseln („BAS;TEL“) zählt das letzte Team.
@@ -466,13 +575,68 @@ const boxes = new Map();
 async function boxOf(season, code) {
   const hit = boxes.get(code);
   if (hit && Date.now() - hit.at < (hit.data.live ? BOX_LIVE_MS : BOX_FINAL_MS)) return hit.data;
-  const [raw, points] = await Promise.all([
+  const [raw, points, plays] = await Promise.all([
     getJson(`https://live.euroleague.net/api/Boxscore?gamecode=${code}&seasoncode=${season}`),
     getJson(`https://live.euroleague.net/api/Points?gamecode=${code}&seasoncode=${season}`).catch(() => null),
+    getJson(`https://live.euroleague.net/api/PlaybyPlay?gamecode=${code}&seasoncode=${season}`).catch(() => null),
   ]);
-  const data = { ...buildBox(code, raw), shots: buildShots(points) };
+  const box = buildBox(code, raw);
+  const data = { ...box, shots: buildShots(points), flow: buildFlow(plays, box.live) };
   // Noch ohne Spieler (Spiel nicht begonnen): nur kurz merken
   boxes.set(code, { at: data.teams.some((t) => t.players.length) ? Date.now() : Date.now() - BOX_FINAL_MS + BOX_LIVE_MS, data });
+  return data;
+}
+
+// Bankpunkte und Liga-Quoten: beendete Spiele ändern sich nicht mehr, darum wird jedes nur einmal gelesen und
+// das Ergebnis in el_fb_cache gesammelt. Pro Abruf höchstens rund 12 Sekunden Arbeit, den Rest holt der nächste Abruf.
+const EXTRAS_BUDGET_MS = 12000, EXTRAS_BATCH = 8;
+async function extrasOf(season) {
+  const key = `el-extras:${season}`;
+  const store = (await videoCacheGet(key)) || { done: {}, bench: {}, zones: {} };
+  const schedule = await loadSchedule(season);
+  const todo = (schedule?.data || []).filter((g) => g.played && !store.done[g.gameCode]);
+  const stop = Date.now() + EXTRAS_BUDGET_MS;
+  const before = Object.keys(store.done).length;
+  for (let i = 0; i < todo.length && Date.now() < stop; i += EXTRAS_BATCH) {
+    const read = await Promise.all(todo.slice(i, i + EXTRAS_BATCH).map(async (g) => {
+      try {
+        const q = `gamecode=${g.gameCode}&seasoncode=${season}`;
+        const [cmp, points] = await Promise.all([getJson(`https://live.euroleague.net/api/Comparison?${q}`), getJson(`https://live.euroleague.net/api/Points?${q}`)]);
+        return cmp.PointsBenchA == null || cmp.PointsBenchB == null ? null : { g, cmp, shots: buildShots(points) };
+      } catch { return null; }
+    }));
+    for (const r of read) {
+      if (!r) continue;
+      store.done[r.g.gameCode] = 1;
+      for (const [club, side] of [[r.g.local?.club?.code, 'A'], [r.g.road?.club?.code, 'B']]) {
+        const b = (store.bench[club] ||= [0, 0, 0]);
+        b[0] += Number(r.cmp[`PointsBench${side}`]) || 0; b[1] += Number(r.cmp[`PointsStarters${side}`]) || 0; b[2]++;
+      }
+      for (const s of r.shots) {
+        const z = shotZone(s.x, s.y, s.v);
+        if (!z) continue;
+        const c = (store.zones[z] ||= [0, 0]);
+        c[1]++; if (s.m) c[0]++;
+      }
+    }
+  }
+  if (Object.keys(store.done).length !== before) await videoCacheSet(key, store);
+  return { ...store, pending: (schedule?.data || []).filter((g) => g.played && !store.done[g.gameCode]).length };
+}
+
+let teamStats = { at: 0, season: '', data: null };
+async function teamStatsOf(season) {
+  if (teamStats.season === season && teamStats.data && Date.now() - teamStats.at < TEAMSTATS_MS) return teamStats.data;
+  const url = (k) => `https://api-live.euroleague.net/v3/competitions/E/statistics/teams/${k}?seasonMode=Single&seasonCode=${season}&statisticMode=PerGame&limit=40`;
+  const [trad, adv, oppTrad, oppAdv, extras] = await Promise.all([getJson(url('traditional')), getJson(url('advanced')), getJson(url('opponentsTraditional')), getJson(url('opponentsAdvanced')), extrasOf(season)]);
+  const teams = buildTeamStats(trad, adv, oppTrad, oppAdv);
+  for (const [code, t] of Object.entries(teams)) {
+    const [bench, start, n] = extras.bench[code] || [0, 0, 0];
+    if (n) Object.assign(t, { bench: r1(bench / n), start: r1(start / n), share: r1(bench / ((bench + start) || 1) * 100) });
+  }
+  const data = { updated: new Date().toISOString(), pending: extras.pending, teams, zones: extras.zones };
+  // Solange Spiele fehlen, nicht merken: der nächste Abruf arbeitet weiter
+  teamStats = { at: extras.pending ? 0 : Date.now(), season, data };
   return data;
 }
 
@@ -766,6 +930,15 @@ async function handle(req) {
       return new Response(JSON.stringify(await playersOf(season)), { headers: { ...headers, 'Cache-Control': 'public, max-age=600' } });
     } catch {
       return new Response(JSON.stringify({ error: 'Die Spielerstatistik ist gerade nicht erreichbar.' }), { status: 502, headers });
+    }
+  }
+  if (params.has('teamstats')) {
+    const headers = { ...cors, 'Content-Type': 'application/json' };
+    try {
+      const d = await teamStatsOf(season);
+      return new Response(JSON.stringify(d), { headers: { ...headers, 'Cache-Control': `public, max-age=${d.pending ? 5 : 600}` } });
+    } catch {
+      return new Response(JSON.stringify({ error: 'Die Teamwerte sind gerade nicht erreichbar.' }), { status: 502, headers });
     }
   }
   if (params.has('videos')) {

@@ -665,6 +665,7 @@ function renderCenter(m) {
     <button type="button" class="tile t-violet" data-act="toggle-next" aria-expanded="${open.next}" aria-controls="nextBox"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="58" r="44" fill="#9C78FF"/><path d="M16 58h88M60 14v88M30 26c14 16 14 48 0 64M90 26c-14 16-14 48 0 64" fill="none" stroke="#5A2BD6" stroke-width="6" stroke-linecap="round"/></svg><strong>Nächste Spiele</strong><p>${nextTxt}</p></button>
     <button type="button" class="tile t-coral" data-act="toggle-leaders" aria-expanded="${open.leaders}" aria-controls="leadersBox"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="18" y="62" width="20" height="38" rx="6" fill="#FF9AA0"/><rect x="50" y="40" width="20" height="60" rx="6" fill="#FFB4B8"/><rect x="82" y="18" width="20" height="82" rx="6" fill="#FF9AA0"/></svg><strong>Bestenlisten</strong><p>${esc(leaderTeaser(m))}</p></button>
     <button type="button" class="tile t-teal tile-wide" data-act="facts" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M60 4v7M24 18l5 5M96 18l-5 5M10 50h7M103 50h7" stroke="#6FD6C9" stroke-width="6" stroke-linecap="round"/><path d="M41 75.7A32 32 0 1 1 79 75.7c-4 3-6 7-6 11.3v3H47v-3c0-4.3-2-8.3-6-11.3z" fill="#6FD6C9"/><path d="M50 58l10 9 10-9M60 67v21" fill="none" stroke="#0E5E57" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="46" y="94" width="28" height="8" rx="4" fill="#3FB5A7"/><rect x="51" y="105" width="18" height="7" rx="3.5" fill="#3FB5A7"/></svg><strong>Nice things to know</strong><p>${esc(factsTeaser())}</p><span class="tile-go" aria-hidden="true">›</span></button>
+    <button type="button" class="tile t-violet tile-wide" data-act="stats" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M18 14v88h88" fill="none" stroke="#C9B6FF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="44" cy="74" r="9" fill="#9C78FF"/><circle cx="66" cy="50" r="9" fill="#C9B6FF"/><circle cx="90" cy="30" r="9" fill="#9C78FF"/><circle cx="84" cy="70" r="9" fill="#C9B6FF"/></svg><strong>Team-Analyse</strong><p>Wer ist wirklich stark, und wer lebt von der Bank?</p><span class="tile-go" aria-hidden="true">›</span></button>
   </div>`);
   center.innerHTML = parts.join('');
 
@@ -963,7 +964,7 @@ function renderBox() {
       <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
       <td>${esc(p.min || '–')}</td><td class="${p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`).join('');
-  setBox(dlg, `${head}${seg}${quarters}
+  setBox(dlg, `${head}${seg}${quarters}${flowHtml(m, g, b)}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
     <h3>Spieler</h3>
     <div class="seg" role="group" aria-label="Team wählen">${b.teams.map((t, i) => `<button type="button" data-act="box-team" data-i="${i}" aria-pressed="${i === boxState.team}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>
@@ -1042,13 +1043,17 @@ function playerShotsHtml(d) {
   const zone = (x) => (x.v === 3 ? 'three' : Math.hypot(x.x, x.y) <= 300 ? 'paint' : 'mid');
   const z = { paint: [0, 0], mid: [0, 0], three: [0, 0] };
   for (const x of all) { const k = zone(x); z[k][1]++; if (x.m) z[k][0]++; }
+  const zoned = playerState.court === 'zones' && teamStats.data?.zones?.rim;
   const dots = [...all].sort((a, b) => a.m - b.m).map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
   const made = all.filter((x) => x.m).length;
   const zt = (l, [mm, n]) => `<div class="pc-zone"><span>${l}</span><b class="num">${n ? Math.round(mm / n * 100) : 0} %</b><small class="num">${mm}/${n}</small></div>`;
-  return `<div class="pc-court"><h4>Wurfkarte der Saison <small class="num">${made}/${all.length} getroffen</small></h4>
-    ${courtSvg(dots, `Wurfkarte der Saison: ${made} von ${all.length} Würfen getroffen`)}
+  const seg = teamStats.data?.zones?.rim ? `<div class="seg" role="group" aria-label="Darstellung der Wurfkarte">${[['zones', 'Zonen'], ['dots', 'Würfe']].map(([k, l]) => `<button type="button" data-act="player-court" data-k="${k}" aria-pressed="${(zoned ? 'zones' : 'dots') === k}">${l}</button>`).join('')}</div>` : '';
+  return `<div class="pc-court"><h4>Wurfkarte der Saison <small class="num">${made}/${all.length} getroffen</small></h4>${seg}
+    ${zoned ? zoneCourt(all, teamStats.data.zones) : courtSvg(dots, `Wurfkarte der Saison: ${made} von ${all.length} Würfen getroffen`)}
     <div class="pc-zones">${zt('Korbnähe', z.paint)}${zt('Mitteldistanz', z.mid)}${zt('Dreier', z.three)}</div>
-    <p class="shots-sum"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>ohne Freiwürfe</span></p></div>`;
+    ${zoned ? `<div class="zone-scale"><span>Kälter als Liga</span><span class="zone-sw" aria-hidden="true">${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--z${i})"></i>`).join('')}</span><span>Heisser als Liga</span></div>
+    <p class="box-note small">Die Farbe vergleicht jede Zone mit dem Liga-Schnitt. Grau heisst weniger als ${ZONE_MIN} Versuche, das ist zu wenig für eine Aussage. Ohne Freiwürfe.</p>`
+    : '<p class="shots-sum"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>ohne Freiwürfe</span></p>'}</div>`;
 }
 
 function shotsHtml(b, team) {
@@ -1067,6 +1072,175 @@ function shotsHtml(b, team) {
     <p class="shots-sum num"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>2P ${c2[0]}/${c2[1]} (${pct(c2)})</span><span>3P ${c3[0]}/${c3[1]} (${pct(c3)})</span></p></div>`;
 }
 
+// ---------- Wurfzonen ----------
+// Gleiche Einteilung wie shotZone in der Supabase-Funktion, sonst stimmt der Vergleich mit dem Liga-Schnitt nicht
+const ZONE_MIN = 8;
+function shotZone(x, y, v) {
+  if (y > 900 || (x === 0 && y === 0)) return '';
+  const side = x < 0 ? 'l' : 'r', angle = Math.atan2(Math.abs(x), y) * 180 / Math.PI;
+  if (v === 3) return y < 141.5 ? `c3${side}` : angle < 22 ? 't3' : `w3${side}`;
+  const d = Math.hypot(x, y);
+  return d <= 150 ? 'rim' : d <= 300 ? 'short' : angle < 30 ? 'm2c' : `m2${side}`;
+}
+const ZONE_NAME = { rim: 'Am Ring', short: 'Zone', m2l: 'Mitteldistanz links', m2c: 'Mitteldistanz Mitte', m2r: 'Mitteldistanz rechts',
+  c3l: 'Dreier Ecke links', c3r: 'Dreier Ecke rechts', w3l: 'Dreier Flügel links', w3r: 'Dreier Flügel rechts', t3: 'Dreier Mitte' };
+function zoneCourt(all, league) {
+  const z = {};
+  for (const s of all) { const k = shotZone(s.x, s.y, s.v); if (!k) continue; (z[k] ||= [0, 0])[1]++; if (s.m) z[k][0]++; }
+  const rate = (v) => (v?.[1] ? v[0] / v[1] * 100 : 0);
+  const step = (d) => (d <= -10 ? 0 : d <= -4 ? 1 : d < 4 ? 2 : d < 10 ? 3 : 4);
+  const fill = (k) => (!z[k] || z[k][1] < ZONE_MIN || !league[k]?.[1] ? 'var(--zn)' : `var(--z${step(rate(z[k]) - rate(league[k]))})`);
+  const part = (k) => { const v = z[k] || [0, 0]; return `fill="${fill(k)}" class="zn"><title>${ZONE_NAME[k]}: ${v[0]}/${v[1]}, Liga ${Math.round(rate(league[k]))} %</title>`; };
+  const ray = (deg, r = 1800) => { const t = deg * Math.PI / 180; return `${(r * Math.sin(t)).toFixed(0)},${(r * Math.cos(t)).toFixed(0)}`; };
+  const wedge = (deg, s) => `0,0 ${ray(s * deg)} ${s * 1800},1800 ${s * 1800},-200 0,-200`;
+  const label = (k, x, y) => { const v = z[k] || [0, 0]; return `<text class="zn-p num" x="${x}" y="${y}">${v[1] ? `${Math.round(rate(v))} %` : '–'}</text><text class="zn-n num" x="${x}" y="${y + 46}">${v[0]}/${v[1]}</text>`; };
+  const corner = (k, x) => { const v = z[k] || [0, 0]; return `<text class="zn-n num" transform="translate(${x} 0) rotate(-90)" y="12">${v[0]}/${v[1]}</text>`; };
+  return `<svg class="court zone-court" viewBox="-760 -170 1520 1090" role="img" aria-label="Trefferquote pro Zone im Vergleich zum Liga-Schnitt">
+    <defs><clipPath id="znFloor"><rect x="-750" y="-157.5" width="1500" height="1070"/></clipPath>
+      <clipPath id="znIn"><path d="M-660 -157.5 V141.5 A675 675 0 0 0 660 141.5 V-157.5Z"/></clipPath></defs>
+    <g clip-path="url(#znFloor)">
+      <polygon points="${wedge(22, 1)}" ${part('w3r')}</polygon><polygon points="${wedge(22, -1)}" ${part('w3l')}</polygon>
+      <polygon points="0,0 ${ray(-22)} ${ray(0, 2000)} ${ray(22)}" ${part('t3')}</polygon>
+      <rect x="-760" y="-170" width="100" height="311.5" ${part('c3l')}</rect><rect x="660" y="-170" width="100" height="311.5" ${part('c3r')}</rect>
+      <g clip-path="url(#znIn)"><rect class="zn-base" x="-760" y="-170" width="1520" height="1100"/>
+        <polygon points="${wedge(30, 1)}" ${part('m2r')}</polygon><polygon points="${wedge(30, -1)}" ${part('m2l')}</polygon>
+        <polygon points="0,0 ${ray(-30)} ${ray(0, 2000)} ${ray(30)}" ${part('m2c')}</polygon></g>
+      <circle r="300" ${part('short')}</circle><circle r="150" ${part('rim')}</circle></g>
+    <rect class="zn-line" x="-750" y="-157.5" width="1500" height="1070"/><rect class="zn-line thin" x="-245" y="-157.5" width="490" height="580"/>
+    <path class="zn-line" d="M-660 -157.5 V141.5 A675 675 0 0 0 660 141.5 V-157.5"/><circle class="zn-line" r="22.5"/><line class="zn-line" x1="-90" y1="-37.5" x2="90" y2="-37.5"/>
+    ${label('rim', 0, 85)}${label('short', 0, 245)}${label('m2c', 0, 520)}${label('m2l', -455, 340)}${label('m2r', 455, 340)}${label('t3', 0, 800)}${label('w3l', -520, 720)}${label('w3r', 520, 720)}${corner('c3l', -705)}${corner('c3r', 705)}</svg>`;
+}
+
+// ---------- Spielverlauf und entscheidende Phase ----------
+function runStory(m, g, f) {
+  const r = f.runs[f.dec];
+  if (!r) return '';
+  const home = r.s > 0, team = esc(name(m, home ? g.home : g.away));
+  const own = home ? r.ra : r.rb, opp = home ? r.rb : r.ra;
+  const us = home ? r.f[0] : r.f[1], them = home ? r.f[1] : r.f[0], endUs = home ? r.to[0] : r.to[1], endThem = home ? r.to[1] : r.to[0];
+  const who = r.who.map(esc), names = who.length > 1 ? `${who.slice(0, -1).join(', ')} und ${who.at(-1)}` : who[0] || '';
+  const verb = us < them ? `dreht ein ${us}:${them}` : us === them ? `setzt sich beim ${us}:${them} ab` : `zieht beim ${us}:${them} davon`;
+  return `<div class="run-story"><span class="k num">Entscheidende Phase · ${mmss(r.t0)} bis ${mmss(r.t1)}</span><b>${team} ${verb} mit einem ${own}:${opp}-Lauf</b>
+    ${names ? `<span class="d num">${names} ${who.length > 1 ? 'treffen' : 'trifft'} in ${mmss(r.t1 - r.t0)} Minuten zum ${endUs}:${endThem}.</span>` : ''}</div>`;
+}
+function flowHtml(m, g, b) {
+  const f = b.flow;
+  if (!f?.ev?.length) return '';
+  const W = 400, H = 190, l = 26, r = 8, t = 8, bt = 22;
+  const top = Math.max(10, ...f.ev.map((e) => Math.abs(e[1] - e[2])));
+  const mx = Math.ceil((top + 1) / 5) * 5, tick = mx > 20 ? 20 : 10;
+  const X = (s) => l + s / f.end * (W - l - r), Y = (v) => t + (mx - v) / (2 * mx) * (H - t - bt);
+  const lastT = f.ev.at(-1)[0];
+  const stop = g.status === 'live' ? lastT : f.end;
+  let line = `M${X(0)} ${Y(0)}`;
+  for (const e of f.ev) line += `H${X(e[0]).toFixed(1)}V${Y(e[1] - e[2]).toFixed(1)}`;
+  line += `H${X(stop).toFixed(1)}`;
+  const fillPath = `${line}V${Y(0)}H${X(0)}Z`;
+  const lines = [];
+  for (let q = 600; q < 2400; q += 600) lines.push(q);
+  for (let q = 2400; q < f.end; q += 300) lines.push(q);
+  const labels = ['1. Viertel', '2. Viertel', '3. Viertel', '4. Viertel'].map((s, i) => `<text x="${X(i * 600 + 300)}" y="${H - 6}" text-anchor="middle">${s}</text>`).join('')
+    + Array.from({ length: (f.end - 2400) / 300 }, (_, i) => `<text x="${X(2400 + i * 300 + 150)}" y="${H - 6}" text-anchor="middle">V${i + 1}</text>`).join('');
+  const dec = f.runs[f.dec];
+  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Punktedifferenz im Spielverlauf">
+    <defs><clipPath id="flUp"><rect x="${l}" y="${t}" width="${W - l - r}" height="${Y(0) - t}"/></clipPath><clipPath id="flDn"><rect x="${l}" y="${Y(0)}" width="${W - l - r}" height="${H - bt - Y(0)}"/></clipPath></defs>
+    ${dec ? `<rect class="fl-band" x="${X(dec.t0)}" y="${t}" width="${X(dec.t1) - X(dec.t0)}" height="${H - t - bt}"/>` : ''}
+    ${[-tick, tick].map((v) => `<line class="fl-grid" x1="${l}" x2="${W - r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${l - 5}" y="${Y(v) + 4}" text-anchor="end">${tick}</text>`).join('')}
+    ${lines.map((q) => `<line class="fl-grid" x1="${X(q)}" x2="${X(q)}" y1="${t}" y2="${H - bt}"/>`).join('')}${labels}
+    <path class="fl-area home" d="${fillPath}" clip-path="url(#flUp)"/><path class="fl-area away" d="${fillPath}" clip-path="url(#flDn)"/>
+    <line class="fl-zero" x1="${l}" x2="${W - r}" y1="${Y(0)}" y2="${Y(0)}"/>
+    <path class="fl-line home" d="${line}" clip-path="url(#flUp)"/><path class="fl-line away" d="${line}" clip-path="url(#flDn)"/>
+    <text x="${l + 5}" y="${t + 11}">${esc(name(m, g.home))} vorne</text><text x="${l + 5}" y="${H - bt - 5}">${esc(name(m, g.away))} vorne</text>
+    ${f.ev.map((e) => `<rect class="fl-hit" x="${X(e[0]) - 3}" y="${t}" width="6" height="${H - t - bt}"><title>${mmss(e[0])} · ${e[1]}:${e[2]}</title></rect>`).join('')}</svg>`;
+  return `<h3>Spielverlauf</h3><div class="ts-card">${runStory(m, g, f)}${svg}</div>`;
+}
+
+// ---------- Teamwerte: Team-Analyse und Teamprofil ----------
+const signed = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${de1(Math.abs(v))}`;
+const teamStats = { data: null, loading: null, error: '' };
+function loadTeamStats() {
+  if (teamStats.loading) return teamStats.loading;
+  const url = testData ? 'teamstats.json' : `${DATA_URL}?teamstats=1`;
+  teamStats.loading = fetch(url, { headers: testData ? {} : { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(40000) })
+    .then(async (res) => { const d = await res.json(); if (!res.ok || !d?.teams || !d.zones) throw new Error(d?.error || ''); teamStats.data = d; teamStats.error = ''; })
+    .catch((err) => { teamStats.error = err?.message || 'Die Teamwerte sind gerade nicht erreichbar.'; })
+    .finally(() => { teamStats.loading = null; });
+  return teamStats.loading;
+}
+const PROFILE = [['ortg', 'Angriff', 'hi', ''], ['drtg', 'Verteidigung', 'lo', ''], ['pace', 'Tempo', 'hi', ''], ['efg', 'Wurfquote (eFG)', 'hi', ' %'],
+  ['p3', 'Dreierquote', 'hi', ' %'], ['tov', 'Ballverluste', 'lo', ' %'], ['oreb', 'Offensivrebounds', 'hi', ' %'], ['ftr', 'Freiwurf-Rate', 'hi', ' %']];
+function statRank(k, dir, c) {
+  const list = Object.entries(teamStats.data.teams).sort((a, b) => (dir === 'hi' ? b[1][k] - a[1][k] : a[1][k] - b[1][k]));
+  return list.findIndex(([x]) => x === c) + 1;
+}
+function teamProfileHtml(m, c) {
+  const t = teamStats.data?.teams?.[c];
+  if (!t) return '';
+  const n = Object.keys(teamStats.data.teams).length;
+  const list = PROFILE.map((p) => ({ p, r: statRank(p[0], p[2], c) }));
+  const judged = list.filter((x) => x.p[0] !== 'pace').sort((a, b) => a.r - b.r);
+  const rows = list.map(({ p, r }) => {
+    const on = p[0] === 'pace' ? 'on' : r <= 5 ? 'on top' : r > n - 5 ? 'on low' : 'on';
+    return `<div class="tp-row"><span>${p[1]}</span><span class="tp-strip" aria-hidden="true" style="--n:${n}">${Array.from({ length: n }, (_, i) => `<i${i === n - r ? ` class="${on}"` : ''}></i>`).join('')}</span><span class="tp-v num">${de1(t[p[0]])}${p[3]}<small>Rang ${r}</small></span></div>`;
+  }).join('');
+  return `<h3>Teamprofil <span class="h3-sub">Rang unter ${n} Teams</span></h3><div class="ts-card">
+    <div class="tp-chips"><span>Stärke: <b>${judged[0].p[1]}</b></span><span>Schwäche: <b>${judged.at(-1).p[1]}</b></span></div>
+    <div class="tp-ends" aria-hidden="true"><span>Rang ${n}</span><span>Rang 1</span></div>${rows}
+    <p class="box-note small">Grün heisst Top 5, Rot heisst letzte 5. Tempo ist weder gut noch schlecht und bleibt neutral.</p></div>`;
+}
+function teamMapHtml(m, ts) {
+  const list = Object.entries(ts).filter(([c]) => m.teams[c]).map(([c, v]) => ({ c, ...v }));
+  const W = 400, H = 400, l = 46, r = 8, t = 8, b = 34;
+  const lo = (k) => Math.floor(Math.min(...list.map((x) => x[k])) - 2), hi = (k) => Math.ceil(Math.max(...list.map((x) => x[k])) + 2);
+  const x0 = lo('ortg'), x1 = hi('ortg'), y0 = lo('drtg'), y1 = hi('drtg');
+  const X = (v) => l + (v - x0) / (x1 - x0) * (W - l - r), Y = (v) => t + (v - y0) / (y1 - y0) * (H - t - b);
+  const mean = (k) => list.reduce((s, x) => s + x[k], 0) / list.length, ax = mean('ortg'), ay = mean('drtg');
+  const ticks = (a, z) => { const o = []; for (let v = Math.ceil(a / 5) * 5; v <= z; v += 5) o.push(v); return o; };
+  const q = (x, y, s, a) => `<text class="tm-q" x="${x}" y="${y}" text-anchor="${a}">${s}</text>`;
+  const s = 11;
+  const marks = [...list].sort((p, n) => n.drtg - p.drtg).map((p) => {
+    const x = X(p.ortg), y = Y(p.drtg), st = m.st[p.c], crest = m.teams[p.c].crest, safe = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//.test(crest || '');
+    const txt = `${name(m, p.c)}: Angriff ${de1(p.ortg)}, Verteidigung ${de1(p.drtg)}, Netto ${signed(p.net)}${st ? `, Bilanz ${st.s}–${st.n}` : ''}`;
+    return `<g class="tm-team" data-act="team" data-c="${esc(p.c)}" role="button" tabindex="0" aria-label="${esc(txt)}"><title>${esc(txt)}</title><circle cx="${x}" cy="${y}" r="${s + 3}"/>${safe ? `<image href="${esc(crest)}" x="${x - s}" y="${y - s}" width="${2 * s}" height="${2 * s}"/>` : `<text x="${x}" y="${y + 4}" text-anchor="middle">${esc(short(p.c))}</text>`}</g>`;
+  }).join('');
+  const best = (k, dir) => [...list].sort((a, c) => dir * (c[k] - a[k]))[0];
+  const top = best('net', 1), off = best('ortg', 1), def = best('drtg', -1);
+  return `<div class="ts-card"><svg class="tm" viewBox="0 0 ${W} ${H}" role="img" aria-label="Alle Teams nach Angriff und Verteidigung">
+    ${ticks(x0, x1).map((v) => `<line class="fl-grid" x1="${X(v)}" x2="${X(v)}" y1="${t}" y2="${H - b}"/><text x="${X(v)}" y="${H - b + 14}" text-anchor="middle">${v}</text>`).join('')}
+    ${ticks(y0, y1).map((v) => `<line class="fl-grid" x1="${l}" x2="${W - r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${l - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`).join('')}
+    <rect class="tm-best" x="${X(ax)}" y="${t}" width="${W - r - X(ax)}" height="${Y(ay) - t}"/>
+    <line class="tm-avg" x1="${X(ax)}" x2="${X(ax)}" y1="${t}" y2="${H - b}"/><line class="tm-avg" x1="${l}" x2="${W - r}" y1="${Y(ay)}" y2="${Y(ay)}"/>
+    ${q(W - r - 5, t + 14, 'Stark in beidem', 'end')}${q(l + 5, t + 14, 'Lebt von der Verteidigung', 'start')}${q(W - r - 5, H - b - 7, 'Lebt vom Angriff', 'end')}${q(l + 5, H - b - 7, 'Schwach in beidem', 'start')}
+    <text x="${(l + W - r) / 2}" y="${H - 4}" text-anchor="middle">Angriff: Punkte pro 100 Ballbesitze →</text>
+    <text transform="translate(10 ${(t + H - b) / 2}) rotate(-90)" text-anchor="middle">← Gegnerpunkte pro 100 Ballbesitze</text>
+    ${marks}</svg>
+    <p class="ts-ins">${esc(name(m, top.c))} ist netto am stärksten (${signed(top.net)}). ${esc(name(m, off.c))} hat den besten Angriff, ${esc(name(m, def.c))} die beste Verteidigung.</p></div>`;
+}
+function benchHtml(m, ts) {
+  const list = Object.entries(ts).filter(([c, v]) => m.teams[c] && v.share != null).map(([c, v]) => ({ c, ...v })).sort((a, b) => b.share - a.share);
+  if (!list.length) return '';
+  const rows = list.map((x) => `<button type="button" class="bn-row" data-act="team" data-c="${esc(x.c)}">${logo(m, x.c, 'xxs')}<span class="bn-n">${esc(name(m, x.c))}</span>
+    <span class="bn-bar" aria-hidden="true"><i style="width:${100 - x.share}%"></i><i class="b" style="width:${x.share}%"></i></span><span class="bn-v num"><b>${Math.round(x.share)} %</b> <small>${de1(x.bench)}</small></span></button>`).join('');
+  return `<div class="ts-card"><div class="bn-lg"><span><i></i>Starter</span><span><i class="b"></i>Bank</span><span class="r">Anteil Bank · Punkte pro Spiel</span></div><div class="bn-rows">${rows}</div></div>`;
+}
+function openStats() {
+  const dlg = $('#statsDlg');
+  renderStats();
+  if (!dlg.open) dlg.showModal();
+  dlg.scrollTop = 0;
+  if (!teamStats.data || teamStats.data.pending) loadTeamStats().then(() => { if ($('#statsDlg').open) renderStats(); });
+}
+function renderStats() {
+  const dlg = $('#statsDlg'), m = model(), d = teamStats.data;
+  const top = '<div class="box-top"><h2 id="statsTitle">Team-Analyse</h2><button type="button" class="box-close" data-act="stats-close" aria-label="Schliessen">×</button></div>';
+  if (!d) { dlg.innerHTML = `<div class="box-in">${top}<p class="label">${esc(teamStats.error || 'Lade Teamwerte … Beim ersten Mal kann das bis zu 30 Sekunden dauern.')}</p></div>`; return; }
+  dlg.innerHTML = `<div class="box-in">${top}
+    <h3>Team-Landkarte <span class="h3-sub">oben rechts ist am besten</span></h3>${teamMapHtml(m, d.teams)}
+    <h3>Wer lebt von der Bank? <span class="h3-sub">Saison</span></h3>${benchHtml(m, d.teams) || '<p class="label">Die Bankpunkte werden noch ausgewertet.</p>'}
+    ${d.pending ? `<p class="box-note small">Noch ${d.pending} Spiele in Auswertung. Öffne die Seite später nochmals, dann sind die Bankpunkte vollständig.</p>` : ''}
+    <p class="box-note small">Daten: EuroLeague. Ballbesitze sind aus den Teamwerten geschätzt, offizielle Werte können leicht abweichen. Team antippen öffnet die Teamseite.</p></div>`;
+}
+
 // ---------- Teamseite ----------
 let teamCode = '';
 function openTeam(code) {
@@ -1076,6 +1250,7 @@ function openTeam(code) {
   if (!dlg.open) dlg.showModal();
   dlg.scrollTop = 0;
   if (!players) loadPlayers().then(() => { if (teamCode === code) renderTeamPage(); });
+  if (!teamStats.data) loadTeamStats().then(() => { if (teamCode === code) renderTeamPage(); });
 }
 function renderTeamPage() {
   const dlg = $('#teamDlg');
@@ -1092,6 +1267,7 @@ function renderTeamPage() {
       <small>${t ? `Platz ${t.rank} · ${t.s}–${t.n} · ${t.d > 0 ? '+' : ''}${t.d}` : ''}</small>
       <small>${t ? `Heim ${t.hs}–${t.hn} · Auswärts ${t.as}–${t.an}${t.streak ? ` · Serie ${esc(t.streak)}` : ''}` : ''}</small>${formDots(m, c)}</div></div>
     <section class="panel chart">${chartHtml(m, c)}</section>
+    ${teamProfileHtml(m, c)}
     ${next.length ? '<h3>Nächste Spiele</h3><div class="games" id="teamNext"></div>' : ''}
     <h3>Resultate</h3>${results.length ? '<div class="games" id="teamResults"></div>' : '<p class="label">Noch keine Spiele.</p>'}
     ${(() => { const list = [...injuries.values()].filter((i) => i.team === c); return list.length ? `<h3>Verletzt <span class="h3-sub">laut Meldungen</span></h3><ul class="inj-list">${list.map((i) => `<li><span class="inj-tag${i.status === 'doubtful' ? ' doubt' : ''}">${i.status === 'doubtful' ? 'Fraglich' : 'Verletzt'}</span><span><b>${playerBtn({ id: i.id, name: i.name, team: i.team }, c, esc(i.name)).replace(/<span class="inj-tag[^]*$/, '')}</b><small>${esc(i.note)}${i.back ? ` · Rückkehr: ${esc(i.back)}` : ''} · seit ${esc(dmy(i.since))}</small></span>${/^https:\/\//.test(i.url) ? `<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.source)} ↗</a>` : ''}</li>`).join('')}</ul>` : ''; })()}
@@ -1119,7 +1295,7 @@ const IOC = { USA: 'US', CRO: 'HR', SRB: 'RS', GRE: 'GR', ESP: 'ES', FRA: 'FR', 
   GUI: 'GN', SSD: 'SS', RSA: 'ZA', GAB: 'GA', CAF: 'CF', BEN: 'BJ', TOG: 'TG', GHA: 'GH', SUD: 'SD', ISV: 'VI', TTO: 'TT', PAN: 'PA', CUB: 'CU' };
 const COMP = { Euroleague: 'EuroLeague', Eurocup: 'EuroCup', 'U18 Tournament': 'Nachwuchsturnier' };
 const playerCache = new Map();
-const playerState = { id: '', team: '', data: null, error: '', metric: 'pts', sel: -1 };
+const playerState = { id: '', team: '', data: null, error: '', metric: 'pts', sel: -1, court: 'zones' };
 
 function countryName(code, fallback) {
   try { if (IOC[code]) return new Intl.DisplayNames(['de'], { type: 'region' }).of(IOC[code]); } catch { /* alter Browser */ }
@@ -1137,10 +1313,11 @@ const crestImg = (url) => /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\
 
 async function openPlayer(id, team) {
   const dlg = $('#playerDlg');
-  Object.assign(playerState, { id, team, data: playerCache.get(id) || null, error: '', metric: 'pts', sel: -1 });
+  Object.assign(playerState, { id, team, data: playerCache.get(id) || null, error: '', metric: 'pts', sel: -1, court: 'zones' });
   renderPlayer();
   if (!dlg.open) dlg.showModal();
   dlg.scrollTop = 0;
+  if (!teamStats.data) loadTeamStats().then(() => { if (playerState.id === id && $('#playerDlg').open) renderPlayer(); });
   if (playerState.data) return;
   try {
     const url = testData ? `player-${id}.json` : `${DATA_URL}?player=${encodeURIComponent(id)}${team ? `&team=${encodeURIComponent(team)}` : ''}`;
@@ -1508,10 +1685,13 @@ document.addEventListener('click', (e) => {
   else if (act === 'team-close') $('#teamDlg').close();
   else if (act === 'facts') openFacts();
   else if (act === 'facts-close') $('#factsDlg').close();
+  else if (act === 'stats') openStats();
+  else if (act === 'stats-close') $('#statsDlg').close();
   else if (act === 'facts-cat') { factsState.cat = t.dataset.cat; renderFacts(); }
   else if (act === 'player') openPlayer(t.dataset.id, t.dataset.pteam);
   else if (act === 'player-close') $('#playerDlg').close();
   else if (act === 'player-metric') { playerState.metric = t.dataset.k; renderPlayer(); }
+  else if (act === 'player-court') { playerState.court = t.dataset.k; renderPlayer(); }
   else if (act === 'player-bar') { playerState.sel = Number(t.dataset.i); const c = $('#pcChart'); if (c && playerState.data) c.innerHTML = playerChart(playerState.data); }
   else if (act === 'toggle-leaders') {
     open.leaders = !open.leaders; render();
@@ -1553,7 +1733,7 @@ function logout() {
 }
 // Spielzeilen auch mit der Tastatur öffnen
 document.addEventListener('keydown', (e) => {
-  const t = e.target.closest?.('[data-act="box"], article[data-act="team"]');
+  const t = e.target.closest?.('[data-act="box"], article[data-act="team"], g[data-act="team"]');
   if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (t.dataset.act === 'box') openBox(Number(t.dataset.code)); else openTeam(t.dataset.c); }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && favEdit && document.getElementById('favSheet')) { closeFavSheet(); return; } if (e.key === 'Escape' && profileMenuOpen) { profileMenuOpen = false; renderProfileMenu(); $('#profileBtn')?.focus(); } });
@@ -1562,6 +1742,7 @@ $('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxSt
 $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
 $('#playerDlg').addEventListener('close', () => { playerState.id = ''; });
 $('#factsDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+$('#statsDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#playerDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 document.addEventListener('change', (e) => { if (e.target.id === 'shotPlayer') { boxState.shooter = e.target.value; renderBox(); $('#shotPlayer')?.focus(); } });
@@ -1613,7 +1794,7 @@ function setupPullToRefresh() {
   };
   const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
   window.addEventListener('touchstart', (e) => {
-    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open) return;
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open) return;
     startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
@@ -1677,7 +1858,7 @@ function setupInstallHint() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const shareIcon = '<svg class="ins-ico" viewBox="0 0 24 24" aria-label="Teilen"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
   setTimeout(() => {
-    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open) return;
+    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open) return;
     const howto = ios
       ? `Tippe in Safari auf ${shareIcon} <b>Teilen</b> (bei neueren iPhones im Menü <b>«…»</b>) und dann auf <b>«Zum Home-Bildschirm»</b>. Danach öffnet sich die Seite wie eine App – ohne Adresszeile.`
       : installEvent ? 'Mit einem Tipp auf «Installieren» liegt die Seite wie eine App auf deinem Startbildschirm.'
