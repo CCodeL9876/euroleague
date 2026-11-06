@@ -77,7 +77,8 @@
   .pair .logo + .logo{margin-left:-6px;box-shadow:0 0 0 3px var(--card);}
   .label{font-size:0.8rem;color:var(--dim);font-weight:500;}
   .who strong{display:block;font-size:1rem;font-weight:600;line-height:1.25;}
-  .next-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .next-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;}
+  .next-foot .when{margin-left:auto;}
   .btn-ghost{min-height:44px;padding:0 18px;border-radius:14px;border:2px solid var(--blue);background:transparent;font-weight:600;cursor:pointer;}
   .btn-ghost:hover{background:color-mix(in srgb, var(--blue) 16%, transparent);}
   .when{font-weight:600;font-size:1.05rem;text-align:right;}
@@ -483,14 +484,14 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 /* ---------- Heller Modus: gleiche Bausteine, helle Werte. Ohne eigene Wahl folgt die Seite dem iPhone ---------- */
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){color-scheme:light;
-    --frame:#FFFFFF;--bg:#FFFFFF;--panel:#FFFFFF;--card:#E8EAF6;--card-2:#DADDEE;--line:#CBCFE4;
-    --text:#14152E;--dim:#3F4368;--faint:#575B82;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#D23C47;
-    --green:#12774F;--orange:#B85E25;--gold:#946A00;--pitch-hi:#1F7A45;}
+    --frame:#CFCFEA;--bg:#E4E4F3;--panel:#DBDBEE;--card:#F1F1FA;--card-2:#D3D4EB;--line:#BFC1DE;
+    --text:#14152E;--dim:#3A3E63;--faint:#4F5379;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#B72733;
+    --green:#0C6642;--orange:#9A4A16;--gold:#775400;--pitch-hi:#1F7A45;}
 }
 :root[data-theme="light"]{color-scheme:light;
-  --frame:#FFFFFF;--bg:#FFFFFF;--panel:#FFFFFF;--card:#E8EAF6;--card-2:#DADDEE;--line:#CBCFE4;
-  --text:#14152E;--dim:#3F4368;--faint:#575B82;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#D23C47;
-  --green:#12774F;--orange:#B85E25;--gold:#946A00;--pitch-hi:#1F7A45;}
+  --frame:#CFCFEA;--bg:#E4E4F3;--panel:#DBDBEE;--card:#F1F1FA;--card-2:#D3D4EB;--line:#BFC1DE;
+  --text:#14152E;--dim:#3A3E63;--faint:#4F5379;--blue:#4363E6;--blue-hi:#3149C9;--violet:#6532E8;--violet-hi:#5B2BD6;--coral:#B72733;
+  --green:#0C6642;--orange:#9A4A16;--gold:#775400;--pitch-hi:#1F7A45;}
 :root[data-theme="dark"]{color-scheme:dark;}
 
 /* Kurve: Farben aus den Bausteinen */
