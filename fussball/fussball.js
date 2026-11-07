@@ -190,7 +190,8 @@ function benchHtml(m, d) {
   const WHISTLE = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="14" r="5"/><path d="M13 11l7-5v4l-5 3"/></svg>';
   const pane = (t, k) => `<div class="fb-bpane" data-side="${k}"${k === cur ? '' : ' hidden'}>
     ${t.coach ? `<div class="fb-coach">${WHISTLE}<span><small>Trainer</small>${esc(t.coach)}</span></div>` : ''}
-    ${t.bench?.length ? `<div class="fb-bgrid">${t.bench.map((n, i) => (t.benchIds?.[i] ? `<button type="button" class="fb-bpl" data-act="fb-player" data-pid="${esc(t.benchIds[i])}">${esc(n)}</button>` : `<span class="fb-bpl">${esc(n)}</span>`)).join('')}</div>` : '<p class="fb-x-note">Keine Ersatzspieler gemeldet.</p>'}</div>`;
+    ${t.bench?.length ? `<div class="fb-bgrid">${t.bench.map((n, i) => { const no = t.benchNo?.[i]; const inner = `${no !== '' && no != null ? `<b class="num">${esc(no)}</b>` : ''}<span>${esc(n)}</span>`;
+      return t.benchIds?.[i] ? `<button type="button" class="fb-bpl" data-act="fb-player" data-pid="${esc(t.benchIds[i])}">${inner}</button>` : `<span class="fb-bpl">${inner}</span>`; }).join('')}</div>` : '<p class="fb-x-note">Keine Ersatzspieler gemeldet.</p>'}</div>`;
   const btn = (k, name, u) => `<button type="button" data-act="fb-bench-side" data-id="${esc(m.id)}" data-side="${k}" aria-pressed="${k === cur}">${logo(u)}<span>${esc(name)}</span></button>`;
   return `<div class="fb-benchbox"><h4>Ersatzbank</h4><div class="fb-bseg" role="group" aria-label="Team wählen">${btn('h', m.h, m.hl)}${btn('a', m.a, m.al)}</div>${pane(d.home, 'h')}${pane(d.away, 'a')}</div>`;
 }

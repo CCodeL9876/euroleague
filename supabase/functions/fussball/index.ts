@@ -14,7 +14,7 @@
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
 //   GET ?fbleague=ucl|pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste; nach letztem Spiel am Tag vorgewärmt, sonst Cache bis zu 24 Std.
-//   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung bzw. Teamstatistik eines Spiels;
+//   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Startelf, Ersatzbank mit Rückennummern benchNo, Trainer) bzw. Teamstatistik eines Spiels;
 //     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst Big Balls; Statistik live von ESPN, nach Spielende von Big Balls, Sportradar als Ersatz
 //   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
@@ -578,7 +578,9 @@ async function bbLineup(m, now) {
   const uuid = m.id.replace(/^bb-/, '');
   const ck = `bblu:${uuid}`;
   const hit = await cacheGet(ck);
-  if (hit && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
+  // Ältere gespeicherte Aufstellungen ohne Rückennummern der Ersatzspieler: einmal neu laden
+  const noNos = hit?.data?.available && !hit.data.home?.benchNo;
+  if (hit && !noNos && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await bbAllowed())) return hit?.data || { available: false };
   const d = await bbGet(`stored/matches/${uuid}/lineups`);
@@ -590,7 +592,7 @@ async function bbLineup(m, now) {
     const ok = st.length === 11 && st[0]?.position === 'G' && cnt.every((c) => c > 0) && cnt.reduce((a, b) => a + b, 0) === 10;
     const bench = pl.filter((p) => !p.starter);
     return { formation: ok ? cnt.join('-') : '', coach: '', start: st.map((p) => ({ id: `bb:${p.player_id}`, n: String(p.name || ''), no: p.jersey_number ?? '', pos: POS[p.position] || '' })),
-      bench: bench.map((p) => String(p.name || '')), benchIds: bench.map((p) => `bb:${p.player_id}`) };
+      bench: bench.map((p) => String(p.name || '')), benchIds: bench.map((p) => `bb:${p.player_id}`), benchNo: bench.map((p) => p.jersey_number ?? '') };
   };
   const data = { available: (d?.data?.home || []).some((p) => p.starter), home: team(d?.data?.home), away: team(d?.data?.away), final: m.st === 'ft', src: 'bb' };
   await cacheSet(ck, data);
@@ -637,7 +639,7 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const ck = `srlu:${sr.id}`;
   const hit = await cacheGet(ck);
   // Vor dem Spielerprofil gespeicherte Aufstellungen haben keine Spieler-IDs: einmal neu laden
-  const noIds = hit?.data?.available && !hit.data.home?.start?.[0]?.id;
+  const noIds = hit?.data?.available && (!hit.data.home?.start?.[0]?.id || !hit.data.home?.benchNo);
   if (hit && !noIds && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await srAllowed())) return hit?.data || bbLineup(m, now);
@@ -648,7 +650,8 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
     attacking_midfielder: 'OM', striker: 'ST', right_midfielder: 'RM', left_midfielder: 'LM', midfielder: 'M', defender: 'V', forward: 'ST' };
   const team = (c) => c && { formation: c.formation?.type || '', coach: flip(c.manager?.name),
     start: (c.players || []).filter((p) => p.starter).sort((a, b) => (a.order || 0) - (b.order || 0)).map((p) => ({ id: String(p.id || '').split(':').pop(), n: flip(p.name), no: p.jersey_number ?? '', pos: POS[p.position] || POS[p.type] || '' })),
-    bench: (c.players || []).filter((p) => !p.starter).map((p) => flip(p.name)), benchIds: (c.players || []).filter((p) => !p.starter).map((p) => String(p.id || '').split(':').pop()) };
+    bench: (c.players || []).filter((p) => !p.starter).map((p) => flip(p.name)), benchIds: (c.players || []).filter((p) => !p.starter).map((p) => String(p.id || '').split(':').pop()),
+    benchNo: (c.players || []).filter((p) => !p.starter).map((p) => p.jersey_number ?? '') };
   const comps = d?.lineups?.competitors || [];
   const data = { available: comps.some((c) => (c.players || []).some((p) => p.starter)),
     home: team(comps.find((c) => c.qualifier === 'home')), away: team(comps.find((c) => c.qualifier === 'away')), final: m.st === 'ft' };

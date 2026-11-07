@@ -303,6 +303,8 @@ button.fb-pl:hover .sh, button.fb-pl:focus-visible .sh{background:var(--card-2);
 .fb-coach span{display:flex;flex-direction:column;min-width:0;color:var(--text);font-size:0.86rem;font-weight:500;}
 .fb-coach small{font-size:0.66rem;font-weight:400;color:var(--faint);}
 .fb-bgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
-.fb-bpl{display:block;min-width:0;min-height:36px;padding:8px 2px;border:0;border-top:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:0.8rem;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fb-bpl{display:flex;align-items:baseline;gap:8px;min-width:0;min-height:36px;padding:8px 2px;border:0;border-top:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:0.8rem;text-align:left;}
+.fb-bpl span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fb-bpl b{flex:none;min-width:20px;font-family:var(--mono);font-size:0.72rem;font-weight:600;color:var(--dim);text-align:right;}
 button.fb-bpl{cursor:pointer;}
-button.fb-bpl:hover{text-decoration:underline;}
+button.fb-bpl:hover span{text-decoration:underline;}
