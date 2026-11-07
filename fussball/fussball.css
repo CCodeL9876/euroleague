@@ -322,3 +322,11 @@ button.fb-bpl:hover span{text-decoration:underline;}
 .fb-pl .fl{position:absolute;left:-9px;bottom:-5px;font-size:0.82rem;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4));}
 .fb-bpl .fl{flex:none;font-size:0.9rem;align-self:center;}
 .fb-lu-row .fl{font-size:0.85rem;margin:0 4px;}
+
+/* Spielerfoto im Kreis (Variante A): grösserer Kreis, Foto oberes Bilddrittel, Nummer als Schild unten rechts */
+.fb-pl .sh.photo{width:44px;height:44px;background:#E9EEF0;}
+.fb-pl .sh .ph{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;object-position:50% 18%;}
+.fb-pl .sh.photo .no{position:absolute;right:-9px;bottom:-6px;min-width:19px;height:17px;padding:0 4px;border-radius:9px;background:var(--panel);
+  border:1.5px solid currentColor;font-size:0.62rem;line-height:14px;text-align:center;}
+.fb-pl .sh.photo .gl{top:-9px;right:-12px;}
+.fb-pl .sh.photo .fl{left:-10px;bottom:-6px;}

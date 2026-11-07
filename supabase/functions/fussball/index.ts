@@ -689,7 +689,7 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const ck = `srlu:${sr.id}`;
   const hit = await cacheGet(ck);
   // Ältere gespeicherte Aufstellungen ohne Spieler-IDs, Rückennummern oder Nationalität: einmal neu laden
-  const noIds = hit?.data?.available && (!hit.data.home?.start?.[0]?.id || !hit.data.home?.benchNo || !hit.data.home?.benchCc);
+  const noIds = hit?.data?.available && (!hit.data.home?.start?.[0]?.id || !hit.data.home?.benchNo || !hit.data.home?.benchCc || !hit.data.imgv);
   if (hit && !noIds && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await srAllowed())) return hit?.data || bbLineup(m, now);
@@ -705,6 +705,12 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const comps = d?.lineups?.competitors || [];
   const data = { available: comps.some((c) => (c.players || []).some((p) => p.starter)),
     home: team(comps.find((c) => c.qualifier === 'home')), away: team(comps.find((c) => c.qualifier === 'away')), final: m.st === 'ft' };
+  // Fotos der Startelf (Wikidata/Commons, kein Kontingent); klappt die Abfrage nicht, beim nächsten Laden nochmals versuchen
+  if (data.available) {
+    const ph = await lineupPhotos(comps.flatMap((c) => (c.players || []).filter((p) => p.starter))).catch(() => ({ ok: false, map: {} }));
+    for (const t of [data.home, data.away]) for (const p of t?.start || []) if (ph.map[p.id]) p.img = ph.map[p.id];
+    if (ph.ok) data.imgv = 1; else data.final = false;
+  }
   await cacheSet(ck, data);
   return data;
 }
@@ -746,6 +752,41 @@ async function sparql(q) {
 }
 const plainName = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
 // Fussballer (Q937857) mit gleichem Geburtsdatum und passendem Namen → englischer Artikel, Karriere und Foto
+// Fotos für die Aufstellung (Sportradar liefert Name + Geburtsdatum): eine Wikidata-Abfrage für alle Spieler (Fussballer mit
+// diesem Geburtsdatum, Nachname passt), dann eine Commons-Abfrage für die Vorschaubilder (120 px). Ohne Treffer kein Foto.
+async function lineupPhotos(players) {
+  const list = players.filter((p) => /^\d{4}-\d\d-\d\d$/.test(String(p.date_of_birth || '')) && p.id);
+  if (!list.length) return { ok: true, map: {} };
+  const dobs = [...new Set(list.map((p) => p.date_of_birth))].map((d) => `"${d}T00:00:00Z"^^xsd:dateTime`).join(' ');
+  let rows;
+  try {
+    rows = await sparql(`SELECT ?p ?l ?b ?img WHERE { VALUES ?b { ${dobs} } ?p wdt:P569 ?b ; wdt:P106 wd:Q937857 ; wdt:P18 ?img . ?p rdfs:label ?l . FILTER(LANG(?l) = "en") }`);
+  } catch { return { ok: false, map: {} }; }
+  const files = new Map();
+  for (const p of list) {
+    const last = plainName(String(p.name || '').split(',')[0]).split(' ').pop();
+    const hits = rows.filter((r) => String(r.b.value).slice(0, 10) === p.date_of_birth && plainName(r.l.value).split(' ').includes(last));
+    // Mehrdeutig (zwei verschiedene Personen): lieber kein Foto als ein falsches; mehrere Bilder derselben Person: das erste
+    const people = [...new Set(hits.map((r) => r.p.value))];
+    if (people.length === 1) files.set(String(p.id).split(':').pop(), decodeURIComponent(hits[0].img.value.split('/Special:FilePath/')[1] || ''));
+  }
+  const map = {};
+  const names = [...new Set([...files.values()].filter(Boolean))];
+  for (let i = 0; i < names.length; i += 40) {
+    const titles = names.slice(i, i + 40).map((f) => `File:${f}`).join('|');
+    const ii = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url&iiurlwidth=120&format=json&formatversion=2&titles=${encodeURIComponent(titles)}`,
+      { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => r.json()).catch(() => null);
+    if (!ii) return { ok: false, map };
+    const norm = new Map((ii.query?.normalized || []).map((n) => [n.to, n.from]));
+    for (const pg of ii.query?.pages || []) {
+      const u = String(pg.imageinfo?.[0]?.thumburl || '').replace(/\?.*$/, '');
+      if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\//.test(u)) continue;
+      const title = norm.get(pg.title) || pg.title;
+      for (const [id, f] of files) if (`File:${f}` === title || `File:${f}`.replace(/_/g, ' ') === pg.title) map[id] = u;
+    }
+  }
+  return { ok: true, map };
+}
 async function wikiFootballer(name, birth) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(birth)) return { career: [], img: '' };
   const rows = await sparql(`SELECT ?l ?a ?img WHERE { ?p wdt:P106 wd:Q937857 ; wdt:P569 ?b . FILTER(?b = "${birth}T00:00:00Z"^^xsd:dateTime)

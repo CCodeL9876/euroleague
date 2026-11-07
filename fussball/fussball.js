@@ -188,7 +188,9 @@ function pitchHtml(m, d) {
     return line.map((p, k) => {
       const f = (k + 1) * 100 / (line.length + 1), x = side === 'h' ? 100 - f : f;
       const g = goalsBy(sc, side === 'h' ? 1 : 2, p.id, p.n);
-      const inner = `<span class="sh">${esc(p.no)}${goalBadge(g)}${natFlag(p.cc)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
+      // Mit Foto (Wikidata, nur Sportradar-Aufstellungen): Foto im Kreis, Nummer als kleines Schild; lädt es nicht, wieder nur die Nummer
+      const photo = /^https:\/\/(upload|thumb)\.wikimedia\.org\//.test(p.img || '');
+      const inner = `<span class="sh${photo ? ' photo' : ''}">${photo ? `<img class="ph" src="${esc(p.img)}" alt="" loading="lazy" decoding="async">` : ''}<span class="no">${esc(p.no)}</span>${goalBadge(g)}${natFlag(p.cc)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
       const lbl = `${p.n}${g ? `, ${g === 1 ? '1 Tor' : `${g} Tore`}` : ''}`;
       return p.id ? `<button type="button" class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at} data-act="fb-player" data-pid="${esc(p.id)}" aria-label="Profil ${esc(lbl)}">${inner}</button>`
         : `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at}>${inner}</div>`;
@@ -992,3 +994,11 @@ setupPullToRefresh();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
 }
+
+// Spielerfoto in der Aufstellung lädt nicht: zurück zum Kreis mit Nummer
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.classList.contains('ph')) return;
+  img.parentElement?.classList.remove('photo');
+  img.remove();
+}, true);
