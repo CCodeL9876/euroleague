@@ -1,0 +1,224 @@
+// Schweizer Basketball im Basketball-Bereich: SB League (basketball/sbl/) und BVN 2. Liga Herren (basketball/2liga/).
+// Gemeinsames Skript; die Seite sagt über <body data-league="sbl|h2l">, welcher Wettbewerb. Daten: Supabase-Funktion „basket“.
+// Umschalter oben (EuroLeague · SB League · 2. Liga) wie in der Mockup-Variante A; Live-Spiele als Fallblatt-Tafel.
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
+
+const API = `${SUPABASE_URL}/functions/v1/basket`;
+const LEAGUE = document.body.dataset.league === 'h2l' ? 'h2l' : 'sbl';
+const IS_SBL = LEAGUE === 'sbl';
+const FAV_KEY = `el-regio-fav:${LEAGUE}`;
+const DEFAULT_FAV = IS_SBL ? '' : 'h2l-bc-arlesheim-2';
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const tz = 'Europe/Zurich';
+const dayKey = (d) => new Intl.DateTimeFormat('sv-SE', { timeZone: tz }).format(d);
+const hm = (d) => new Intl.DateTimeFormat('de-CH', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(d);
+const dayName = (key) => {
+  const today = dayKey(new Date()), tomorrow = dayKey(new Date(Date.now() + 864e5)), yesterday = dayKey(new Date(Date.now() - 864e5));
+  if (key === today) return 'Heute';
+  if (key === tomorrow) return 'Morgen';
+  if (key === yesterday) return 'Gestern';
+  return new Intl.DateTimeFormat('de-CH', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'long' }).format(new Date(`${key}T12:00:00Z`));
+};
+
+let data = null, error = '', view = 'spiele', onlyMine = !IS_SBL, timer = 0;
+const lastFlaps = new Map();
+let fav = (() => { try { return localStorage.getItem(FAV_KEY) ?? DEFAULT_FAV; } catch { return DEFAULT_FAV; } })();
+const isFav = (t) => Boolean(fav) && t?.c === fav;
+
+async function api(q) {
+  const res = await fetch(`${API}?${q}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) });
+  const j = await res.json().catch(() => null);
+  if (!res.ok || !j || j.error) throw new Error(j?.error || `Fehler ${res.status}`);
+  return j;
+}
+
+// Wappen: SBL-Logos von Genius Sports; BVN ohne Logos → Kürzel im Kreis
+function crest(t, size = 'xs') {
+  if (t?.logo) return `<span class="logo ${size}"><img src="${esc(t.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>`;
+  const k = String(t?.k || t?.c || t?.n || '').replace(/^[a-z0-9]+-/, '').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 5) || '?';
+  return `<span class="logo ${size} rg-k" aria-hidden="true">${esc(k.replace(/-\d$/, ''))}</span>`;
+}
+const teamName = (t) => (IS_SBL ? t.n : t.n.replace(/^(BC|CVJM|TSV|BBC|TV)\s+/, ''));
+
+function stateLabel(g) {
+  if (g.st !== 'live') return '';
+  const n = g.per || 1;
+  const running = g.clk && g.clk !== '00:00';
+  if (!running) return n === 2 ? 'Halbzeit' : n >= 4 ? 'Ende 4. Viertel' : `Ende ${n}. Viertel`;
+  return n > 4 ? 'Verlängerung' : `${n}. Viertel`;
+}
+
+function liveCard(g) {
+  const running = g.clk && g.clk !== '00:00';
+  const clock = running ? g.clk.replace(/^0(?=\d:)/, '') : '';
+  const chars = [...String(g.hs).padStart(3, ' '), ...String(g.as).padStart(3, ' '), ...clock];
+  const before = lastFlaps.get(g.id) || [];
+  lastFlaps.set(g.id, chars);
+  let i = 0;
+  const tiles = (s) => `<span class="flaps">${[...s].map((ch) => {
+    const flip = before.length && before[i] !== ch; i += 1;
+    return `<span class="flap${ch === ':' ? ' sep' : ''}${flip ? ' flip' : ''}">${ch === ' ' ? '' : esc(ch)}</span>`;
+  }).join('')}</span>`;
+  return `<section class="live-hero" data-game="${g.id}" role="button" tabindex="0" aria-label="${esc(`${g.h.n} ${g.hs}, ${g.a.n} ${g.as}, Spielbericht öffnen`)}">
+    <div class="flap-row">${crest(g.h, 'sm')}<span class="flap-name">${esc(g.h.n)}</span>${tiles(String(g.hs).padStart(3, ' '))}</div>
+    <div class="flap-row">${crest(g.a, 'sm')}<span class="flap-name">${esc(g.a.n)}</span>${tiles(String(g.as).padStart(3, ' '))}</div>
+    <div class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(stateLabel(g))}<span class="flap-round">&nbsp;· SB League${g.round ? ` · Runde ${g.round}` : ''}</span></span>
+      <span class="flap-clock">${clock ? tiles(clock) : ''}<span class="flap-more" aria-hidden="true">›</span></span></div></section>`;
+}
+
+function row(g) {
+  const t = g.utc ? new Date(g.utc) : null;
+  const done = g.st === 'ft' && g.hs != null;
+  const live = g.st === 'live';
+  const win = (a, b) => (done && a > b ? ' win' : '');
+  const when = live ? '<b class="rg-live">Live</b>' : done ? '<span class="rg-end">Ende</span>' : g.st === 'open' ? '<span class="rg-end">offen</span>' : t ? esc(hm(t)) : '–';
+  const mine = !onlyMine && (isFav(g.h) || isFav(g.a));
+  const tag = IS_SBL ? 'button' : 'div';
+  const attrs = IS_SBL && g.st !== 'pre' ? ` type="button" data-game="${g.id}"` : IS_SBL ? ' type="button" disabled' : '';
+  const where = !IS_SBL && g.gym && !done ? `<small class="rg-gym">${esc(g.gym)}</small>` : '';
+  return `<${tag} class="rg-row${mine ? ' mine' : ''}${done ? ' done' : ''}"${attrs}>
+    <span class="rg-t num">${when}</span>
+    <span class="rg-tm${win(g.hs, g.as)}">${crest(g.h)}<b>${esc(teamName(g.h))}</b>${done || live ? `<em class="num">${g.hs}</em>` : ''}</span>
+    <span class="rg-tm${win(g.as, g.hs)}">${crest(g.a)}<b>${esc(teamName(g.a))}</b>${done || live ? `<em class="num">${g.as}</em>` : ''}</span>${where}</${tag}>`;
+}
+
+function groupByDay(list) {
+  const out = new Map();
+  for (const g of list) { const k = g.utc ? dayKey(new Date(g.utc)) : 'offen'; if (!out.has(k)) out.set(k, []); out.get(k).push(g); }
+  return out;
+}
+
+function gamesView() {
+  const parts = [];
+  if (!data) return `<p class="notice">${esc(error || 'Lade Spiele …')}</p>`;
+  let games = data.games;
+  const favTeam = fav && (data.table.find((r) => r.t.c === fav)?.t || games.flatMap((g) => [g.h, g.a]).find((t) => t.c === fav));
+  if (!IS_SBL || favTeam) {
+    parts.push(`<div class="rg-filter" role="group" aria-label="Auswahl">
+      <button type="button" data-mine="1" aria-pressed="${onlyMine}">${favTeam ? esc(teamName(favTeam)) : 'Mein Team'}</button>
+      <button type="button" data-mine="0" aria-pressed="${!onlyMine}">Alle Spiele</button></div>`);
+  }
+  if (onlyMine && favTeam) games = games.filter((g) => isFav(g.h) || isFav(g.a));
+  const lives = games.filter((g) => g.st === 'live');
+  if (lives.length) parts.push(`<div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" aria-label="Live-Spiele">${lives.map(liveCard).join('')}</div>`);
+  const today = dayKey(new Date());
+  const upcoming = games.filter((g) => g.st !== 'ft' && g.st !== 'open' && (!g.utc || dayKey(new Date(g.utc)) >= today));
+  const past = games.filter((g) => !upcoming.includes(g) && g.st !== 'live').reverse();
+  const section = (title, list, limit) => {
+    if (!list.length) return '';
+    const days = [...groupByDay(list)].slice(0, limit);
+    return `<section class="rg-sec"><h2>${esc(title)}</h2>${days.map(([k, l]) => `<h3>${esc(k === 'offen' ? 'Datum noch offen' : dayName(k))}</h3><div class="rg-list">${l.map(row).join('')}</div>`).join('')}</section>`;
+  };
+  // Eigenes Team: zuerst die letzten Resultate, dann alle nächsten Spiele; alle Spiele: zuerst die nächsten Spieltage
+  const next = section('Nächste Spiele', upcoming.filter((g) => g.st !== 'live'), onlyMine && favTeam ? 99 : 6);
+  const done = section(onlyMine && favTeam ? 'Letzte Resultate' : 'Resultate', past, onlyMine && favTeam ? 99 : 5);
+  parts.push(...(onlyMine && favTeam ? [done, next] : [next, done]));
+  if (!upcoming.length && !past.length && !lives.length) parts.push('<p class="notice">Keine Spiele gefunden.</p>');
+  parts.push(`<p class="rg-src">${IS_SBL ? 'Spielplan: swiss.basketball · Live-Stände und Statistik: FIBA LiveStats. Resultate sammelt die App ab Saisonstart selbst.' : 'Daten: BVN-API (Basketball Verband Nordwestschweiz). Resultate erscheinen, sobald sie erfasst sind; live gibt es keine Stände.'}${data.updated ? ` Stand ${esc(hm(new Date(data.updated)))}.` : ''}</p>`);
+  return parts.join('');
+}
+
+function tableView() {
+  if (!data) return `<p class="notice">${esc(error || 'Lade Tabelle …')}</p>`;
+  if (!data.table.length) return `<p class="notice">Noch keine Tabelle${IS_SBL ? ': sie entsteht aus den Resultaten, sobald die ersten Spiele beendet sind.' : '.'}</p>`;
+  const rows = data.table.map((r) => `<tr class="${isFav(r.t) ? 'mine' : ''}" data-fav="${esc(r.t.c)}">
+    <td class="num">${r.rank}</td><td class="team">${crest(r.t)}<span>${esc(teamName(r.t))}</span></td><td class="num">${r.gp}</td><td class="num">${r.w}–${r.l}</td>
+    <td class="num">${r.pf - r.pa > 0 ? '+' : ''}${r.pf - r.pa}</td>${IS_SBL ? '' : `<td class="num"><b>${r.pts}</b></td>`}</tr>`).join('');
+  return `<section class="rg-sec"><h2>Tabelle</h2><div class="rg-table-wrap"><table class="rg-table">
+    <thead><tr><th>#</th><th>Team</th><th>Sp</th><th>S–N</th><th>Diff</th>${IS_SBL ? '' : '<th>Pkt</th>'}</tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="rg-src">Tippe auf ein Team, um es als dein Team zu markieren${IS_SBL ? '. Die Tabelle rechnet die App aus den gesammelten Resultaten.' : '.'}</p></section>`;
+}
+
+function render() {
+  const main = $('#rgMain');
+  const keep = main.querySelector('.hero-scroll')?.scrollLeft || 0;
+  main.innerHTML = view === 'tabelle' ? tableView() : gamesView();
+  const hs = main.querySelector('.hero-scroll'); if (hs) hs.scrollLeft = keep;
+  document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false'));
+}
+
+async function load() {
+  try {
+    data = await api(IS_SBL ? 'sbl=1' : `bvn=${LEAGUE}`);
+    error = '';
+  } catch (e) {
+    error = `Daten nicht erreichbar (${e.message}).`;
+  }
+  render();
+  clearTimeout(timer);
+  const live = data?.games?.some((g) => g.st === 'live');
+  const soon = data?.games?.some((g) => g.st === 'pre' && g.utc && Math.abs(Date.parse(g.utc) - Date.now()) < 20 * 60 * 1000);
+  timer = setTimeout(() => { if (!document.hidden) load(); }, live || soon ? 20000 : 5 * 60 * 1000);
+}
+
+// ---------- Spielbericht (nur SB League, FIBA LiveStats) ----------
+const dlg = $('#rgBox');
+let openId = 0, boxTimer = 0, boxTab = 'h';
+async function openGame(id) {
+  openId = id;
+  dlg.innerHTML = '<div class="box-in"><div class="box-top"><h2>Spielbericht</h2><button type="button" class="box-close" data-close aria-label="Schliessen">×</button></div><p class="notice">Lade …</p></div>';
+  if (!dlg.open) dlg.showModal();
+  await refreshGame();
+}
+async function refreshGame() {
+  clearTimeout(boxTimer);
+  if (!openId || !dlg.open) return;
+  try {
+    const g = await api(`sblgame=${openId}`);
+    const sc = dlg.querySelector('.box-body')?.scrollTop || 0;
+    dlg.innerHTML = gameHtml(g);
+    const b = dlg.querySelector('.box-body'); if (b) b.scrollTop = sc;
+    if (g.st === 'live') boxTimer = setTimeout(refreshGame, 20000);
+  } catch (e) {
+    dlg.querySelector('.notice')?.replaceChildren(`Spielbericht nicht verfügbar (${e.message}).`);
+  }
+}
+function gameHtml(g) {
+  const state = g.st === 'live' ? `<i class="live-dot" aria-hidden="true"></i>${esc(stateLabel(g))}${g.clk && g.clk !== '00:00' ? ` · ${esc(g.clk)}` : ''}` : g.st === 'ft' ? 'Schluss' : 'Noch nicht gestartet';
+  const n = Math.max(g.hq.length, g.aq.length, 4);
+  const qh = Array.from({ length: n }, (_, i) => `<th>${i < 4 ? `${i + 1}.` : `OT${n > 5 ? i - 3 : ''}`}</th>`).join('');
+  const qr = (t, q) => `<tr><td class="team">${crest(t)}${esc(t.c || t.n)}</td>${Array.from({ length: n }, (_, i) => `<td class="num">${q[i] ?? ''}</td>`).join('')}<td class="num"><b>${t.score}</b></td></tr>`;
+  const side = boxTab === 'a' ? g.a : g.h;
+  const pl = [...side.pl].sort((x, y) => y.start - x.start || y.pts - x.pts);
+  const box = pl.map((p) => `<tr${p.start ? ' class="st"' : ''}><td class="num no">${esc(p.no)}</td><td class="pn">${esc(p.n)}</td><td class="num">${esc(p.min || '–')}</td><td class="num"><b>${p.pts}</b></td><td class="num">${p.reb}</td><td class="num">${p.ast}</td><td class="num">${esc(p.fg)}</td><td class="num">${esc(p.p3)}</td><td class="num">${esc(p.ft)}</td><td class="num">${p.pf}</td></tr>`).join('');
+  const feed = g.pbp.slice(0, 12).map((a) => `<li><span class="gt num">Q${a.per} ${esc(a.gt)}</span><span>${crest(a.side === 1 ? g.h : g.a)}${esc(a.n)} · ${a.v === 3 ? 'Dreier' : a.v === 2 ? 'Zweier' : 'Freiwurf'}</span><b class="num">${a.s1}:${a.s2}</b></li>`).join('');
+  return `<div class="box-in"><div class="box-top"><h2>SB League${g.round ? ` · Runde ${g.round}` : ''}</h2><button type="button" class="box-close" data-close aria-label="Schliessen">×</button></div>
+  <div class="box-body">
+  <div class="box-score"><div class="box-team">${crest(g.h, 'lg')}<b>${esc(g.h.n)}</b>${g.h.coach ? `<small>Trainer ${esc(g.h.coach)}</small>` : ''}</div>
+    <div class="rg-big num">${g.h.score} : ${g.a.score}</div>
+    <div class="box-team">${crest(g.a, 'lg')}<b>${esc(g.a.n)}</b>${g.a.coach ? `<small>Trainer ${esc(g.a.coach)}</small>` : ''}</div></div>
+  <p class="rg-state${g.st === 'live' ? ' is-live' : ''}">${state}</p>
+  <div class="rg-table-wrap"><table class="rg-table rg-q"><thead><tr><th></th>${qh}<th>Total</th></tr></thead><tbody>${qr(g.h, g.hq)}${qr(g.a, g.aq)}</tbody></table></div>
+  ${feed ? `<h3 class="rg-h">Letzte Körbe</h3><ul class="rg-pbp">${feed}</ul>` : ''}
+  ${side.pl.length ? `<h3 class="rg-h">Box-Score</h3><div class="rg-filter" role="group" aria-label="Team"><button type="button" data-boxtab="h" aria-pressed="${boxTab === 'h'}">${esc(g.h.n)}</button><button type="button" data-boxtab="a" aria-pressed="${boxTab === 'a'}">${esc(g.a.n)}</button></div>
+  <div class="rg-table-wrap"><table class="rg-table rg-box"><thead><tr><th>#</th><th>Spieler</th><th>Min</th><th>Pkt</th><th>Reb</th><th>Ass</th><th>FG</th><th>3P</th><th>FW</th><th>F</th></tr></thead><tbody>${box}</tbody></table></div>
+  <p class="rg-src">Fett: Startfünf zuoberst. Teamwerte: ${side.tot.fg}% FG, ${side.tot.p3}% 3P, ${side.tot.ft}% FW, ${side.tot.reb} Rebounds, ${side.tot.ast} Assists, ${side.tot.to} Ballverluste.</p>` : ''}
+  <p class="rg-src">Live-Statistik: FIBA LiveStats.</p></div></div>`;
+}
+
+// ---------- Ereignisse ----------
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-game],[data-view],[data-mine],[data-fav],[data-close],[data-boxtab]');
+  if (!t) { if (e.target === dlg) dlg.close(); return; }
+  if (t.dataset.close !== undefined) { dlg.close(); return; }
+  if (t.dataset.boxtab) { boxTab = t.dataset.boxtab; refreshGame(); return; }
+  if (t.dataset.game) { if (IS_SBL) openGame(Number(t.dataset.game)); return; }
+  if (t.dataset.view) { view = t.dataset.view; render(); window.scrollTo({ top: 0 }); return; }
+  if (t.dataset.mine) { onlyMine = t.dataset.mine === '1'; render(); return; }
+  if (t.dataset.fav !== undefined) {
+    fav = fav === t.dataset.fav ? '' : t.dataset.fav;
+    try { localStorage.setItem(FAV_KEY, fav); } catch { /* privat */ }
+    if (!fav) onlyMine = false;
+    render();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  const t = e.target.closest?.('.live-hero[data-game]');
+  if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openGame(Number(t.dataset.game)); }
+});
+dlg.addEventListener('close', () => { openId = 0; clearTimeout(boxTimer); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+if (IS_SBL && !fav) onlyMine = false;
+load();

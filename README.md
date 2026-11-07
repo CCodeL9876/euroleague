@@ -164,3 +164,17 @@ Einrichtung (einmalig):
 
 Ohne Schlüssel bleibt alles wie bisher, nur ohne Videos.
 
+
+## 8. Schweizer Basketball (`/basketball/sbl/`, `/basketball/2liga/`)
+
+Umschalter oben auf allen Basketball-Seiten: EuroLeague · SB League · 2. Liga. Beide neuen Seiten nutzen `basketball/regio.js`
+und `basketball/regio.css`; `<body data-league="sbl|h2l">` wählt den Wettbewerb.
+
+- **SB League (Männer):** Spielplan von swiss.basketball (`app-basketball/schedule?widget=2`), Live-Stände, Viertel, Box-Score
+  und letzte Körbe von FIBA LiveStats (Genius Sports, öffentliche `data.json`). Der Spielplan enthält nur Spiele ab heute; beendete
+  Spiele speichert die Funktion in `el_fb_cache` (Schlüssel `sbl-results`), daraus entstehen Resultate und Tabelle.
+- **2. Liga Herren (BVN):** offene BVN-API (`api.bvn.ch/v1/matches.php`, `ranking.php`), Spielplan, Resultate, Tabelle.
+  Standard-Team BC Arlesheim 2 (Tipp auf ein Team in der Tabelle wählt ein anderes, gespeichert pro Gerät). Keine Live-Stände.
+
+Supabase-Funktion **`basket`** (`supabase/functions/basket/index.ts`): im Dashboard neu anlegen, Name genau `basket`,
+Code einfügen, «Verify JWT» aus. Keine Secrets nötig. Abfragen: `?sbl=1`, `?sblgame=<Spiel-Nr.>`, `?bvn=h2l`.

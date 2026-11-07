@@ -1187,3 +1187,12 @@ body.fb-sheet-open{overflow:hidden;}
 /* Link zu «Mein Sport» auf breiten Bildschirmen */
 .ms-link{display:inline-block;align-self:flex-start;font-size:0.84rem;font-weight:600;color:var(--dim);text-decoration:none;padding:2px 0;}
 .ms-link:hover{color:var(--text);}
+
+/* Basketball: Umschalter zwischen den Wettbewerben (EuroLeague, SB League, 2. Liga); gleich auf allen drei Seiten */
+.bb-switch{display:flex;gap:3px;background:var(--card);border-radius:12px;padding:3px;}
+.bb-switch a{flex:1;display:flex;align-items:center;justify-content:center;min-height:36px;padding:0 6px;border-radius:9px;color:var(--dim);text-decoration:none;
+  font-size:0.82rem;font-weight:500;white-space:nowrap;}
+.bb-switch a:hover{color:var(--text);}
+.bb-switch a[aria-current="page"]{background:var(--text);color:var(--bg);font-weight:600;}
+.brand-area .bb-switch{flex-basis:100%;order:10;margin-top:4px;}
+@media (min-width:821px){ .brand-area .bb-switch{order:0;margin-top:0;} }

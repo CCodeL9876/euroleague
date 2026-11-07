@@ -1,0 +1,79 @@
+/* Schweizer Basketball (SB League, BVN 2. Liga): eine Spalte im Nachtblau der EuroLeague-Seite, Akzent Schweizer Rot. */
+:root{--swiss:#E30613;}
+body:not(.unlocked) .rg{display:none;}
+.rg{max-width:820px;margin:0 auto;background:var(--bg);border-radius:32px;overflow:hidden;box-shadow:0 30px 60px rgba(38,39,70,0.35);min-height:60vh;}
+.rg-head{background:var(--panel);padding:24px 24px 16px;display:flex;flex-direction:column;gap:12px;}
+.rg-title{display:flex;align-items:baseline;gap:14px;}
+.rg-title h1{margin:0;font-size:1.35rem;font-weight:600;letter-spacing:-0.01em;margin-right:auto;}
+.rg-ms{font-size:0.84rem;font-weight:600;color:var(--dim);text-decoration:none;}
+.rg-ms:hover{color:var(--text);}
+.rg-views{display:flex;gap:6px;}
+.rg-views button{border:0;border-radius:999px;background:var(--card);color:var(--dim);font-weight:600;font-size:0.84rem;min-height:36px;padding:0 16px;cursor:pointer;}
+.rg-views button[aria-current="page"]{background:var(--text);color:var(--bg);}
+.rg-main{padding:18px 24px 28px;display:flex;flex-direction:column;gap:16px;}
+.rg-main .notice{margin:0;color:var(--dim);}
+
+.rg-filter{display:flex;gap:3px;background:var(--card);border-radius:12px;padding:3px;align-self:flex-start;max-width:100%;}
+.rg-filter button{border:0;background:none;color:var(--dim);font-weight:500;font-size:0.82rem;min-height:34px;padding:0 14px;border-radius:9px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rg-filter button[aria-pressed="true"]{background:var(--card-2);color:var(--text);font-weight:600;}
+
+.rg-sec{display:flex;flex-direction:column;gap:8px;}
+.rg-sec h2{margin:6px 0 0;font-size:1rem;font-weight:600;}
+.rg-sec h3{margin:6px 2px 0;font-size:0.8rem;font-weight:600;color:var(--dim);}
+.rg-list{display:flex;flex-direction:column;gap:6px;}
+.rg-row{display:grid;grid-template-columns:56px minmax(0,1fr);grid-template-areas:"t a" "t b" "t g";gap:3px 10px;align-items:center;text-align:left;
+  background:var(--card);border:0;border-left:4px solid var(--swiss);border-radius:13px;padding:9px 12px;color:var(--text);font:inherit;width:100%;}
+button.rg-row:not(:disabled){cursor:pointer;}
+button.rg-row:not(:disabled):hover{background:var(--card-2);}
+button.rg-row:disabled{opacity:1;}
+.rg-row.done{border-left-color:var(--line);}
+.rg-row.mine{box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent);}
+.rg-t{grid-area:t;font-family:var(--mono);font-weight:600;font-size:0.84rem;}
+.rg-live{color:#E5484D;font-family:var(--font);}
+.rg-end{color:var(--faint);font-family:var(--font);font-weight:500;font-size:0.8rem;}
+.rg-tm{display:flex;align-items:center;gap:8px;font-size:0.9rem;min-width:0;}
+.rg-tm:nth-of-type(2){grid-area:a;}
+.rg-tm:nth-of-type(3){grid-area:b;}
+.rg-tm b{flex:1;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rg-tm em{font-style:normal;font-family:var(--mono);font-weight:500;color:var(--dim);}
+.rg-row.done .rg-tm b{color:var(--dim);}
+.rg-tm.win b, .rg-tm.win em{color:var(--text);font-weight:600;}
+.rg-gym{grid-area:g;font-size:0.74rem;color:var(--faint);}
+.logo.rg-k{background:var(--card-2);color:var(--dim);font-family:var(--mono);font-weight:600;font-size:0.5rem;letter-spacing:0;}
+.logo.sm.rg-k{font-size:0.66rem;}
+.logo.lg.rg-k{font-size:1rem;}
+.rg-src{margin:4px 0 0;font-size:0.74rem;color:var(--faint);}
+
+.rg-table-wrap{overflow-x:auto;background:var(--card);border-radius:14px;}
+.rg-table{width:100%;border-collapse:collapse;font-size:0.86rem;}
+.rg-table th{font-weight:500;color:var(--faint);font-size:0.74rem;text-align:right;padding:9px 8px 6px;white-space:nowrap;}
+.rg-table td{padding:8px;border-top:1px solid var(--line);text-align:right;white-space:nowrap;}
+.rg-table th:nth-child(2), .rg-table td.team, .rg-table td.pn{text-align:left;}
+.rg-table td.team{display:flex;align-items:center;gap:8px;}
+.rg-table td.team span{overflow:hidden;text-overflow:ellipsis;}
+.rg-table tbody tr[data-fav]{cursor:pointer;}
+.rg-table tr.mine td{background:color-mix(in srgb, var(--gold) 12%, transparent);}
+.rg-table tr.mine td.team span{font-weight:600;}
+.rg-q td, .rg-q th{text-align:center;}
+.rg-q td.team{text-align:left;font-weight:600;}
+.rg-box tr.st .pn{font-weight:600;}
+.rg-box .no{color:var(--faint);font-family:var(--mono);font-size:0.76rem;}
+
+.box-body{display:flex;flex-direction:column;gap:12px;}
+.rg-big{font-family:var(--mono);font-weight:600;font-size:2rem;white-space:nowrap;}
+.rg-state{margin:0;text-align:center;font-size:0.84rem;font-weight:600;color:var(--dim);}
+.rg-state.is-live{color:#E5484D;}
+.rg-h{margin:6px 0 0;font-size:0.9rem;font-weight:600;}
+.rg-pbp{list-style:none;margin:0;padding:0;background:var(--card);border-radius:14px;}
+.rg-pbp li{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line);font-size:0.84rem;}
+.rg-pbp li:first-child{border-top:0;}
+.rg-pbp li > span:nth-child(2){display:flex;align-items:center;gap:8px;min-width:0;}
+.rg-pbp .gt{font-family:var(--mono);font-size:0.74rem;color:var(--swiss);font-weight:600;}
+.rg-pbp .logo.xs{width:20px;height:20px;}
+
+@media (max-width:820px){
+  .rg{border-radius:0;box-shadow:none;min-height:0;}
+  .rg-head{background:var(--bg);padding:calc(24px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 4px max(16px, env(safe-area-inset-left, 0px));}
+  .rg-ms, .rg-views{display:none;}
+  .rg-main{padding:12px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));}
+}

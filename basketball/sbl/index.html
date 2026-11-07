@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sport-News SB League</title>
+  <meta name="description" content="SB League: Spielplan, Live-Stände, Resultate, Tabelle und Spielberichte der höchsten Schweizer Basketball-Liga.">
+  <meta name="theme-color" content="#262746">
+  <meta name="color-scheme" content="dark light">
+  <script src="../../theme-boot.js"></script>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mein Sport">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://images.statsengine.playbyplay.api.geniussports.com; connect-src 'self' https://*.supabase.co; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="icon" href="../../icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../../icon-180.png">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400..600&display=swap">
+  <link rel="stylesheet" href="../../style.css">
+  <link rel="stylesheet" href="../regio.css">
+</head>
+<body data-app="./basketball/regio.js" data-up="../../" data-league="sbl">
+  <div class="rg">
+    <header class="rg-head">
+      <div class="rg-title"><h1>Basketball</h1><a class="rg-ms" href="../../">Mein Sport</a><a class="rg-ms" href="../../fussball/">Fussball</a></div>
+      <nav class="bb-switch" aria-label="Wettbewerb">
+        <a href="../euroleague/">EuroLeague</a>
+        <a href="../sbl/" aria-current="page">SB League</a>
+        <a href="../2liga/">2. Liga</a>
+      </nav>
+      <div class="rg-views" role="group" aria-label="Ansicht"><button type="button" data-view="spiele" aria-current="page">Spiele</button><button type="button" data-view="tabelle">Tabelle</button></div>
+    </header>
+    <main class="rg-main" id="rgMain" aria-live="polite"><p class="notice">Lade Spiele …</p></main>
+  </div>
+  <nav class="mtabs" aria-label="Ansicht">
+    <a class="mtab-fb mtab-home" aria-label="Mein Sport" href="../../"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/></svg><span>Start</span></a>
+    <button type="button" data-view="spiele" aria-current="page"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M6 6c3 3 3 9 0 12M18 6c-3 3-3 9 0 12"/></svg><span>Spiele</span></button>
+    <button type="button" data-view="tabelle"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M9 6v12"/></svg><span>Tabelle</span></button>
+    <a class="mtab-fb" href="../../fussball/"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.6l3.7 2.7-1.4 4.4H9.7l-1.4-4.4z"/><path d="M12 7.6V3.2M15.7 10.3l4.1-1.4M14.3 14.7l2.6 3.6M9.7 14.7l-2.6 3.6M8.3 10.3l-4.1-1.4"/></svg><span>Fussball</span></a>
+  </nav>
+  <dialog class="box" id="rgBox" aria-label="Spielbericht"></dialog>
+  <script type="module" src="../../gate.js"></script>
+</body>
+</html>
