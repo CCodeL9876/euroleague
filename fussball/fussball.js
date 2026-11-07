@@ -179,9 +179,20 @@ function lineupHtml(m) {
       const nm = (p) => (p.id ? `<button type="button" class="fb-lu-pl" data-act="fb-player" data-pid="${esc(p.id)}">${esc(p.n)}</button>` : esc(p.n));
       return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${nm(h)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${nm(a)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
   }
-  return `<div class="fb-lu">${body}
-    <div class="fb-bench"><b>Ersatz</b><span>${esc(d.home.bench.join(', '))}</span><span class="r">${esc(d.away.bench.join(', '))}</span></div>
-    <p class="fb-x-src">${d.home.coach || d.away.coach ? `Trainer: ${esc(d.home.coach)} · ${esc(d.away.coach)} · ` : ''}Aufstellung: ${d.src === 'bb' ? 'Big Balls' : 'Sportradar'}</p></div>`;
+  return `<div class="fb-lu">${body}${benchHtml(m, d)}
+    <p class="fb-x-src">Aufstellung: ${d.src === 'bb' ? 'Big Balls' : 'Sportradar'}</p></div>`;
+}
+// Ersatzbank und Trainer unter dem Feld: ein Team auf einmal, Umschalter Heim/Gast (gewählte Seite pro Spiel gemerkt)
+const benchSide = new Map();
+function benchHtml(m, d) {
+  if (!d.home.bench?.length && !d.away.bench?.length && !d.home.coach && !d.away.coach) return '';
+  const cur = benchSide.get(m.id) || 'h';
+  const WHISTLE = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="14" r="5"/><path d="M13 11l7-5v4l-5 3"/></svg>';
+  const pane = (t, k) => `<div class="fb-bpane" data-side="${k}"${k === cur ? '' : ' hidden'}>
+    ${t.coach ? `<div class="fb-coach">${WHISTLE}<span><small>Trainer</small>${esc(t.coach)}</span></div>` : ''}
+    ${t.bench?.length ? `<div class="fb-bgrid">${t.bench.map((n, i) => (t.benchIds?.[i] ? `<button type="button" class="fb-bpl" data-act="fb-player" data-pid="${esc(t.benchIds[i])}">${esc(n)}</button>` : `<span class="fb-bpl">${esc(n)}</span>`)).join('')}</div>` : '<p class="fb-x-note">Keine Ersatzspieler gemeldet.</p>'}</div>`;
+  const btn = (k, name, u) => `<button type="button" data-act="fb-bench-side" data-id="${esc(m.id)}" data-side="${k}" aria-pressed="${k === cur}">${logo(u)}<span>${esc(name)}</span></button>`;
+  return `<div class="fb-benchbox"><h4>Ersatzbank</h4><div class="fb-bseg" role="group" aria-label="Team wählen">${btn('h', m.h, m.hl)}${btn('a', m.a, m.al)}</div>${pane(d.home, 'h')}${pane(d.away, 'a')}</div>`;
 }
 function statsHtml(m) {
   const d = detailCache.get(`${m.id}|stats`);
@@ -825,6 +836,14 @@ document.addEventListener('click', (e) => {
   if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../basketball/euroleague/'; return; }
   if (act === 'logout') { logout(); return; }
   if (act === 'fb-fav') { menuOpen = false; renderMenu(); openFav(); return; }
+  if (act === 'fb-bench-side') {
+    // Nur umschalten, nicht neu zeichnen (Scrollstand und aufgeklappte Spiele bleiben)
+    const b = e.target.closest('[data-side]'), box = b.closest('.fb-benchbox');
+    benchSide.set(b.dataset.id, b.dataset.side);
+    box.querySelectorAll('.fb-bseg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    box.querySelectorAll('.fb-bpane').forEach((p) => { p.hidden = p.dataset.side !== b.dataset.side; });
+    return;
+  }
   if (act === 'fb-player') { openPlayer(e.target.closest('[data-pid]').dataset.pid); return; }
   if (act === 'fb-goal') { const b = e.target.closest('[data-mid]'); openScorer(b.dataset.mid, b.dataset.name); return; }
   if (act === 'fb-push-test') {

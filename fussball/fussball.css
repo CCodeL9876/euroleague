@@ -287,3 +287,22 @@ button.fb-pl:hover .sh, button.fb-pl:focus-visible .sh{background:var(--card-2);
 .fb-tab-ms{color:var(--dim);}
 .fb-tab-ms::before{display:none;}
 .fb-nav-ms{color:var(--dim);text-decoration:none;font-weight:600;}
+
+/* Ersatzbank und Trainer unter dem Feld (ein Team auf einmal) */
+.fb-benchbox{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.fb-benchbox h4{margin:0;font-size:0.8rem;font-weight:600;color:var(--dim);}
+.fb-bseg{display:flex;gap:4px;padding:3px;border-radius:12px;background:var(--card-2);}
+.fb-bseg button{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border:0;border-radius:9px;background:transparent;color:var(--dim);font:inherit;font-size:0.8rem;cursor:pointer;}
+.fb-bseg button span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fb-bseg button .fb-logo{width:18px;height:18px;flex:none;}
+.fb-bseg button[aria-pressed="true"]{background:var(--card);color:var(--text);font-weight:600;}
+.fb-bpane{display:flex;flex-direction:column;gap:8px;}
+.fb-bpane[hidden]{display:none;}
+.fb-coach{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--card-2);color:var(--dim);}
+.fb-coach .icon{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+.fb-coach span{display:flex;flex-direction:column;min-width:0;color:var(--text);font-size:0.86rem;font-weight:500;}
+.fb-coach small{font-size:0.66rem;font-weight:400;color:var(--faint);}
+.fb-bgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+.fb-bpl{display:block;min-width:0;min-height:36px;padding:8px 2px;border:0;border-top:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:0.8rem;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+button.fb-bpl{cursor:pointer;}
+button.fb-bpl:hover{text-decoration:underline;}
