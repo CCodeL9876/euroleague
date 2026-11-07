@@ -115,7 +115,8 @@ async function sbl() {
     if (!maybe) return { ...base, st: 'pre' };
     const s = liveState(await liveRaw(g.id));
     if (!s || !s.started) return { ...base, st: 'pre' };
-    const done = s.ended || DONE.test(g.status) || g.ended;
+    // Ohne Spielende-Meldung: 4 Std. nach Beginn, im letzten Viertel (oder Verlängerung) bei abgelaufener Uhr als beendet werten
+    const done = s.ended || DONE.test(g.status) || g.ended || (now - t > 4 * 3600 * 1000 && s.per >= 4 && (s.clk === '00:00' || !s.clk));
     const out = { ...base, st: done ? 'ft' : 'live', per: s.per, clk: s.clk, ot: s.ot, hs: s.hs, as: s.as, hq: s.hq, aq: s.aq };
     if (done) { results[g.id] = out; changed = true; }
     return out;

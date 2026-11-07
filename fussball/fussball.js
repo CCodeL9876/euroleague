@@ -733,6 +733,9 @@ async function load() {
     const res = await fetch(`${DATA_URL}?fb=1`, { headers: { apikey: SUPABASE_ANON_KEY }, cache: 'no-store', signal: AbortSignal.timeout(30000) });
     const d = await res.json();
     if (!res.ok || !Array.isArray(d?.matches)) throw new Error(d?.error || '');
+    // Sicherheitsnetz (wie in der Funktion): «live» 160 Min. nach Anpfiff mit Spielstand = beendet; die Quelle meldet das Ende nicht immer
+    const stale = Date.now() - 160 * 60 * 1000;
+    for (const m of d.matches) if ((m.st === 'live' || m.st === 'ht') && Date.parse(m.utc) < stale && m.hs != null && m.as != null) { m.st = 'ft'; m.min = null; }
     data = d;
     error = '';
     if (!FAV) { FAV = new Map(allTeams().filter((t) => isFavName(t.n)).map((t) => [t.n.toLowerCase(), t.n])); saveFav(); }

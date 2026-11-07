@@ -105,7 +105,9 @@ function games() {
   const names = new Set(fbFav.map((n) => n.toLowerCase())), lg = new Map((fb?.leagues || []).map((l) => [l.id, l.name]));
   for (const m of fb?.matches || []) {
     if (m.st === 'off') continue;
-    const st = m.st === 'ht' ? 'live' : m.st;
+    // «live» 160 Min. nach Anpfiff mit Spielstand = beendet (die Quelle meldet das Ende nicht immer)
+    const stale = (m.st === 'live' || m.st === 'ht') && Date.now() - Date.parse(m.utc) > 160 * 60 * 1000 && m.hs != null && m.as != null;
+    const st = stale ? 'ft' : m.st === 'ht' ? 'live' : m.st;
     list.push({ sport: 'f', id: m.id, l: m.l, utc: m.utc, at: Date.parse(m.utc), st, h: m.h, a: m.a, hl: m.hl, al: m.al, hk: m.h, ak: m.a, hs: m.hs, as: m.as, goals: m.goals, min: m.min,
       label: m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft', lg: lg.get(m.l) || '', href: `fussball/?m=${encodeURIComponent(m.id)}`, fav: names.has(m.h.toLowerCase()) || names.has(m.a.toLowerCase()) });
   }

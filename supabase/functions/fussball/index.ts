@@ -235,6 +235,9 @@ export function mapBb(lg, m) {
     : raw === 'live' || raw === 'in_progress' ? 'live' : 'pre';
   // Unbekannter Status nach dem Anpfiff: bis 150 Min. als laufend werten (Spielstand sichtbar), danach mit Spielstand als beendet
   if (st === 'pre' && raw && !known.includes(raw) && sinceKo > 0) st = sinceKo < 150 * 60 * 1000 ? 'live' : m.score?.home != null ? 'ft' : 'pre';
+  // Big Balls hat für Fussball keinen echten Live-Feed: ein «laufendes» Spiel 160 Min. nach Anpfiff (inkl. Verlängerung und
+  // Penaltyschiessen) ist vorbei; mit Spielstand als beendet werten, sonst bliebe es für immer live
+  if ((st === 'live' || st === 'ht') && sinceKo > 160 * 60 * 1000 && m.score?.home != null) st = 'ft';
   const ls = m.linescore;
   const ht = ls?.home?.length > 1 && ls.home[0] != null ? `${ls.home[0]}:${ls.away[0]}` : '';
   return { id: `bb-${m.id}`, l: lg.id, utc: new Date(m.kickoff_utc).toISOString(), round: String(m.round || '').replace(/^Regular Season - /, ''),
