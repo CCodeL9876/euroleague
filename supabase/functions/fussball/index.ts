@@ -15,7 +15,7 @@
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
 //   GET ?fbleague=ucl|pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste; nach letztem Spiel am Tag vorgewärmt, sonst Cache bis zu 24 Std.
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Startelf, Ersatzbank mit Rückennummern benchNo, Trainer) bzw. Teamstatistik eines Spiels;
-//     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst Big Balls; Statistik live von ESPN, nach Spielende von Big Balls, Sportradar als Ersatz
+//     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst Big Balls; Statistik nach Spielende von Big Balls, Sportradar (PL/CL) als Ersatz; ESPN ist abgeschaltet (sperrt Server-Abfragen)
 //   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
 //     Karriere und Foto aus Wikipedia/Wikidata
@@ -333,7 +333,11 @@ async function bbLive(now) {
 const ESPN_LG = { ucl: 'uefa.champions', pl: 'eng.1', bl1: 'ger.1', laliga: 'esp.1', seriea: 'ita.1', ligue1: 'fra.1', bl2: 'ger.2', chsl: 'sui.1', chcl: 'sui.2',
   unl: 'uefa.nations', wcq: 'fifa.worldq.uefa', emq: 'uefa.euroq', fr: 'fifa.friendly' };
 const ESPN_MS = 2 * 60 * 1000;
+// ESPN sperrt Abfragen von Servern (Antwort 403 an die Supabase-Funktion); abgeschaltet statt mit getarnten Abfragen umgangen.
+// Torschützen kommen stattdessen von OpenLigaDB (Bundesliga) und aus den Tor-Abfragen bei Big Balls (siehe bbLeagues).
+const ESPN_ON = false;
 async function espnDay(code, day, now, kickoffRefresh = false) {
+  if (!ESPN_ON) return null;
   const ck = `espn:${code}:${day}`;
   const hit = fbMem.get(ck) || (await cacheGet(ck));
   if (hit && now - hit.at < ESPN_MS && !kickoffRefresh) return hit.data;
@@ -363,6 +367,7 @@ async function espnDay(code, day, now, kickoffRefresh = false) {
 }
 // Teamstatistik eines Spiels während des Spiels (ESPN-Spielzusammenfassung), höchstens alle 3 Min. pro Spiel
 async function espnStats(m, now) {
+  if (!ESPN_ON) return null;
   const code = ESPN_LG[m.l];
   if (!code) return null;
   const t = Date.parse(m.utc);
@@ -442,6 +447,7 @@ async function bbLeagues(list, now) {
   }));
   // Ersatz: ESPN für alle offenen Spiele (Big Balls hat für Fussball keinen Live-Feed); Endstände gleich speichern
   for (const i of await espnApply(list, res, now, open, false).catch(() => new Set())) { changed.add(i); await cacheSet(`bb2:${list[i].key}`, res[i]); }
+  await addScorers(list, res, now).catch(() => {});
   // Big Balls hat für Fussball keinen Live-Feed (nur nachgeladene Datenbank): Ligen mit Sportradar-Wettbewerb (Champions
   // League, Premier League) über die Sportradar-Live-Liste (eine Abfrage für alle Spiele weltweit) nachführen
   if (Deno.env.get('SPORTRADAR_KEY')) {
@@ -476,6 +482,37 @@ async function bbLeagues(list, now) {
     }
   }
   return res;
+}
+// Torschützen für laufende und eben beendete Spiele ohne Tore: Bundesliga von OpenLigaDB (frei, während des Spiels jede Minute),
+// alle anderen aus den gespeicherten Tor-Abfragen bei Big Balls (die der Mitteilungs-Zeitplan bei jedem neuen Tor macht).
+// Liest nur Gespeichertes bzw. eine freie Quelle: keine zusätzlichen Abfragen beim Big-Balls-Kontingent.
+async function addScorers(list, res, now) {
+  const recent = (m) => m.st === 'live' || m.st === 'ht' || (m.st === 'ft' && now - Date.parse(m.utc) < 4 * 3600e3);
+  const want = (m) => recent(m) && !m.goals?.length;
+  for (let i = 0; i < list.length; i++) {
+    const todo = res[i].matches.map((m, j) => [m, j]).filter(([m]) => want(m));
+    if (!todo.length) continue;
+    const lg = FB_LEAGUES.find((l) => l.id === list[i].id);
+    let oldb = null;
+    if (lg?.oldb) oldb = await oldbLeague({ id: lg.oldb, key: lg.oldb }, fbSeason(new Date(now)), now).catch(() => null);
+    for (const [m, j] of todo) {
+      let goals = null;
+      if (oldb) {
+        const t = Date.parse(m.utc);
+        const o = oldb.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 2 * 3600e3 && (espnSame(m.h, x.h) || espnSame(m.a, x.a)));
+        // OpenLigaDB ist während des Spiels meist schneller als Big Balls: mit mindestens so vielen Toren gilt auch ihr Stand
+        if (o?.goals?.length && o.goals.length >= (m.hs || 0) + (m.as || 0)) {
+          goals = o.goals;
+          if (o.hs != null && o.as != null) res[i].matches[j] = { ...res[i].matches[j], hs: o.hs, as: o.as };
+        }
+      }
+      if (!goals && /^bb-/.test(m.id)) {
+        const hit = await cacheGet(`bbev:${m.id.slice(3)}`);
+        if (hit?.data?.goals?.length) goals = hit.data.goals;
+      }
+      if (goals) res[i].matches[j] = { ...res[i].matches[j], goals };
+    }
+  }
 }
 // Tore eines Spiels; nach Spielende dauerhaft, sonst 2 Min. gespeichert
 async function bbGame(id) {
