@@ -1,7 +1,7 @@
 // Schweizer Basketball im Basketball-Bereich: SB League (basketball/sbl/) und BVN 2. Liga Herren (basketball/2liga/).
 // Gemeinsames Skript; die Seite sagt über <body data-league="sbl|h2l">, welcher Wettbewerb. Daten: Supabase-Funktion „basket“.
 // Umschalter oben (EuroLeague · SB League · 2. Liga) wie in der Mockup-Variante A; Live-Spiele als Fallblatt-Tafel.
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, KI_NEWS_URL } from '../config.js';
 
 const API = `${SUPABASE_URL}/functions/v1/basket`;
 const LEAGUE = document.body.dataset.league === 'h2l' ? 'h2l' : 'sbl';
@@ -225,6 +225,30 @@ document.addEventListener('keydown', (e) => {
 });
 dlg.addEventListener('close', () => { openId = 0; clearTimeout(boxTimer); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+// ---------- Kopf wie auf der EuroLeague-Seite: «Sport» führt zur KI-News-Seite, Hell/Dunkel, Profil-Kürzel ----------
+const siteLink = $('#siteLink');
+if (siteLink) siteLink.href = KI_NEWS_URL;
+const ICON = { sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>', moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>' };
+const currentTheme = () => document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+function themeUi() {
+  const btn = $('#themeBtn'); if (!btn) return;
+  const dark = currentTheme() === 'dark';
+  btn.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${dark ? ICON.sun : ICON.moon}</svg>`;
+  btn.setAttribute('aria-label', dark ? 'Hellen Modus einschalten' : 'Dunklen Modus einschalten');
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  document.querySelectorAll('meta[name="theme-color"]').forEach((mt) => { mt.content = bg; });
+}
+$('#themeBtn')?.addEventListener('click', () => {
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('el-theme', next); } catch { /* privat */ }
+  themeUi();
+});
+themeUi();
+const profName = (() => { try { return localStorage.getItem('el-profile-name') || ''; } catch { return ''; } })();
+const pb = $('#profileBtn');
+if (pb) { const w = profName.trim().split(/\s+/).filter(Boolean); pb.textContent = (w.length > 1 ? w[0][0] + w[1][0] : (w[0] || '?').slice(0, 2)).toUpperCase(); }
+
 // Direktlink aus Mein Sport: basketball/sbl/?game=<Spiel-Nr.> öffnet den Spielbericht
 const linkGame = Number(new URLSearchParams(location.search).get('game'));
 if (IS_SBL && Number.isInteger(linkGame) && linkGame > 0) { history.replaceState(null, '', location.pathname); openGame(linkGame); }

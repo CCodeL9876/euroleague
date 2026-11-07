@@ -521,6 +521,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) remem
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 if (!leaving) {
+  // Profil-Kürzel auf den Basketball-Seiten SB League / 2. Liga führt hierher (?me=1): gleich «Ich» öffnen
+  if (new URLSearchParams(location.search).get('me') === '1') { history.replaceState(null, '', location.pathname); openMe(); }
   setupPullToRefresh();
   syncProfile();
   refresh();
