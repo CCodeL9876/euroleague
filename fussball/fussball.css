@@ -336,3 +336,7 @@ button.fb-bpl:hover span{text-decoration:underline;}
 .fb-pl .sh .fw{position:absolute;inset:0;border-radius:50%;overflow:hidden;display:grid;place-items:center;}
 .fb-pl .sh .fe{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-size:38px;line-height:1;transform:scale(1.55);}
 .fb-pl .sh.flagfill .no{position:relative;z-index:1;color:#fff;font-weight:800;font-size:0.78rem;text-shadow:0 0 2px #000,0 0 3px #000,0 1px 2px rgba(0,0,0,.8);}
+
+/* Spielerkreis: Flagge oben rechts, Tor-Ball oben links (gilt nach den älteren Regeln weiter oben) */
+.fb-pl .sh .fl{left:auto;right:-10px;top:-7px;bottom:auto;}
+.fb-pl .gl{right:auto;left:-12px;top:-8px;}

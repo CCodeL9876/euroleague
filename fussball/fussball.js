@@ -192,9 +192,9 @@ function pitchHtml(m, d) {
     return line.map((p, k) => {
       const f = (k + 1) * 100 / (line.length + 1), x = side === 'h' ? 100 - f : f;
       const g = goalsBy(sc, side === 'h' ? 1 : 2, p.id, p.n);
-      // Mit Nationalität: Kreis mit der Landesflagge gefüllt, Nummer darüber; ohne wie bisher nur die Nummer
+      // Kreis mit Nummer; Landesflagge klein oben rechts, Tor-Ball oben links
       const nat = natInfo(p.cc);
-      const inner = `<span class="sh${nat ? ' flagfill' : ''}"${nat ? ` title="${esc(nat.name)}"` : ''}>${nat ? `<span class="fw" aria-hidden="true"><span class="fe">${nat.em}</span></span>` : ''}<span class="no">${esc(p.no)}</span>${goalBadge(g)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
+      const inner = `<span class="sh"><span class="no">${esc(p.no)}</span>${goalBadge(g)}${natFlag(p.cc)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
       const lbl = `${p.n}${nat ? `, ${nat.name}` : ''}${g ? `, ${g === 1 ? '1 Tor' : `${g} Tore`}` : ''}`;
       return p.id ? `<button type="button" class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at} data-act="fb-player" data-pid="${esc(p.id)}" aria-label="Profil ${esc(lbl)}">${inner}</button>`
         : `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at}>${inner}</div>`;
