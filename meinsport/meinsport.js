@@ -476,8 +476,11 @@ function revealTabs() {
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const start = Date.now();
   const fonts = Promise.race([document.fonts?.ready, new Promise((r) => { setTimeout(r, 250); })]).catch(() => {});
+  let last = -1;
   fonts.then(function wait() {
-    if (standalone && inset() === 0 && Date.now() - start < 700) { setTimeout(wait, 40); return; }
+    const now = inset();
+    // shortcut: wartet auf einen stabilen, von 0 verschiedenen Wert (max. 1,2 s); Geräte ohne Home-Balken zeigen die Leiste so erst nach 1,2 s
+    if (standalone && Date.now() - start < 1200 && (now === 0 || now !== last)) { last = now; setTimeout(wait, 60); return; }
     probe.remove();
     document.body.classList.add('ms-ready');
   });
