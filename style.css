@@ -1203,3 +1203,10 @@ body.fb-sheet-open{overflow:hidden;}
   left:max(12px, env(safe-area-inset-left, 0px));right:max(12px, env(safe-area-inset-right, 0px));bottom:calc(4px + max(env(safe-area-inset-bottom, 0px), var(--sab, 0px)));}
 .mtabs > *, .fb-tabs > *, .ms-tabs > *{min-height:58px;height:58px;font-size:0.78rem;line-height:1.45;}
 html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !important;}
+
+/* Basketball: Hinweis beim seitlichen Wischen zwischen den Wettbewerben (basketball/swipe.js) */
+.bb-swipe-hint{position:fixed;top:50%;z-index:60;transform:translateY(-50%);padding:10px 14px;border-radius:999px;background:var(--card-2);color:var(--dim);
+  font-size:0.86rem;font-weight:600;box-shadow:0 8px 24px rgba(10,10,32,0.45);pointer-events:none;transition:background .15s ease, color .15s ease;}
+.bb-swipe-hint[data-side="right"]{right:10px;}
+.bb-swipe-hint[data-side="left"]{left:10px;}
+.bb-swipe-hint.ready{background:var(--blue);color:var(--on-color);}
