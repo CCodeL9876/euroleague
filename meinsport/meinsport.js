@@ -476,11 +476,16 @@ function revealTabs() {
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const start = Date.now();
   const fonts = Promise.race([document.fonts?.ready, new Promise((r) => { setTimeout(r, 250); })]).catch(() => {});
-  let last = -1;
+  const nav = document.querySelector('.ms-tabs');
+  let last = -1, same = 0;
   fonts.then(function wait() {
-    const now = inset();
-    // shortcut: wartet auf einen stabilen, von 0 verschiedenen Wert (max. 1,2 s); Geräte ohne Home-Balken zeigen die Leiste so erst nach 1,2 s
-    if (standalone && Date.now() - start < 1200 && (now === 0 || now !== last)) { last = now; setTimeout(wait, 60); return; }
+    // Position der Leiste selbst messen (deckt Abstand zum Home-Balken und Fensterhöhe ab): erst zeigen, wenn sie 3 Messungen lang ruht
+    const y = nav.getBoundingClientRect().top;
+    same = y === last ? same + 1 : 0;
+    last = y;
+    const elapsed = Date.now() - start;
+    // shortcut: Geräte ohne Home-Balken zeigen die Leiste in der Home-App erst nach 1,2 s; harte Grenze 1,5 s
+    if (elapsed < 1500 && (same < 3 || (standalone && inset() === 0 && elapsed < 1200))) { setTimeout(wait, 60); return; }
     probe.remove();
     document.body.classList.add('ms-ready');
   });
