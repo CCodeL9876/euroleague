@@ -521,29 +521,4 @@ if (!leaving) {
   setupPullToRefresh();
   syncProfile();
   refresh();
-  revealTabs();
-}
-// Leiste erst einblenden, wenn Schrift und Abstand zum Home-Balken feststehen. In der Home-App des iPhones kommt dieser
-// Abstand nach einem Seitenwechsel manchmal erst einen Moment später: die Leiste würde sonst sichtbar nach oben springen.
-function revealTabs() {
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;visibility:hidden;pointer-events:none;padding-bottom:env(safe-area-inset-bottom, 0px)';
-  document.body.append(probe);
-  const inset = () => parseFloat(getComputedStyle(probe).paddingBottom) || 0;
-  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
-  const start = Date.now();
-  const fonts = Promise.race([document.fonts?.ready, new Promise((r) => { setTimeout(r, 250); })]).catch(() => {});
-  const nav = document.querySelector('.ms-tabs');
-  let last = -1, same = 0;
-  fonts.then(function wait() {
-    // Position der Leiste selbst messen (deckt Abstand zum Home-Balken und Fensterhöhe ab): erst zeigen, wenn sie 3 Messungen lang ruht
-    const y = nav.getBoundingClientRect().top;
-    same = y === last ? same + 1 : 0;
-    last = y;
-    const elapsed = Date.now() - start;
-    // shortcut: Geräte ohne Home-Balken zeigen die Leiste in der Home-App erst nach 1,2 s; harte Grenze 1,5 s
-    if (elapsed < 1500 && (same < 3 || (standalone && inset() === 0 && elapsed < 1200))) { setTimeout(wait, 60); return; }
-    probe.remove();
-    document.body.classList.add('ms-ready');
-  });
 }
