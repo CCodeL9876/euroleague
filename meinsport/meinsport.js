@@ -17,7 +17,8 @@ const store = {
 const readList = (k) => { try { const v = JSON.parse(store.get(k, 'null')); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } };
 try { sessionStorage.setItem('el-started', '1'); } catch { /* privates Fenster */ } // siehe start-boot.js
 // Ohne Profil zur Anmeldung im Basketball-Bereich, danach zurück hierher (el-next)
-if (!store.get('el-profile-name', '')) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('basketball/euroleague/'); }
+const leaving = !store.get('el-profile-name', '');
+if (leaving) { try { sessionStorage.setItem('el-next', location.pathname); } catch { /* privates Fenster */ } location.replace('basketball/euroleague/'); }
 
 let elFav = readList('el-fav-teams'), fbFav = readList('el-fb-fav2');
 let el = null, fb = null, elFailed = false, fbFailed = false;
@@ -257,8 +258,12 @@ async function loadFlows() {
   const need = (el?.games || []).filter((g) => g.status === 'live' || (g.status === 'final' && now - Date.parse(g.utc) < 3 * 3600e3));
   await Promise.all(need.map(async (g) => { const d = await getJson(`${EL_URL}?game=${g.code}`, 15000).catch(() => null); if (d?.flow) flows.set(g.code, d.flow); }));
 }
-let timer = 0;
-async function refresh() {
+let timer = 0, running = null;
+function refresh() {
+  if (!running) running = load().finally(() => { running = null; });
+  return running;
+}
+async function load() {
   clearTimeout(timer);
   const [a, b] = await Promise.allSettled([getJson(EL_URL, 20000), getJson(`${FB_URL}?fb=1`, 30000)]);
   if (a.status === 'fulfilled' && Array.isArray(a.value.games)) { el = a.value; elFailed = false; } else elFailed = true;
@@ -307,15 +312,18 @@ function catalog() {
 }
 const isFavTeam = (t) => (t.s === 'b' ? elFav.includes(t.k) : fbFav.some((n) => n.toLowerCase() === t.k.toLowerCase()));
 let saveTimer = 0;
+const dirty = new Set(); // Sportarten mit ungespeicherten Änderungen
 function saveFavs(sport) {
   store.set('el-fav-teams', JSON.stringify(elFav));
   store.set('el-fb-fav2', JSON.stringify(fbFav));
+  dirty.add(sport);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     const name = store.get('el-profile-name', ''), pin = store.get('el-profile-pin', '');
-    const body = sport === 'b' ? { kind: 'profile-save', name, pin, favorites: elFav } : { kind: 'profile-fbsave', name, pin, fbFavorites: fbFav };
-    const ok = await fetch(EL_URL, { method: 'POST', headers: { ...HEAD, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) }).then((r) => r.json()).then((d) => d?.ok).catch(() => false);
-    if (!ok) toast('Teams nur auf diesem Gerät gespeichert, das Profil ist gerade nicht erreichbar.');
+    const todo = [...dirty]; dirty.clear();
+    const send = (body) => fetch(EL_URL, { method: 'POST', headers: { ...HEAD, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) }).then((r) => r.json()).then((d) => d?.ok).catch(() => false);
+    const ok = await Promise.all(todo.map((sp) => send(sp === 'b' ? { kind: 'profile-save', name, pin, favorites: elFav } : { kind: 'profile-fbsave', name, pin, fbFavorites: fbFav })));
+    if (ok.includes(false)) toast('Teams nur auf diesem Gerät gespeichert, das Profil ist gerade nicht erreichbar.');
   }, 500);
 }
 let toastTimer = 0;
@@ -452,9 +460,12 @@ addEventListener('pagehide', rememberSeen);
 document.addEventListener('visibilitychange', () => { if (document.hidden) rememberSeen(); else refresh(); });
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
-setupPullToRefresh();
-syncProfile();
-refresh();
+if (!leaving) {
+  setupPullToRefresh();
+  syncProfile();
+  refresh();
+  revealTabs();
+}
 // Leiste erst einblenden, wenn Schrift und Abstand zum Home-Balken feststehen. In der Home-App des iPhones kommt dieser
 // Abstand nach einem Seitenwechsel manchmal erst einen Moment später: die Leiste würde sonst sichtbar nach oben springen.
 function revealTabs() {
@@ -471,4 +482,3 @@ function revealTabs() {
     document.body.classList.add('ms-ready');
   });
 }
-revealTabs();
