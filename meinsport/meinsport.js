@@ -6,7 +6,7 @@ import { tvOf } from '../fussball/tv.js';
 const EL_URL = `${SUPABASE_URL}/functions/v1/euroleague`, FB_URL = `${SUPABASE_URL}/functions/v1/fussball`;
 const HEAD = { apikey: SUPABASE_ANON_KEY };
 const LIVE_POLL_MS = 60 * 1000, IDLE_POLL_MS = 10 * 60 * 1000;
-const TODAY_MAX = 8, MISSED_MAX = 6, MISSED_DAYS = 7, FIRST_DAYS = 3, FEED_MAX = 6, RECENT_MS = 30 * 60 * 1000;
+const TODAY_MAX = 8, MISSED_MAX = 6, MISSED_DAYS = 7, FIRST_DAYS = 3, FEED_MAX = 8, FEED_ALL = 40, RECENT_MS = 30 * 60 * 1000;
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,7 +23,26 @@ if (leaving) { try { sessionStorage.setItem('el-next', location.pathname); } cat
 let elFav = readList('el-fav-teams'), fbFav = readList('el-fb-fav2');
 let el = null, fb = null, elFailed = false, fbFailed = false;
 const flows = new Map(); // Spielcode → Spielverlauf der laufenden Basketball-Spiele, für den Feed
-const show = { today: false };
+const show = { today: false, feed: false };
+// Tore, die die Seite selbst am Spielstand erkennt: für Ligen, deren Quelle während des Spiels keine Torschützen liefert.
+// Pro Sitzung gemerkt, damit sie nach dem Herunterziehen oder Zurückkehren nicht verschwinden.
+const readSession = (k) => { try { return JSON.parse(sessionStorage.getItem(k) || '{}') || {}; } catch { return {}; } };
+const lastScore = readSession('el-ms-score'), seenGoals = readSession('el-ms-goals');
+function trackGoals() {
+  const now = Date.now();
+  for (const m of fb?.matches || []) {
+    if (!['live', 'ht', 'ft'].includes(m.st) || m.hs == null || m.as == null) continue;
+    const prev = lastScore[m.id];
+    if (prev) {
+      // Mehrere Tore zwischen zwei Abrufen: in der Reihenfolge des Stands, das letzte zuoberst im Feed
+      let k = 0;
+      for (let n = prev[0]; n < m.hs; n++) (seenGoals[m.id] ||= []).push({ at: now + k++, s: 1, m: m.min ?? '', score: [n + 1, prev[1]] });
+      for (let n = prev[1]; n < m.as; n++) (seenGoals[m.id] ||= []).push({ at: now + k++, s: 2, m: m.min ?? '', score: [m.hs, n + 1] });
+    }
+    lastScore[m.id] = [m.hs, m.as];
+  }
+  try { sessionStorage.setItem('el-ms-score', JSON.stringify(lastScore)); sessionStorage.setItem('el-ms-goals', JSON.stringify(seenGoals)); } catch { /* privates Fenster */ }
+}
 let editTeams = false; // × auf den Teamkarten sichtbar
 const EL_FAV_MAX = 14, FB_FAV_MAX = 40, PICK_MAX = 12;
 // Verpasste Resultate: gesehene Spiele bleiben im Gerät gespeichert. Beim allerersten Besuch zählen nur die letzten Tage.
@@ -163,8 +182,11 @@ function feedItems(list) {
       for (const x of g.goals || []) {
         if (x.s === 1) h++; else a++;
         const min = parseInt(x.m, 10) || 0;
-        out.push({ at: g.at + (min + (min > 45 ? 15 : 0)) * 60e3, sport: 'f', tag: `${x.m}'`, html: `<b>Tor für ${esc(x.s === 1 ? g.h : g.a)}</b> · ${esc(g.h)} ${h}:${a} ${esc(g.a)}` });
+        out.push({ at: g.at + (min + (min > 45 ? 15 : 0)) * 60e3, sport: 'f', tag: `${x.m}'`, html: `<b>Tor für ${esc(x.s === 1 ? g.h : g.a)}</b>${x.n ? ` · ${esc(x.n)}` : ''} · ${esc(g.h)} ${h}:${a} ${esc(g.a)}` });
       }
+      // Ohne Torschützen von der Quelle: die selbst erkannten Tore (nur die, die über die gelieferten hinausgehen)
+      const own = (seenGoals[g.id] || []).filter((x) => x.score[0] + x.score[1] > (g.goals || []).length);
+      for (const x of own) out.push({ at: x.at, sport: 'f', tag: x.m !== '' ? `${x.m}'` : 'Tor', html: `<b>Tor für ${esc(x.s === 1 ? g.h : g.a)}</b> · ${esc(g.h)} ${x.score[0]}:${x.score[1]} ${esc(g.a)}` });
     } else {
       const f = flows.get(g.id);
       for (const r of f?.runs || []) {
@@ -178,7 +200,7 @@ function feedItems(list) {
     }
     if (g.st === 'ft') out.push({ at: endsAt(g), sport: g.sport, tag: 'Ende', html: `<b>Endstand</b> · ${esc(g.h)} ${g.hs}:${g.as} ${esc(g.a)}` });
   }
-  return out.sort((x, y) => y.at - x.at).slice(0, FEED_MAX);
+  return out.sort((x, y) => y.at - x.at).slice(0, FEED_ALL);
 }
 const endsAt = (g) => g.at + (g.sport === 'f' ? 115 : 125) * 60e3;
 const quarterTag = (t) => (t >= 2400 ? 'V' : `Q${Math.floor(t / 600) + 1}`);
@@ -223,7 +245,8 @@ function render() {
   const feed = feedItems(list);
   const liveHtml = live.length ? `<section class="ms-live" aria-label="Live-Spiele"><div class="ms-live-h"><b><i class="live-dot" aria-hidden="true"></i>Live</b><small>${live.length} ${live.length === 1 ? 'Spiel' : 'Spiele'}</small></div>
     <div class="hero-scroll${live.length > 1 ? ' multi' : ''}" data-keep="live">${live.map(liveCard).join('')}</div>
-    ${feed.length ? `<div class="ms-feedbox"><h3>Live-Feed</h3><ul class="ms-feed">${feed.map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul></div>` : ''}</section>` : '';
+    ${feed.length ? `<div class="ms-feedbox"><h3>Live-Feed</h3><ul class="ms-feed">${(show.feed ? feed : feed.slice(0, FEED_MAX)).map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul>
+      ${feed.length > FEED_MAX ? `<button type="button" class="ms-more" data-act="more-feed">${show.feed ? 'Weniger zeigen' : `Alle ${feed.length} Ereignisse`}</button>` : ''}</div>` : ''}</section>` : '';
 
   const topHtml = `${nextHtml(list, live)}${missedHtml(list)}`;
   const cards = teamCards(list, nextGame(list, live));
@@ -269,7 +292,7 @@ async function load() {
   clearTimeout(timer);
   const [a, b] = await Promise.allSettled([getJson(EL_URL, 20000), getJson(`${FB_URL}?fb=1`, 30000)]);
   if (a.status === 'fulfilled' && Array.isArray(a.value.games)) { el = a.value; elFailed = false; } else elFailed = true;
-  if (b.status === 'fulfilled' && Array.isArray(b.value.matches)) { fb = b.value; fbFailed = false; } else fbFailed = true;
+  if (b.status === 'fulfilled' && Array.isArray(b.value.matches)) { fb = b.value; fbFailed = false; trackGoals(); } else fbFailed = true;
   render();
   await loadFlows();
   render();
@@ -405,6 +428,7 @@ document.addEventListener('click', (e) => {
   } else if (act === 'pick-close') $('#msPick').close();
   else if (act === 'pick' || act === 'team-x') { const d = e.target.closest('[data-k]').dataset; e.preventDefault(); toggleTeam(d.s, d.k); }
   else if (act === 'edit-teams') { editTeams = !editTeams; render(); }
+  else if (act === 'more-feed') { show.feed = !show.feed; render(); }
   else if (act === 'more-today') { show.today = !show.today; render(); }
   else if (e.target === $('#msMe')) $('#msMe').close();
   else if (e.target === $('#msPick')) $('#msPick').close();
