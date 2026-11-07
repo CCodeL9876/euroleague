@@ -163,6 +163,19 @@ function scorerMap(m) {
 }
 const goalsBy = (sc, side, id, name) => (id && sc[side].get(`id:${String(id).replace(/^bb:/, '')}`)) || sc[side].get(`n:${plainLast(name)}`) || 0;
 const BALL = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#fff" stroke="#14211A" stroke-width="1.4"/><path d="M12 7.2l4.2 3-1.6 4.9H9.4L7.8 10.2z" fill="#14211A"/><path d="M12 7.2V1.8M16.2 10.2l5-1.7M14.6 15.1l3.2 4.4M9.4 15.1l-3.2 4.4M7.8 10.2l-5-1.7" stroke="#14211A" stroke-width="1.3"/></svg>';
+// Nationalität aus der Aufstellung (ISO-2 bzw. gb-eng/gb-sct/gb-wls/gb-nir) → Flagge, Name auf Deutsch im Titel
+const UK_NAT = { 'gb-eng': ['England', '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}'], 'gb-sct': ['Schottland', '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}'],
+  'gb-wls': ['Wales', '\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}'], 'gb-nir': ['Nordirland', '\u{1F1EC}\u{1F1E7}'] };
+const regionName = (() => { try { return new Intl.DisplayNames(['de-CH'], { type: 'region' }); } catch { return null; } })();
+function natFlag(cc) {
+  const c = String(cc || '').toLowerCase();
+  if (!/^([a-z]{2}|gb-(eng|sct|wls|nir))$/.test(c)) return '';
+  const uk = UK_NAT[c];
+  const em = uk ? uk[1] : String.fromCodePoint(...[...c.toUpperCase()].map((ch) => 0x1F1E6 + ch.charCodeAt(0) - 65));
+  let name = uk ? uk[0] : c.toUpperCase();
+  if (!uk) { try { name = regionName?.of(c.toUpperCase()) || name; } catch { /* unbekannter Code */ } }
+  return `<span class="fl" role="img" aria-label="${esc(name)}" title="${esc(name)}">${em}</span>`;
+}
 const goalBadge = (n) => (n ? `<span class="gl" title="${n === 1 ? '1 Tor' : `${n} Tore`}">${BALL}${n > 1 ? `<b>${n}</b>` : ''}</span>` : '');
 const lastName = (n) => { const w = String(n || '').trim().split(/\s+/); return w.length > 1 ? w.slice(1).join(' ') : w[0] || ''; };
 function pitchHtml(m, d) {
@@ -175,7 +188,7 @@ function pitchHtml(m, d) {
     return line.map((p, k) => {
       const f = (k + 1) * 100 / (line.length + 1), x = side === 'h' ? 100 - f : f;
       const g = goalsBy(sc, side === 'h' ? 1 : 2, p.id, p.n);
-      const inner = `<span class="sh">${esc(p.no)}${goalBadge(g)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
+      const inner = `<span class="sh">${esc(p.no)}${goalBadge(g)}${natFlag(p.cc)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
       const lbl = `${p.n}${g ? `, ${g === 1 ? '1 Tor' : `${g} Tore`}` : ''}`;
       return p.id ? `<button type="button" class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at} data-act="fb-player" data-pid="${esc(p.id)}" aria-label="Profil ${esc(lbl)}">${inner}</button>`
         : `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at}>${inner}</div>`;
@@ -199,7 +212,7 @@ function lineupHtml(m) {
     const n = Math.max(d.home.start.length, d.away.start.length);
     body = `<div class="fb-lu-head"><span>${logo(m.hl)}${esc(d.home.formation)}</span><span>${esc(d.away.formation)}${logo(m.al)}</span></div>` + Array.from({ length: n }, (_, i) => { const h = d.home.start[i], a = d.away.start[i];
       const nm = (p) => (p.id ? `<button type="button" class="fb-lu-pl" data-act="fb-player" data-pid="${esc(p.id)}">${esc(p.n)}</button>` : esc(p.n));
-      return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${nm(h)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${nm(a)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
+      return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${natFlag(h.cc)}${nm(h)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${nm(a)}${natFlag(a.cc)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
   }
   return `<div class="fb-lu">${body}${benchHtml(m, d)}
     <p class="fb-x-src">Aufstellung: ${d.src === 'bb' ? 'Big Balls' : 'Sportradar'}</p></div>`;
@@ -213,7 +226,7 @@ function benchHtml(m, d) {
   const sc = scorerMap(m);
   const pane = (t, k) => `<div class="fb-bpane" data-side="${k}"${k === cur ? '' : ' hidden'}>
     ${t.coach ? `<div class="fb-coach">${WHISTLE}<span><small>Trainer</small>${esc(t.coach)}</span></div>` : ''}
-    ${t.bench?.length ? `<div class="fb-bgrid">${t.bench.map((n, i) => { const no = t.benchNo?.[i]; const inner = `${no !== '' && no != null ? `<b class="num">${esc(no)}</b>` : ''}<span>${esc(n)}</span>${goalBadge(goalsBy(sc, k === 'h' ? 1 : 2, t.benchIds?.[i], n))}`;
+    ${t.bench?.length ? `<div class="fb-bgrid">${t.bench.map((n, i) => { const no = t.benchNo?.[i]; const inner = `${no !== '' && no != null ? `<b class="num">${esc(no)}</b>` : ''}${natFlag(t.benchCc?.[i])}<span>${esc(n)}</span>${goalBadge(goalsBy(sc, k === 'h' ? 1 : 2, t.benchIds?.[i], n))}`;
       return t.benchIds?.[i] ? `<button type="button" class="fb-bpl" data-act="fb-player" data-pid="${esc(t.benchIds[i])}">${inner}</button>` : `<span class="fb-bpl">${inner}</span>`; }).join('')}</div>` : '<p class="fb-x-note">Keine Ersatzspieler gemeldet.</p>'}</div>`;
   const btn = (k, name, u) => `<button type="button" data-act="fb-bench-side" data-id="${esc(m.id)}" data-side="${k}" aria-pressed="${k === cur}">${logo(u)}<span>${esc(name)}</span></button>`;
   return `<div class="fb-benchbox"><h4>Ersatzbank</h4><div class="fb-bseg" role="group" aria-label="Team wählen">${btn('h', m.h, m.hl)}${btn('a', m.a, m.al)}</div>${pane(d.home, 'h')}${pane(d.away, 'a')}</div>`;
