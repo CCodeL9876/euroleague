@@ -167,14 +167,18 @@ const BALL = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12
 const UK_NAT = { 'gb-eng': ['England', '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}'], 'gb-sct': ['Schottland', '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}'],
   'gb-wls': ['Wales', '\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}'], 'gb-nir': ['Nordirland', '\u{1F1EC}\u{1F1E7}'] };
 const regionName = (() => { try { return new Intl.DisplayNames(['de-CH'], { type: 'region' }); } catch { return null; } })();
-function natFlag(cc) {
+function natInfo(cc) {
   const c = String(cc || '').toLowerCase();
-  if (!/^([a-z]{2}|gb-(eng|sct|wls|nir))$/.test(c)) return '';
+  if (!/^([a-z]{2}|gb-(eng|sct|wls|nir))$/.test(c)) return null;
   const uk = UK_NAT[c];
   const em = uk ? uk[1] : String.fromCodePoint(...[...c.toUpperCase()].map((ch) => 0x1F1E6 + ch.charCodeAt(0) - 65));
   let name = uk ? uk[0] : c.toUpperCase();
   if (!uk) { try { name = regionName?.of(c.toUpperCase()) || name; } catch { /* unbekannter Code */ } }
-  return `<span class="fl" role="img" aria-label="${esc(name)}" title="${esc(name)}">${em}</span>`;
+  return { em, name };
+}
+function natFlag(cc) {
+  const n = natInfo(cc);
+  return n ? `<span class="fl" role="img" aria-label="${esc(n.name)}" title="${esc(n.name)}">${n.em}</span>` : '';
 }
 const goalBadge = (n) => (n ? `<span class="gl" title="${n === 1 ? '1 Tor' : `${n} Tore`}">${BALL}${n > 1 ? `<b>${n}</b>` : ''}</span>` : '');
 const lastName = (n) => { const w = String(n || '').trim().split(/\s+/); return w.length > 1 ? w.slice(1).join(' ') : w[0] || ''; };
@@ -188,10 +192,10 @@ function pitchHtml(m, d) {
     return line.map((p, k) => {
       const f = (k + 1) * 100 / (line.length + 1), x = side === 'h' ? 100 - f : f;
       const g = goalsBy(sc, side === 'h' ? 1 : 2, p.id, p.n);
-      // Mit Foto (Wikidata, nur Sportradar-Aufstellungen): Foto im Kreis, Nummer als kleines Schild; lädt es nicht, wieder nur die Nummer
-      const photo = /^https:\/\/(upload|thumb)\.wikimedia\.org\//.test(p.img || '');
-      const inner = `<span class="sh${photo ? ' photo' : ''}">${photo ? `<img class="ph" src="${esc(p.img)}" alt="" loading="lazy" decoding="async">` : ''}<span class="no">${esc(p.no)}</span>${goalBadge(g)}${natFlag(p.cc)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
-      const lbl = `${p.n}${g ? `, ${g === 1 ? '1 Tor' : `${g} Tore`}` : ''}`;
+      // Mit Nationalität: Kreis mit der Landesflagge gefüllt, Nummer darüber; ohne wie bisher nur die Nummer
+      const nat = natInfo(p.cc);
+      const inner = `<span class="sh${nat ? ' flagfill' : ''}"${nat ? ` title="${esc(nat.name)}"` : ''}>${nat ? `<span class="fw" aria-hidden="true"><span class="fe">${nat.em}</span></span>` : ''}<span class="no">${esc(p.no)}</span>${goalBadge(g)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
+      const lbl = `${p.n}${nat ? `, ${nat.name}` : ''}${g ? `, ${g === 1 ? '1 Tor' : `${g} Tore`}` : ''}`;
       return p.id ? `<button type="button" class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at} data-act="fb-player" data-pid="${esc(p.id)}" aria-label="Profil ${esc(lbl)}">${inner}</button>`
         : `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at}>${inner}</div>`;
     }).join('');
