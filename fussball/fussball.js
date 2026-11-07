@@ -374,7 +374,7 @@ function render() {
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   renderDash(dayMs, matches);
-  $('#fbFoot').textContent = `Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
+  $('#fbFoot').textContent = `${data.paused ? 'Live-Stände pausiert: Tageslimit der Datenquelle erreicht (Big Balls). ' : ''}Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
 }
 
 // ---------- Desktop-Dashboard: Spalten links und rechts ----------

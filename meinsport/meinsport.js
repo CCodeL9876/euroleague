@@ -285,7 +285,8 @@ function render() {
     ${rows.length > TODAY_MAX ? `<button type="button" class="ms-more" data-act="more-today">${show.today ? 'Weniger zeigen' : `Alle ${rows.length} Spiele`}</button>` : ''}`;
 
   const fails = [elFailed && 'EuroLeague', chFailed && 'Schweizer Basketball', fbFailed && 'Fussball'].filter(Boolean);
-  const note = fails.length ? `<p class="ms-note">${fails.join(' und ')} gerade nicht erreichbar, angezeigt wird der letzte Stand.</p>` : '';
+  const note = (fails.length ? `<p class="ms-note">${fails.join(' und ')} gerade nicht erreichbar, angezeigt wird der letzte Stand.</p>` : '')
+    + (fb?.paused ? '<p class="ms-note">Fussball: Live-Stände pausiert, das Tageslimit der Datenquelle ist erreicht.</p>' : '');
   const main = $('#msMain');
   const keep = [...main.querySelectorAll('[data-keep]')].map((n) => [n.dataset.keep, n.scrollLeft]);
   main.classList.toggle('solo', !live.length);

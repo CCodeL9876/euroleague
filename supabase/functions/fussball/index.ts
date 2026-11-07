@@ -166,8 +166,12 @@ async function afLeague(lg, season, now) {
 // ---------- bigballsdata.com (grosse Ligen, Champions League, Nationalteams) ----------
 const BB_BASE = 'https://api.bigballsdata.com/v1';
 const bbDailyMax = () => Number(Deno.env.get('BIGBALLS_DAILY')) || 230;
-const BB_LIVE_MS = 5 * 60 * 1000; // Tagesgrenze: Spieltage mit Spielen von 13 bis 23 Uhr bleiben so unter 230 Abfragen
-const bbAllowed = () => dailyAllowed('bbcount', bbDailyMax());
+// Abstand der Live-Abfragen: mit grosser Tagesgrenze (Secret BIGBALLS_DAILY ab 1000, Plan mit 2000/Tag) alle 2 Min., sonst alle 5 Min.
+// (Spieltage mit Spielen von 13 bis 23 Uhr: rund 3 Abfragen pro Durchgang)
+const BB_LIVE_MS_FN = () => (bbDailyMax() >= 1000 ? 2 : 5) * 60 * 1000;
+// Tagesgrenze erreicht: Zeitpunkt merken, damit die Seite «Live-Stände pausiert» zeigen kann statt still alte Stände
+let bbPausedAt = 0;
+const bbAllowed = async () => { const ok = await dailyAllowed('bbcount', bbDailyMax()); if (!ok) bbPausedAt = Date.now(); return ok; };
 async function bbGet(path, params = {}) {
   const q = new URLSearchParams(params);
   const res = await fetch(`${BB_BASE}/${path}${String(q) ? `?${q}` : ''}`, { headers: { 'x-api-key': Deno.env.get('BIGBALLS_KEY') || '' }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
@@ -320,7 +324,7 @@ const bbNorm = (x) => {
 async function bbLive(now) {
   const ck = 'bblive';
   const hit = await cacheGet(ck);
-  if (hit && now - hit.at < BB_LIVE_MS) return hit.data;
+  if (hit && now - hit.at < BB_LIVE_MS_FN()) return hit.data;
   if (!(await bbAllowed())) return hit?.data || null;
   try {
     const d = await bbGet('scores', { sport: 'football', limit: '200' });
@@ -425,7 +429,7 @@ async function bbLeagues(list, now) {
   // Jeden UTC-Tag mit offenen Spielen abfragen (Abendspiele von gestern stehen nicht in der Liste von heute)
   const days = [...new Set(res.flatMap((r) => r.matches.filter(open).map((m) => m.utc.slice(0, 10))))].sort().slice(-2);
   const liveDay = (d) => res.some((r) => liveWindow(r.matches.filter((m) => m.utc.slice(0, 10) === d), now));
-  const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) ? BB_LIVE_MS : 15 * 60 * 1000)));
+  const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) ? BB_LIVE_MS_FN() : 15 * 60 * 1000)));
   const byId = new Map(lists.flatMap((l) => (l?.list || []).map((x) => [x.id, x.m])));
   // Laufende Spiele: Live-Feed hat Vorrang vor der gespeicherten Tagesliste (die für die Champions League hinterherhinkt)
   if (days.some(liveDay)) {
@@ -522,7 +526,7 @@ async function bbGame(id) {
   const uuid = String(id).replace(/^bb-/, '');
   const ck = `bbev:${uuid}`;
   const hit = await cacheGet(ck);
-  if (hit && (hit.data.final || Date.now() - hit.at < BB_LIVE_MS)) return hit.data;
+  if (hit && (hit.data.final || Date.now() - hit.at < BB_LIVE_MS_FN())) return hit.data;
   if (!Deno.env.get('BIGBALLS_KEY') || !(await bbAllowed())) return hit?.data || { goals: [] };
   const [ev, mt] = await Promise.all([bbGet(`matches/${uuid}/events`, { type: 'goals' }), (async () => { try { return (await bbAllowed()) ? await bbGet(`matches/${uuid}`) : null; } catch { return null; } })()]);
   const match = mt?.data || {};
@@ -1416,7 +1420,7 @@ async function fbOverview(now) {
     }
   });
   for (const r of res) for (const m of r.matches || []) { m.hl = crest.get(m.h) || m.hl; m.al = crest.get(m.a) || m.al; }
-  return { updated: new Date(now).toISOString(), season,
+  return { updated: new Date(now).toISOString(), season, paused: now - bbPausedAt < 15 * 60 * 1000,
     leagues: FB_LEAGUES.map((lg, i) => ({ id: lg.id, name: lg.name, country: lg.country, short: lg.short, color: lg.color, status: res[i].status, message: res[i].message })),
     matches: res.flatMap((r) => r.matches.filter((m) => { const t = Date.parse(m.utc); return t >= from && t <= to; })) };
 }
