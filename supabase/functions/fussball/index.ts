@@ -53,6 +53,8 @@ async function getJson(url) {
 const FB_LEAGUES = [
   { id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', src: 'bb', key: 'ucl', sr: 'sr:competition:7' },
   { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'bb', key: 'epl', sr: 'sr:competition:17', lf: 1008 },
+  // Championship (2. Liga England): Big-Balls-Schlüssel wie die Länderspiel-Wettbewerbe über den Namen; prüfen mit ?bbleagues=1
+  { id: 'efl', name: 'Championship', country: 'England', short: 'EFL', color: '#1C2D5A', src: 'bb', key: 'Championship' },
   { id: 'bl1', name: 'Bundesliga', country: 'Deutschland', short: 'BL', color: '#D20515', src: 'bb', key: 'bundesliga', oldb: 'bl1' },
   { id: 'laliga', name: 'La Liga', country: 'Spanien', short: 'LL', color: '#E2342B', src: 'bb', key: 'laliga' },
   { id: 'seriea', name: 'Serie A', country: 'Italien', short: 'SA', color: '#0A5DB8', src: 'bb', key: 'seriea' },
@@ -621,9 +623,9 @@ async function srMatchFor(m, now) {
 }
 // Ligen mit Aufstellung und Teamstatistik: Premier League und Champions League mit Sportradar-Aufstellung (genauer: Formation,
 // Positionen links/rechts), sonst und als Ersatz die Aufstellung von Big Balls (nur Tor/Verteidigung/Mittelfeld/Sturm)
-const DETAIL_LEAGUES = new Set(['pl', 'ucl', 'bl1', 'laliga', 'seriea', 'ligue1']);
+const DETAIL_LEAGUES = new Set(['pl', 'ucl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1']);
 // Aufstellungen auch für diese Ligen von Sportradar (mit Nationalität); nur beim Öffnen einer Aufstellung abgefragt, sonst Big Balls
-const SR_LINEUP = { bl1: 'sr:competition:35', laliga: 'sr:competition:8', seriea: 'sr:competition:23', ligue1: 'sr:competition:34' };
+const SR_LINEUP = { efl: 'sr:competition:18', bl1: 'sr:competition:35', laliga: 'sr:competition:8', seriea: 'sr:competition:23', ligue1: 'sr:competition:34' };
 // Nationalität: Sportradar liefert ISO-3-Codes (dazu ENG/SCO/WAL/NIR) → ISO-2 bzw. gb-eng usw., die Seite macht daraus Flagge und Namen
 const ISO3 = Object.fromEntries('AFG AF ALB AL DZA DZ AND AD AGO AO ATG AG ARG AR ARM AM AUS AU AUT AT AZE AZ BHS BS BHR BH BGD BD BRB BB BLR BY BEL BE BLZ BZ BEN BJ BTN BT BOL BO BIH BA BWA BW BRA BR BRN BN BGR BG BFA BF BDI BI CPV CV KHM KH CMR CM CAN CA CAF CF TCD TD CHL CL CHN CN COL CO COM KM COG CG COD CD CRI CR CIV CI HRV HR CUB CU CUW CW CYP CY CZE CZ DNK DK DJI DJ DMA DM DOM DO ECU EC EGY EG SLV SV GNQ GQ ERI ER EST EE SWZ SZ ETH ET FRO FO FJI FJ FIN FI FRA FR GUF GF GAB GA GMB GM GEO GE DEU DE GER DE GHA GH GIB GI GRC GR GRD GD GLP GP GUM GU GTM GT GIN GN GNB GW GUY GY HTI HT HND HN HKG HK HUN HU ISL IS IND IN IDN ID IRN IR IRQ IQ IRL IE ISR IL ITA IT JAM JM JPN JP JOR JO KAZ KZ KEN KE PRK KP KOR KR XKX XK KOS XK KWT KW KGZ KG LAO LA LVA LV LBN LB LSO LS LBR LR LBY LY LIE LI LTU LT LUX LU MAC MO MDG MG MWI MW MYS MY MDV MV MLI ML MLT MT MTQ MQ MRT MR MUS MU MEX MX MDA MD MCO MC MNG MN MNE ME MSR MS MAR MA MOZ MZ MMR MM NAM NA NPL NP NLD NL NCL NC NZL NZ NIC NI NER NE NGA NG MKD MK NOR NO OMN OM PAK PK PSE PS PAN PA PNG PG PRY PY PER PE PHL PH POL PL PRT PT PRI PR QAT QA REU RE ROU RO RUS RU RWA RW KNA KN LCA LC VCT VC WSM WS SMR SM STP ST SAU SA SEN SN SRB RS SYC SC SLE SL SGP SG SVK SK SVN SI SLB SB SOM SO ZAF ZA SSD SS ESP ES LKA LK SDN SD SUR SR SWE SE CHE CH SUI CH SYR SY TWN TW TJK TJ TZA TZ THA TH TLS TL TGO TG TON TO TTO TT TUN TN TUR TR TKM TM UGA UG UKR UA ARE AE GBR GB USA US URY UY UZB UZ VUT VU VEN VE VNM VN YEM YE ZMB ZM ZWE ZW NED NL POR PT CRO HR DEN DK GRE GR BUL BG ALG DZ RSA ZA KSA SA UAE AE CHI CL URU UY PAR PY CRC CR HON HN GUA GT SLO SI LAT LV'.match(/\S+ \S+/g).map((x) => x.split(' ')));
 const UK = { ENG: 'gb-eng', SCO: 'gb-sct', WAL: 'gb-wls', NIR: 'gb-nir' };
@@ -1712,6 +1714,19 @@ async function handle(req) {
       const d = await bbGet('scores', { sport: 'football', limit: '200' });
       const arr = Array.isArray(d?.data) ? d.data : d?.data?.scores?.value || d?.data?.value || d?.scores?.value || [];
       return new Response(JSON.stringify({ meta: d?.meta, keys: Object.keys(d?.data || {}), count: arr.length, sample: arr.slice(0, 6), normalized: arr.slice(0, 6).map(bbNorm) }), { headers });
+    } catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
+  }
+  // Liste der Fussball-Ligaschlüssel von Big Balls (eine Abfrage, 24 Std. gespeichert), um Schlüssel wie den der Championship zu prüfen
+  if (params.has('bbleagues')) {
+    try {
+      const hit = await cacheGet('bbleagues');
+      if (hit && Date.now() - hit.at < 24 * 3600 * 1000) return new Response(JSON.stringify(hit.data), { headers });
+      if (!(await bbAllowed())) return new Response(JSON.stringify({ error: 'Tagesgrenze' }), { status: 429, headers });
+      const d = await bbGet('leagues', { sport: 'football' });
+      const arr = Array.isArray(d?.data) ? d.data : d?.data?.leagues || d?.leagues || [];
+      const data = { count: arr.length, leagues: arr.map((l) => ({ key: l.key ?? l.slug ?? l.id ?? l.code, name: l.name, country: l.country?.name ?? l.country ?? '' })) };
+      await cacheSet('bbleagues', data);
+      return new Response(JSON.stringify(data), { headers });
     } catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
   }
   if (params.has('bbusage')) {

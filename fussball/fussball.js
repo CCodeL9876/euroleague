@@ -485,7 +485,7 @@ function sheetBody(id, tab) {
 }
 // ---------- Blatt: Teams wählen ----------
 const NATION_LEAGUES = new Set(['unl', 'wcq', 'emq', 'wc', 'em', 'fr']);
-const FAV_ORDER = ['chsl', 'chcl', 'pl', 'bl1', 'bl2', 'laliga', 'seriea', 'ligue1', 'ucl'];
+const FAV_ORDER = ['chsl', 'chcl', 'pl', 'efl', 'bl1', 'bl2', 'laliga', 'seriea', 'ligue1', 'ucl'];
 // Alle Teams aus dem Spielplan: je Name einmal, mit Wappen und der Liga, unter der es in der Auswahl erscheint
 function allTeams() {
   const seen = new Map();
