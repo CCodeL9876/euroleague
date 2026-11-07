@@ -102,9 +102,9 @@ const missed = (g) => g.fav && g.st === 'ft' && g.hs != null && g.at > since && 
 const hidden = (g) => spoilerOn() && missed(g) && !revealed.has(gkey(g));
 
 const favSide = (g) => (g.sport === 'b' ? [elFav.includes(g.hk), elFav.includes(g.ak)] : [fbFav.some((n) => n.toLowerCase() === g.h.toLowerCase()), fbFav.some((n) => n.toLowerCase() === g.a.toLowerCase())]);
+const nextGame = (list, live) => (live.some((g) => g.fav) ? null : list.find((x) => x.fav && x.st === 'pre' && x.at > Date.now()));
 function nextHtml(list, live) {
-  if (live.some((g) => g.fav)) return '';
-  const g = list.find((x) => x.fav && x.st === 'pre' && x.at > Date.now());
+  const g = nextGame(list, live);
   if (!g) return '';
   const [fh, fa] = favSide(g), mins = Math.max(1, Math.round((g.at - Date.now()) / 60000));
   const left = mins < 60 ? `in ${mins} Min.` : mins < 36 * 60 ? `in ${Math.round(mins / 60)} Std.` : `in ${Math.round(mins / 1440)} Tagen`;
@@ -184,7 +184,7 @@ const endsAt = (g) => g.at + (g.sport === 'f' ? 115 : 125) * 60e3;
 const quarterTag = (t) => (t >= 2400 ? 'V' : `Q${Math.floor(t / 600) + 1}`);
 
 // Karte pro Lieblingsteam: laufendes oder nächstes Spiel, sonst das letzte
-function teamCards(list) {
+function teamCards(list, skip) {
   const cards = [];
   const add = (sport, key, name, logo, mine) => {
     const done = mine.filter((g) => g.st === 'ft' && g.hs != null), live = mine.find((g) => g.st === 'live'), next = mine.find((g) => g.st === 'pre' && g.at > Date.now());
@@ -194,7 +194,7 @@ function teamCards(list) {
     const href = sport === 'b' ? `basketball/euroleague/?team=${encodeURIComponent(key)}` : shown?.href || 'fussball/';
     const sub = shown ? `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}` : 'im Moment kein Spiel geplant';
     const x = editTeams ? `<button type="button" class="ms-x" data-act="team-x" data-s="${sport}" data-k="${esc(key)}" aria-label="${esc(name)} entfernen">×</button>` : '';
-    cards.push({ rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg')}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
+    cards.push({ dup: !!skip && next === skip, rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg')}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
       <span class="k">${live ? '<i class="ms-dot"></i>Live' : next ? 'Nächstes' : shown ? 'Zuletzt' : 'Spielplan'}</span><span class="v num">${live ? `${us(live) ?? 0}:${them(live) ?? 0}` : next ? esc(whenText(next.at)) : shown ? `${us(shown)}:${them(shown)}` : '–'}</span><span class="s">${esc(sub)}</span></a>${x}</div>` });
   };
   for (const c of elFav) add('b', c, el?.teams?.[c]?.short || c, el?.teams?.[c]?.crest, list.filter((g) => g.sport === 'b' && (g.hk === c || g.ak === c)));
@@ -203,7 +203,9 @@ function teamCards(list) {
     const g0 = mine[0];
     add('f', g0 ? (g0.h.toLowerCase() === k ? g0.h : g0.a) : n, n, g0 ? (g0.h.toLowerCase() === k ? g0.hl : g0.al) : '', mine);
   }
-  return cards.sort((x, y) => x.rank - y.rank).map((c) => c.html).join('');
+  // Teams, die oben schon unter «Als Nächstes» stehen, nicht doppelt zeigen (im Bearbeiten-Modus und wenn sonst nichts bliebe: alle)
+  const rest = cards.filter((c) => !c.dup);
+  return (editTeams || !rest.length ? cards : rest).sort((x, y) => x.rank - y.rank).map((c) => c.html).join('');
 }
 
 function render() {
@@ -224,7 +226,7 @@ function render() {
     ${feed.length ? `<div class="ms-feedbox"><h3>Live-Feed</h3><ul class="ms-feed">${feed.map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul></div>` : ''}</section>` : '';
 
   const topHtml = `${nextHtml(list, live)}${missedHtml(list)}`;
-  const cards = teamCards(list);
+  const cards = teamCards(list, nextGame(list, live));
   const teamsHtml = `<div class="ms-hrow"><h2 class="ms-h">Deine Teams</h2>${cards ? `<button type="button" class="ms-edit" data-act="edit-teams" aria-pressed="${editTeams}">${editTeams ? 'Fertig' : 'Bearbeiten'}</button>` : ''}</div>
     <div class="ms-teams" data-keep="teams">${cards}<button type="button" class="ms-add" data-act="add-team" aria-haspopup="dialog"><b aria-hidden="true">+</b>Team hinzufügen</button></div>`;
 
