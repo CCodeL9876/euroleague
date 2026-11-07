@@ -3,7 +3,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 import { tvOf } from '../fussball/tv.js';
 
-const EL_URL = `${SUPABASE_URL}/functions/v1/euroleague`, FB_URL = `${SUPABASE_URL}/functions/v1/fussball`;
+const EL_URL = `${SUPABASE_URL}/functions/v1/euroleague`, FB_URL = `${SUPABASE_URL}/functions/v1/fussball`, CH_URL = `${SUPABASE_URL}/functions/v1/basket`;
 const HEAD = { apikey: SUPABASE_ANON_KEY };
 const LIVE_POLL_MS = 60 * 1000, IDLE_POLL_MS = 10 * 60 * 1000;
 const TODAY_MAX = 8, MISSED_MAX = 6, MISSED_DAYS = 7, FIRST_DAYS = 3, FEED_MAX = 8, FEED_ALL = 40, RECENT_MS = 30 * 60 * 1000;
@@ -22,6 +22,12 @@ if (leaving) { try { sessionStorage.setItem('el-next', location.pathname); } cat
 
 let elFav = readList('el-fav-teams'), fbFav = readList('el-fb-fav2');
 let el = null, fb = null, elFailed = false, fbFailed = false;
+// Schweizer Basketball (SB League, BVN 2. Liga Herren): Spiele aus der Funktion „basket“, Teams als „sbl:MON“ bzw. „h2l:h2l-bc-arlesheim-2“.
+// Dieselbe Liste nutzen die Seiten basketball/sbl/ und basketball/2liga/ (regio.js); am Profil hängt sie über ms_state.ch.
+let sbl = null, h2l = null, chFailed = false;
+const CH_DEFAULT = ['h2l:h2l-bc-arlesheim-2'], CH_FAV_MAX = 20;
+let chFav = (() => { try { const v = JSON.parse(localStorage.getItem('el-ch-fav') || 'null'); return Array.isArray(v) ? v.map(String) : CH_DEFAULT; } catch { return CH_DEFAULT; } })();
+const CH_LG = { sbl: 'SB League', h2l: '2. Liga Herren' };
 const flows = new Map(); // Spielcode → Spielverlauf der laufenden Basketball-Spiele, für den Feed
 const show = { today: false, feed: false };
 // Tore, die die Seite selbst am Spielstand erkennt: für Ligen, deren Quelle während des Spiels keine Torschützen liefert.
@@ -57,7 +63,7 @@ let lastSent = '';
 function saveSeen(leaving = false) {
   const list = [...seen].slice(-300);
   store.set(msKey('seen'), JSON.stringify(list));
-  const msState = { seen: list, since, spoiler: spoilerOn() }, text = JSON.stringify(msState);
+  const msState = { seen: list, since, spoiler: spoilerOn(), ch: chFav }, text = JSON.stringify(msState);
   const name = store.get('el-profile-name', ''), pin = store.get('el-profile-pin', '');
   if (text === lastSent || !name || !pin) return;
   lastSent = text;
@@ -103,24 +109,32 @@ function games() {
     list.push({ sport: 'f', id: m.id, l: m.l, utc: m.utc, at: Date.parse(m.utc), st, h: m.h, a: m.a, hl: m.hl, al: m.al, hk: m.h, ak: m.a, hs: m.hs, as: m.as, goals: m.goals, min: m.min,
       label: m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft', lg: lg.get(m.l) || '', href: `fussball/?m=${encodeURIComponent(m.id)}`, fav: names.has(m.h.toLowerCase()) || names.has(m.a.toLowerCase()) });
   }
+  const chTeam = (lg, t) => ({ k: `${lg}:${t.c}`, n: lg === 'sbl' ? t.n : t.n.replace(/^(BC|CVJM|TSV|BBC|TV)\s+/, ''), logo: t.logo || '', ab: String(t.k || t.c || '').replace(/^h2l-/, '').slice(0, 3).toUpperCase() });
+  for (const [lg, d] of [['sbl', sbl], ['h2l', h2l]]) for (const g of d?.games || []) {
+    if (!g.utc || !['pre', 'live', 'ft'].includes(g.st)) continue;
+    const h = chTeam(lg, g.h), a = chTeam(lg, g.a);
+    list.push({ sport: 'c', cl: lg, id: `${lg}${g.id}`, at: Date.parse(g.utc), st: g.st, h: h.n, a: a.n, hl: h.logo, al: a.logo, hab: h.ab, aab: a.ab, hk: h.k, ak: a.k,
+      hs: g.hs, as: g.as, period: g.per ? String(g.per) : '', clock: g.clk || '', label: g.st === 'live' ? bkLabel({ period: String(g.per || ''), clock: g.clk || '' }) : '', lg: CH_LG[lg],
+      href: lg === 'sbl' ? `basketball/sbl/?game=${g.id}` : 'basketball/2liga/', fav: chFav.includes(h.k) || chFav.includes(a.k) });
+  }
   return list.sort((x, y) => x.at - y.at);
 }
 
-const crest = (u, cls = '') => (u ? `<img class="ms-logo ${cls}" src="${esc(u)}" alt="" loading="lazy">` : `<span class="ms-logo none ${cls}"></span>`);
+const crest = (u, cls = '', ab = '') => (u ? `<img class="ms-logo ${cls}" src="${esc(u)}" alt="" loading="lazy">` : `<span class="ms-logo none${ab ? ' ab' : ''} ${cls}" aria-hidden="true">${esc(ab)}</span>`);
 const TV_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M9 2l3 4 3-4"/></svg>';
 const tvText = (g) => (g.sport === 'f' && g.st !== 'ft' ? tvOf({ l: g.l, utc: g.utc, h: g.h, a: g.a }).ch : '');
 const tvTag = (g) => { const t = tvText(g); return t ? ` · <span class="ms-tv">${TV_ICON}${esc(t)}</span>` : ''; };
 function rowHtml(g) {
   const score = g.st === 'ft' && g.hs != null && !hidden(g);
-  const side = (n, u, s) => `<span class="tm">${crest(u)}<b>${esc(n)}</b>${score ? `<em class="num">${s}</em>` : ''}</span>`;
-  return `<a class="ms-row ${g.sport}${g.fav ? ' fav' : ''}" href="${esc(g.href)}"><span class="t num">${g.st === 'ft' ? 'Ende' : hhmm(g.at)}</span>${side(g.h, g.hl, g.hs)}${side(g.a, g.al, g.as)}<span class="lg">${esc(g.lg)}${tvTag(g)}</span></a>`;
+  const side = (n, u, s, ab) => `<span class="tm">${crest(u, '', ab)}<b>${esc(n)}</b>${score ? `<em class="num">${s}</em>` : ''}</span>`;
+  return `<a class="ms-row ${g.sport}${g.fav ? ' fav' : ''}" href="${esc(g.href)}"><span class="t num">${g.st === 'ft' ? 'Ende' : hhmm(g.at)}</span>${side(g.h, g.hl, g.hs, g.hab)}${side(g.a, g.al, g.as, g.aab)}<span class="lg">${esc(g.lg)}${tvTag(g)}</span></a>`;
 }
 
 // Spiel deiner Teams, dessen Resultat du noch nicht gesehen hast
 const missed = (g) => g.fav && g.st === 'ft' && g.hs != null && g.at > since && g.at > Date.now() - MISSED_DAYS * 864e5 && !seen.has(gkey(g));
 const hidden = (g) => spoilerOn() && missed(g) && !revealed.has(gkey(g));
 
-const favSide = (g) => (g.sport === 'b' ? [elFav.includes(g.hk), elFav.includes(g.ak)] : [fbFav.some((n) => n.toLowerCase() === g.h.toLowerCase()), fbFav.some((n) => n.toLowerCase() === g.a.toLowerCase())]);
+const favSide = (g) => (g.sport === 'b' ? [elFav.includes(g.hk), elFav.includes(g.ak)] : g.sport === 'c' ? [chFav.includes(g.hk), chFav.includes(g.ak)] : [fbFav.some((n) => n.toLowerCase() === g.h.toLowerCase()), fbFav.some((n) => n.toLowerCase() === g.a.toLowerCase())]);
 const nextGame = (list, live) => (live.some((g) => g.fav) ? null : list.find((x) => x.fav && x.st === 'pre' && x.at > Date.now()));
 function nextHtml(list, live) {
   const g = nextGame(list, live);
@@ -149,7 +163,7 @@ function missedHtml(list) {
 
 // Fallblatt-Tafel wie auf den Seiten Basketball und Fussball; die ganze Tafel führt zum Spiel
 function liveCard(g) {
-  const bk = g.sport === 'b';
+  const bk = g.sport !== 'f';
   const n = Number((/\d+/.exec(g.period || '') || [])[0]);
   const running = bk && n >= 1 && /^\d{1,2}:\d\d$/.test(g.clock || '') && g.clock !== '00:00';
   const state = running ? (n > 4 ? 'Verlängerung' : `${n}. Viertel`) : g.label;
@@ -164,10 +178,10 @@ function liveCard(g) {
   }).join('')}</span>`;
   const last = (g.goals || []).at(-1);
   const goal = last ? `Tor ${last.n || (last.s === 1 ? g.h : g.a)}${last.m !== '' ? ` ${last.m}'` : ''}` : '';
-  const row1 = `<span class="flap-row">${crest(g.hl, 'flag')}<span class="flap-name">${esc(g.h)}</span>${tiles(hs)}</span>`;
-  const row2 = `<span class="flap-row">${crest(g.al, 'flag')}<span class="flap-name">${esc(g.a)}</span>${tiles(as)}</span>`;
+  const row1 = `<span class="flap-row">${crest(g.hl, 'flag', g.hab)}<span class="flap-name">${esc(g.h)}</span>${tiles(hs)}</span>`;
+  const row2 = `<span class="flap-row">${crest(g.al, 'flag', g.aab)}<span class="flap-name">${esc(g.a)}</span>${tiles(as)}</span>`;
   return `<a class="live-hero ${g.sport}" href="${esc(g.href)}" aria-label="${esc(`${g.h} ${g.hs ?? 0}, ${g.a} ${g.as ?? 0}, ${state}`)}">${row1}${row2}
-    <span class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)}<span class="flap-round">&nbsp;· ${esc(bk ? `Spieltag ${g.round}` : g.lg)}</span>${g.fav ? '<span class="ms-fv" title="Dein Team">★</span>' : ''}</span>
+    <span class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)}<span class="flap-round">&nbsp;· ${esc(g.sport === 'b' ? `Spieltag ${g.round}` : g.lg)}</span>${g.fav ? '<span class="ms-fv" title="Dein Team">★</span>' : ''}</span>
       <span class="flap-clock">${goal ? `<span class="ms-goal">${esc(goal)}</span>` : ''}${clock ? tiles(clock) : ''}<span class="flap-more" aria-hidden="true">›</span></span></span></a>`;
 }
 
@@ -187,7 +201,7 @@ function feedItems(list) {
       // Ohne Torschützen von der Quelle: die selbst erkannten Tore (nur die, die über die gelieferten hinausgehen)
       const own = (seenGoals[g.id] || []).filter((x) => x.score[0] + x.score[1] > (g.goals || []).length);
       for (const x of own) out.push({ at: x.at, sport: 'f', tag: x.m !== '' ? `${x.m}'` : 'Tor', html: `<b>Tor für ${esc(x.s === 1 ? g.h : g.a)}</b> · ${esc(g.h)} ${x.score[0]}:${x.score[1]} ${esc(g.a)}` });
-    } else {
+    } else if (g.sport === 'b') {
       const f = flows.get(g.id);
       for (const r of f?.runs || []) {
         const own = r.s > 0 ? r.ra : r.rb, opp = r.s > 0 ? r.rb : r.ra;
@@ -208,15 +222,15 @@ const quarterTag = (t) => (t >= 2400 ? 'V' : `Q${Math.floor(t / 600) + 1}`);
 // Karte pro Lieblingsteam: laufendes oder nächstes Spiel, sonst das letzte
 function teamCards(list, skip) {
   const cards = [];
-  const add = (sport, key, name, logo, mine) => {
+  const add = (sport, key, name, logo, mine, ab = '') => {
     const done = mine.filter((g) => g.st === 'ft' && g.hs != null), live = mine.find((g) => g.st === 'live'), next = mine.find((g) => g.st === 'pre' && g.at > Date.now());
     const home = (g) => g.hk === key || g.h === key, us = (g) => (home(g) ? g.hs : g.as), them = (g) => (home(g) ? g.as : g.hs), opp = (g) => (home(g) ? g.a : g.h);
     const form = done.filter((g) => !hidden(g)).slice(-5).map((g) => (us(g) > them(g) ? 'w' : us(g) < them(g) ? 'l' : 'd'));
     const shown = live || next || done.filter((g) => !hidden(g)).at(-1);
-    const href = sport === 'b' ? `basketball/euroleague/?team=${encodeURIComponent(key)}` : shown?.href || 'fussball/';
+    const href = sport === 'b' ? `basketball/euroleague/?team=${encodeURIComponent(key)}` : sport === 'c' ? (key.startsWith('sbl:') ? 'basketball/sbl/' : 'basketball/2liga/') : shown?.href || 'fussball/';
     const sub = shown ? `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}` : 'im Moment kein Spiel geplant';
     const x = editTeams ? `<button type="button" class="ms-x" data-act="team-x" data-s="${sport}" data-k="${esc(key)}" aria-label="${esc(name)} entfernen">×</button>` : '';
-    cards.push({ dup: !!skip && next === skip, rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg')}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
+    cards.push({ dup: !!skip && next === skip, rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg', ab)}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
       <span class="k">${live ? '<i class="ms-dot"></i>Live' : next ? 'Nächstes' : shown ? 'Zuletzt' : 'Spielplan'}</span><span class="v num">${live ? `${us(live) ?? 0}:${them(live) ?? 0}` : next ? esc(whenText(next.at)) : shown ? `${us(shown)}:${them(shown)}` : '–'}</span><span class="s">${esc(sub)}</span></a>${x}</div>` });
   };
   for (const c of elFav) add('b', c, el?.teams?.[c]?.short || c, el?.teams?.[c]?.crest, list.filter((g) => g.sport === 'b' && (g.hk === c || g.ak === c)));
@@ -224,6 +238,11 @@ function teamCards(list, skip) {
     const k = n.toLowerCase(), mine = list.filter((g) => g.sport === 'f' && (g.h.toLowerCase() === k || g.a.toLowerCase() === k));
     const g0 = mine[0];
     add('f', g0 ? (g0.h.toLowerCase() === k ? g0.h : g0.a) : n, n, g0 ? (g0.h.toLowerCase() === k ? g0.hl : g0.al) : '', mine);
+  }
+  for (const k of chFav) {
+    const mine = list.filter((g) => g.sport === 'c' && (g.hk === k || g.ak === k)), g0 = mine[0], home = g0?.hk === k;
+    const t = catalog().find((x) => x.k === k);
+    add('c', k, g0 ? (home ? g0.h : g0.a) : t?.n || k.replace(/^\w+:(h2l-)?/, ''), g0 ? (home ? g0.hl : g0.al) : t?.logo || '', mine, g0 ? (home ? g0.hab : g0.aab) : '');
   }
   // Teams, die oben schon unter «Als Nächstes» stehen, nicht doppelt zeigen (im Bearbeiten-Modus und wenn sonst nichts bliebe: alle)
   const rest = cards.filter((c) => !c.dup);
@@ -263,7 +282,7 @@ function render() {
   const todayHtml = `<h2 class="ms-h">${esc(title)}</h2>${rows.length ? `<div class="ms-list">${shown.map(rowHtml).join('')}</div>` : '<p class="ms-note">Keine Spiele.</p>'}
     ${rows.length > TODAY_MAX ? `<button type="button" class="ms-more" data-act="more-today">${show.today ? 'Weniger zeigen' : `Alle ${rows.length} Spiele`}</button>` : ''}`;
 
-  const fails = [elFailed && 'Basketball', fbFailed && 'Fussball'].filter(Boolean);
+  const fails = [elFailed && 'EuroLeague', chFailed && 'Schweizer Basketball', fbFailed && 'Fussball'].filter(Boolean);
   const note = fails.length ? `<p class="ms-note">${fails.join(' und ')} gerade nicht erreichbar, angezeigt wird der letzte Stand.</p>` : '';
   const main = $('#msMain');
   const keep = [...main.querySelectorAll('[data-keep]')].map((n) => [n.dataset.keep, n.scrollLeft]);
@@ -290,7 +309,10 @@ function refresh() {
 }
 async function load() {
   clearTimeout(timer);
-  const [a, b] = await Promise.allSettled([getJson(EL_URL, 20000), getJson(`${FB_URL}?fb=1`, 30000)]);
+  const [a, b, c, d] = await Promise.allSettled([getJson(EL_URL, 20000), getJson(`${FB_URL}?fb=1`, 30000), getJson(`${CH_URL}?sbl=1`, 25000), getJson(`${CH_URL}?bvn=h2l`, 25000)]);
+  if (c.status === 'fulfilled' && Array.isArray(c.value.games)) sbl = c.value;
+  if (d.status === 'fulfilled' && Array.isArray(d.value.games)) h2l = d.value;
+  chFailed = c.status === 'rejected' && d.status === 'rejected';
   if (a.status === 'fulfilled' && Array.isArray(a.value.games)) { el = a.value; elFailed = false; } else elFailed = true;
   if (b.status === 'fulfilled' && Array.isArray(b.value.matches)) { fb = b.value; fbFailed = false; trackGoals(); } else fbFailed = true;
   render();
@@ -315,6 +337,7 @@ async function syncProfile() {
       for (const k of d.msState.seen || []) seen.add(String(k));
       if (Number(d.msState.since) > 0) { since = Number(d.msState.since); store.set(msKey('since'), String(since)); }
       store.set(msKey('spoiler'), d.msState.spoiler === false ? '0' : '1');
+      if (Array.isArray(d.msState.ch)) { chFav = d.msState.ch.map(String).slice(0, CH_FAV_MAX); store.set('el-ch-fav', JSON.stringify(chFav)); }
     }
     saveSeen();
     if (el || fb) render();
@@ -333,12 +356,16 @@ function catalog() {
       if (!old || (old.l === 'ucl' && m.l !== 'ucl')) byName.set(n, { s: 'f', k: n, n, logo: logo || old?.logo, lg: lg.get(m.l) || '', l: m.l });
     }
   }
-  return [...list, ...byName.values()].sort((a, b) => a.n.localeCompare(b.n, 'de'));
+  const ch = new Map();
+  for (const g of games().filter((x) => x.sport === 'c')) for (const [k, n, logo, ab] of [[g.hk, g.h, g.hl, g.hab], [g.ak, g.a, g.al, g.aab]]) if (!ch.has(k)) ch.set(k, { s: 'c', k, n, logo, ab, lg: g.lg });
+  for (const r of h2l?.table || []) { const k = `h2l:${r.t.c}`; if (!ch.has(k)) ch.set(k, { s: 'c', k, n: r.t.n.replace(/^(BC|CVJM|TSV|BBC|TV)\s+/, ''), logo: '', ab: String(r.t.k || '').slice(0, 3), lg: CH_LG.h2l }); }
+  return [...list, ...byName.values(), ...ch.values()].sort((a, b) => a.n.localeCompare(b.n, 'de'));
 }
-const isFavTeam = (t) => (t.s === 'b' ? elFav.includes(t.k) : fbFav.some((n) => n.toLowerCase() === t.k.toLowerCase()));
+const isFavTeam = (t) => (t.s === 'b' ? elFav.includes(t.k) : t.s === 'c' ? chFav.includes(t.k) : fbFav.some((n) => n.toLowerCase() === t.k.toLowerCase()));
 let saveTimer = 0;
 const dirty = new Set(); // Sportarten mit ungespeicherten Änderungen
 function saveFavs(sport) {
+  if (sport === 'c') { store.set('el-ch-fav', JSON.stringify(chFav)); saveSeen(); return; }
   store.set('el-fav-teams', JSON.stringify(elFav));
   store.set('el-fb-fav2', JSON.stringify(fbFav));
   dirty.add(sport);
@@ -358,7 +385,11 @@ function toast(msg) {
 }
 // Die Bereiche Basketball und Fussball brauchen je mindestens ein Team, darum bleibt das letzte gewählt
 function toggleTeam(s, k) {
-  if (s === 'b') {
+  if (s === 'c') {
+    if (chFav.includes(k)) chFav = chFav.filter((x) => x !== k);
+    else if (chFav.length >= CH_FAV_MAX) return toast(`Höchstens ${CH_FAV_MAX} Schweizer Teams.`);
+    else chFav = [...chFav, k];
+  } else if (s === 'b') {
     if (elFav.includes(k)) { if (elFav.length <= 1) return toast('Mindestens ein Basketball-Team bleibt gewählt.'); elFav = elFav.filter((c) => c !== k); }
     else if (elFav.length >= EL_FAV_MAX) return toast(`Höchstens ${EL_FAV_MAX} Basketball-Teams.`);
     else elFav = [...elFav, k];
@@ -376,8 +407,8 @@ function renderPick() {
   const all = catalog(), q = plain($('#msQ')?.value.trim());
   const mine = new Set(all.filter((t) => t.s === 'f' && isFavTeam(t)).map((t) => t.lg));
   const list = q ? all.filter((t) => plain(t.n).includes(q) || plain(t.lg).includes(q))
-    : [...all.filter((t) => !isFavTeam(t) && t.s === 'f' && mine.has(t.lg)), ...all.filter((t) => !isFavTeam(t) && t.s === 'b'), ...all.filter((t) => !isFavTeam(t) && t.s === 'f' && !mine.has(t.lg))];
-  const rows = list.slice(0, PICK_MAX).map((t) => `<button type="button" class="ms-pr" data-act="pick" data-s="${t.s}" data-k="${esc(t.k)}" aria-pressed="${isFavTeam(t)}">${crest(t.logo)}<span>${esc(t.n)}<small>${esc(t.lg)}</small></span><i aria-hidden="true">★</i></button>`).join('');
+    : [...all.filter((t) => !isFavTeam(t) && t.s === 'f' && mine.has(t.lg)), ...all.filter((t) => !isFavTeam(t) && t.s === 'b'), ...all.filter((t) => !isFavTeam(t) && t.s === 'c'), ...all.filter((t) => !isFavTeam(t) && t.s === 'f' && !mine.has(t.lg))];
+  const rows = list.slice(0, PICK_MAX).map((t) => `<button type="button" class="ms-pr" data-act="pick" data-s="${t.s}" data-k="${esc(t.k)}" aria-pressed="${isFavTeam(t)}">${crest(t.logo, '', t.ab)}<span>${esc(t.n)}<small>${esc(t.lg)}</small></span><i aria-hidden="true">★</i></button>`).join('');
   $('#msPickH').textContent = q ? 'Treffer' : 'Vorschläge';
   $('#msRes').innerHTML = rows || '<p class="ms-note">Kein Team gefunden.</p>';
 }

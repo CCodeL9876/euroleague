@@ -178,3 +178,7 @@ und `basketball/regio.css`; `<body data-league="sbl|h2l">` wählt den Wettbewerb
 
 Supabase-Funktion **`basket`** (`supabase/functions/basket/index.ts`): im Dashboard neu anlegen, Name genau `basket`,
 Code einfügen, «Verify JWT» aus. Keine Secrets nötig. Abfragen: `?sbl=1`, `?sblgame=<Spiel-Nr.>`, `?bvn=h2l`.
+
+Mein Sport zeigt SB League und 2. Liga mit: Live-Tafeln, «Heute», «Als Nächstes», verpasste Resultate und Teamkarten.
+Schweizer Teams wählt man im Teamwahl-Dialog (Suche, z. B. «Arlesheim») oder per Tipp in der Tabelle der Liga-Seite;
+gespeichert unter `el-ch-fav` und im Profil (`ms_state.ch`, braucht die aktuelle Funktion `euroleague`). Standard: BC Arlesheim 2.

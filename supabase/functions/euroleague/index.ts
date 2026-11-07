@@ -858,7 +858,9 @@ function cleanFbFavorites(list) {
 function cleanMsState(v) {
   const seen = Array.isArray(v?.seen) ? [...new Set(v.seen.map((k) => String(k || '').slice(0, 60)).filter(Boolean))].slice(-300) : [];
   const since = Number(v?.since);
-  return { seen, since: Number.isFinite(since) && since > 0 ? since : Date.now(), spoiler: v?.spoiler !== false };
+  // ch: Schweizer Basketball-Teams (Mein Sport, Seiten basketball/sbl/ und basketball/2liga/), z. B. „h2l:h2l-bc-arlesheim-2“
+  const ch = Array.isArray(v?.ch) ? [...new Set(v.ch.map((k) => String(k || '')).filter((k) => /^(sbl|h2l):[\w-]{1,60}$/.test(k)))].slice(0, 20) : undefined;
+  return { seen, since: Number.isFinite(since) && since > 0 ? since : Date.now(), spoiler: v?.spoiler !== false, ...(ch ? { ch } : {}) };
 }
 async function findProfile(key) {
   // select=* statt fester Spalten: funktioniert auch, solange die Spalte fb_favorites noch nicht angelegt ist

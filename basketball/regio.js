@@ -6,8 +6,8 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 const API = `${SUPABASE_URL}/functions/v1/basket`;
 const LEAGUE = document.body.dataset.league === 'h2l' ? 'h2l' : 'sbl';
 const IS_SBL = LEAGUE === 'sbl';
-const FAV_KEY = `el-regio-fav:${LEAGUE}`;
-const DEFAULT_FAV = IS_SBL ? '' : 'h2l-bc-arlesheim-2';
+// Eigene Teams: gemeinsame Liste mit Mein Sport (el-ch-fav, Einträge „sbl:MON“ bzw. „h2l:h2l-bc-arlesheim-2“)
+const FAV_KEY = 'el-ch-fav', CH_DEFAULT = ['h2l:h2l-bc-arlesheim-2'];
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -22,10 +22,12 @@ const dayName = (key) => {
   return new Intl.DateTimeFormat('de-CH', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'long' }).format(new Date(`${key}T12:00:00Z`));
 };
 
-let data = null, error = '', view = 'spiele', onlyMine = !IS_SBL, timer = 0;
+let data = null, error = '', view = 'spiele', onlyMine = true, timer = 0;
 const lastFlaps = new Map();
-let fav = (() => { try { return localStorage.getItem(FAV_KEY) ?? DEFAULT_FAV; } catch { return DEFAULT_FAV; } })();
-const isFav = (t) => Boolean(fav) && t?.c === fav;
+let favs = (() => { try { const v = JSON.parse(localStorage.getItem(FAV_KEY) || 'null'); return Array.isArray(v) ? v.map(String) : CH_DEFAULT; } catch { return CH_DEFAULT; } })();
+const favKey = (t) => `${LEAGUE}:${t?.c}`;
+const isFav = (t) => favs.includes(favKey(t));
+const myKeys = () => favs.filter((k) => k.startsWith(`${LEAGUE}:`));
 
 async function api(q) {
   const res = await fetch(`${API}?${q}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) });
@@ -94,10 +96,12 @@ function gamesView() {
   const parts = [];
   if (!data) return `<p class="notice">${esc(error || 'Lade Spiele …')}</p>`;
   let games = data.games;
-  const favTeam = fav && (data.table.find((r) => r.t.c === fav)?.t || games.flatMap((g) => [g.h, g.a]).find((t) => t.c === fav));
-  if (!IS_SBL || favTeam) {
+  const mineList = myKeys();
+  const favTeam = mineList.length ? (data.table.find((r) => isFav(r.t))?.t || games.flatMap((g) => [g.h, g.a]).find(isFav)) : null;
+  if (!favTeam) onlyMine = false;
+  if (favTeam) {
     parts.push(`<div class="rg-filter" role="group" aria-label="Auswahl">
-      <button type="button" data-mine="1" aria-pressed="${onlyMine}">${favTeam ? esc(teamName(favTeam)) : 'Mein Team'}</button>
+      <button type="button" data-mine="1" aria-pressed="${onlyMine}">${mineList.length > 1 ? 'Meine Teams' : esc(teamName(favTeam))}</button>
       <button type="button" data-mine="0" aria-pressed="${!onlyMine}">Alle Spiele</button></div>`);
   }
   if (onlyMine && favTeam) games = games.filter((g) => isFav(g.h) || isFav(g.a));
@@ -123,12 +127,12 @@ function gamesView() {
 function tableView() {
   if (!data) return `<p class="notice">${esc(error || 'Lade Tabelle …')}</p>`;
   if (!data.table.length) return `<p class="notice">Noch keine Tabelle${IS_SBL ? ': sie entsteht aus den Resultaten, sobald die ersten Spiele beendet sind.' : '.'}</p>`;
-  const rows = data.table.map((r) => `<tr class="${isFav(r.t) ? 'mine' : ''}" data-fav="${esc(r.t.c)}">
+  const rows = data.table.map((r) => `<tr class="${isFav(r.t) ? 'mine' : ''}" data-fav="${esc(favKey(r.t))}">
     <td class="num">${r.rank}</td><td class="team">${crest(r.t)}<span>${esc(teamName(r.t))}</span></td><td class="num">${r.gp}</td><td class="num">${r.w}–${r.l}</td>
     <td class="num">${r.pf - r.pa > 0 ? '+' : ''}${r.pf - r.pa}</td>${IS_SBL ? '' : `<td class="num"><b>${r.pts}</b></td>`}</tr>`).join('');
   return `<section class="rg-sec"><h2>Tabelle</h2><div class="rg-table-wrap"><table class="rg-table">
     <thead><tr><th>#</th><th>Team</th><th>Sp</th><th>S–N</th><th>Diff</th>${IS_SBL ? '' : '<th>Pkt</th>'}</tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="rg-src">Tippe auf ein Team, um es als dein Team zu markieren${IS_SBL ? '. Die Tabelle rechnet die App aus den gesammelten Resultaten.' : '.'}</p></section>`;
+    <p class="rg-src">Tippe auf ein Team, um es zu deinen Teams hinzuzufügen oder zu entfernen (auch in Mein Sport)${IS_SBL ? '. Die Tabelle rechnet die App aus den gesammelten Resultaten.' : '.'}</p></section>`;
 }
 
 function render() {
@@ -208,9 +212,10 @@ document.addEventListener('click', (e) => {
   if (t.dataset.view) { view = t.dataset.view; render(); window.scrollTo({ top: 0 }); return; }
   if (t.dataset.mine) { onlyMine = t.dataset.mine === '1'; render(); return; }
   if (t.dataset.fav !== undefined) {
-    fav = fav === t.dataset.fav ? '' : t.dataset.fav;
-    try { localStorage.setItem(FAV_KEY, fav); } catch { /* privat */ }
-    if (!fav) onlyMine = false;
+    const k = t.dataset.fav;
+    favs = favs.includes(k) ? favs.filter((x) => x !== k) : [...favs, k].slice(-20);
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch { /* privat */ }
+    onlyMine = myKeys().length > 0;
     render();
   }
 });
@@ -220,5 +225,7 @@ document.addEventListener('keydown', (e) => {
 });
 dlg.addEventListener('close', () => { openId = 0; clearTimeout(boxTimer); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
-if (IS_SBL && !fav) onlyMine = false;
+// Direktlink aus Mein Sport: basketball/sbl/?game=<Spiel-Nr.> öffnet den Spielbericht
+const linkGame = Number(new URLSearchParams(location.search).get('game'));
+if (IS_SBL && Number.isInteger(linkGame) && linkGame > 0) { history.replaceState(null, '', location.pathname); openGame(linkGame); }
 load();
