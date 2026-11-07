@@ -1617,18 +1617,37 @@ async function pushTick(now) {
   for (const [id, v] of Object.entries(prev)) if (!cur[id] && ov.matches.some((m) => m.id === id && now - Date.parse(m.utc) < 864e5)) cur[id] = v;
   await cacheSet('push:scores', cur);
   for (const m of scoreChanges) await fbGame(m.id).catch(() => null);
+  // Aufstellung erschienen (vor dem Anpfiff, von refreshAroundMatches eben geladen): einmal pro Spiel melden
+  const lineups = [];
+  for (const m of ov.matches) {
+    if (!DETAIL_LEAGUES.has(m.l) || m.st !== 'pre') continue;
+    const k = Date.parse(m.utc) - now;
+    if (k > 90 * 60 * 1000 || k < -10 * 60 * 1000) continue;
+    if ((await cacheGet(`push:lu:${m.id}`))?.data) continue;
+    const d = await fbDetail(m.id, 'lineup', now, ov).catch(() => null);
+    if (!d?.available || !d.home?.start?.length) continue;
+    await cacheSet(`push:lu:${m.id}`, 1);
+    lineups.push({ m, d });
+  }
   if (!Deno.env.get('VAPID_PRIVATE')) return { events: 0, sent: 0, refresh };
-  if (!events.length) return { events: 0, sent: 0, refresh };
+  if (!events.length && !lineups.length) return { events: 0, sent: 0, refresh };
   const subs = await fetch(`${PUSH_URL}?select=endpoint,profile_key`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
   if (!subs.length) return { events: events.length, sent: 0 };
   const keys = [...new Set(subs.map((x) => x.profile_key))];
   const profs = await fetch(`${PROFILES_URL}?key=in.(${keys.map((k) => `"${k.replace(/"/g, '')}"`).join(',')})&select=key,fb_favorites`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
   const fav = new Map(profs.map((p) => [p.key, new Set((Array.isArray(p.fb_favorites) ? p.fb_favorites : []).map((n) => String(n).toLowerCase()))]));
   let sent = 0;
+  const hhmm = (iso) => new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
   for (const s of subs) {
     const f = fav.get(s.profile_key);
-    const mine = events.filter((e) => f && (f.has(e.m.h.toLowerCase()) || f.has(e.m.a.toLowerCase())));
-    if (!mine.length) continue;
+    const isMine = (m) => f && (f.has(m.h.toLowerCase()) || f.has(m.a.toLowerCase()));
+    const mine = events.filter((e) => isMine(e.m));
+    const luMsgs = lineups.filter((x) => isMine(x.m)).map(({ m, d }) => {
+      const home = f.has(m.h.toLowerCase()), team = home ? m.h : m.a, t = home ? d.home : d.away;
+      return { id: m.id, kind: 'lineup', tag: `${m.id}-lineup`, at: now, url: `fussball/?m=${encodeURIComponent(m.id)}&tab=lineup`,
+        title: `📋 Aufstellung ${team}`, body: `${m.h} – ${m.a} · Anpfiff ${hhmm(m.utc)}${t?.formation ? ` · ${t.formation}` : ''}` };
+    });
+    if (!mine.length && !luMsgs.length) continue;
     const hash = await sha256Hex(s.endpoint);
     const old = (await cacheGet(`pushmsg:${hash}`))?.data || [];
     const msgs = mine.map(({ m, side }) => {
@@ -1639,12 +1658,12 @@ async function pushTick(now) {
         title: scorerIsFavorite ? `⚽ Vamooooos! - Tor für ${team}` : `⚠️ Gegentor für ${favoriteTeam}`,
         body: `${m.h} ${m.hs}:${m.as} ${m.a}${last?.n ? ` · ${last.n}${last.m ? ` (${last.m}')` : ''}` : m.min ? ` · ${m.min}'` : ''}` };
     });
-    await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), ...msgs].slice(-10));
+    await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), ...msgs, ...luMsgs].slice(-10));
     const st = await pushPing(s.endpoint).catch(() => 0);
     if (st === 404 || st === 410) await fetch(`${PUSH_URL}?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: 'DELETE', headers: serviceHeaders() }).catch(() => {});
     else if (st >= 200 && st < 300) sent++;
   }
-  return { events: events.length, sent, refresh };
+  return { events: events.length, lineups: lineups.length, sent, refresh };
 }
 // Das Gerät holt nach dem Anstoss seine Meldungen ab (nur die der letzten 30 Min.); abgeholt = gelöscht, damit
 // beim nächsten Anstoss nicht ältere Meldungen nochmals erscheinen

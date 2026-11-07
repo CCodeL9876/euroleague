@@ -736,14 +736,14 @@ async function togglePush() {
     if (pushOn && cur) {
       await pushCall({ kind: 'push-unsub', endpoint: cur.endpoint }).catch(() => {});
       await cur.unsubscribe();
-      pushOn = false; toast('Tor-Mitteilungen ausgeschaltet.'); return;
+      pushOn = false; toast('Mitteilungen ausgeschaltet.'); return;
     }
     if ((await Notification.requestPermission()) !== 'granted') { toast('Mitteilungen sind in den Einstellungen nicht erlaubt.'); return; }
     const key = Uint8Array.from(atob(VAPID_PUBLIC.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
     const sub = cur || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
     const r = await pushCall({ kind: 'push-sub', endpoint: sub.endpoint, ...profileAuth() });
     if (!r.ok) { toast(r.error === 'profil' ? 'Profil nicht gefunden – bitte neu anmelden.' : /db 40[04]/.test(r.error || '') ? 'Server: Tabelle el_fb_push fehlt in Supabase.' : `Anmelden für Mitteilungen hat nicht geklappt (${r.error || 'Server'}).`); return; }
-    pushOn = true; toast('Tor-Mitteilungen eingeschaltet – für deine Lieblingsteams.');
+    pushOn = true; toast('Mitteilungen eingeschaltet: Tore und Aufstellungen deiner Lieblingsteams.');
   } catch (err) { toast(`Mitteilungen konnten nicht eingeschaltet werden (${String(err?.message || err).slice(0, 80)}).`); }
 }
 
@@ -842,7 +842,7 @@ function renderMenu() {
   if (!menuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
   menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV ? [...FAV.values()].join(', ') || 'keine' : LEGACY_FAV.join(', ') || 'keine')}</small></span></div>
-    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('fb-push', 'bell', pushOn ? 'Tor-Mitteilungen: Ein' : 'Tor-Mitteilungen: Aus')}${item('fb-push-test', 'bell', 'Testmeldung senden')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
+    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('fb-push', 'bell', pushOn ? 'Mitteilungen (Tore, Aufstellung): Ein' : 'Mitteilungen (Tore, Aufstellung): Aus')}${item('fb-push-test', 'bell', 'Testmeldung senden')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
   menu.querySelector('.pm-item')?.focus();
 }
 function toast(msg) {
@@ -896,7 +896,7 @@ document.addEventListener('click', (e) => {
     menuOpen = false; renderMenu();
     // Zuerst prüfen, ob dieses Gerät überhaupt angemeldet ist – sonst sagen, woran es liegt
     if (!pushSupported()) { toast(/iphone|ipad/i.test(navigator.userAgent) && !standaloneApp() ? 'Mitteilungen gehen nur in der App vom Home-Bildschirm.' : 'Dieser Browser kann keine Mitteilungen empfangen.'); return; }
-    if (Notification.permission !== 'granted') { toast(Notification.permission === 'denied' ? 'Mitteilungen sind blockiert – in den iPhone-Einstellungen für diese App erlauben.' : 'Zuerst «Tor-Mitteilungen» einschalten.'); return; }
+    if (Notification.permission !== 'granted') { toast(Notification.permission === 'denied' ? 'Mitteilungen sind blockiert – in den iPhone-Einstellungen für diese App erlauben.' : 'Zuerst «Mitteilungen» einschalten.'); return; }
     if (!pushOn) { toast('Dieses Gerät ist noch nicht angemeldet – «Tor-Mitteilungen» einschalten.'); return; }
     toast('Testmeldung kommt in etwa 10 Sekunden – jetzt das Handy sperren.');
     pushCall({ kind: 'push-test', ...profileAuth() }).then((r) => toast(r.ok ? `Testmeldung an ${r.devices} ${r.devices === 1 ? 'Gerät' : 'Geräte'} gesendet (Antwort Push-Dienst: ${(r.status || []).join(', ')}).` : r.error === 'keine Geräte' ? 'Kein Gerät angemeldet – Mitteilungen aus- und wieder einschalten.' : 'Testmeldung hat nicht geklappt.')).catch(() => toast('Testmeldung hat nicht geklappt.'));
@@ -986,8 +986,12 @@ load().then(() => {
   if (new URLSearchParams(location.search).get('fav') === '1') { history.replaceState(null, '', location.pathname); openFav(); }
   const m = openFromPush && data?.matches.find((x) => x.id === openFromPush);
   if (!m) return;
-  mineOnly = false; sel = zDate(new Date(m.utc)); open.add(m.id); render();
-  if (!m.goals) loadGoals(m);
+  mineOnly = false; sel = zDate(new Date(m.utc)); open.add(m.id);
+  // Mitteilung «Aufstellung»: gleich den Reiter Aufstellung öffnen
+  const tab = new URLSearchParams(location.search).get('tab') === 'lineup' ? 'lineup' : '';
+  if (tab) detailTab.set(m.id, tab);
+  render();
+  if (tab) loadDetail(m, tab); else if (!m.goals) loadGoals(m);
   document.querySelector(`.fb-match[data-id="${CSS.escape(m.id)}"]`)?.scrollIntoView({ block: 'center' });
 });
 pushState();
