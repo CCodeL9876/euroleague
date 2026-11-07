@@ -455,5 +455,20 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 setupPullToRefresh();
 syncProfile();
 refresh();
-// Leiste erst einblenden, wenn Schrift und Sicherheitsabstände stehen: sonst springt sie beim Seitenwechsel sichtbar
-Promise.race([document.fonts?.ready, new Promise((r) => { setTimeout(r, 250); })]).then(() => document.body.classList.add('ms-ready'), () => document.body.classList.add('ms-ready'));
+// Leiste erst einblenden, wenn Schrift und Abstand zum Home-Balken feststehen. In der Home-App des iPhones kommt dieser
+// Abstand nach einem Seitenwechsel manchmal erst einen Moment später: die Leiste würde sonst sichtbar nach oben springen.
+function revealTabs() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;visibility:hidden;pointer-events:none;padding-bottom:env(safe-area-inset-bottom, 0px)';
+  document.body.append(probe);
+  const inset = () => parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  const start = Date.now();
+  const fonts = Promise.race([document.fonts?.ready, new Promise((r) => { setTimeout(r, 250); })]).catch(() => {});
+  fonts.then(function wait() {
+    if (standalone && inset() === 0 && Date.now() - start < 700) { setTimeout(wait, 40); return; }
+    probe.remove();
+    document.body.classList.add('ms-ready');
+  });
+}
+revealTabs();
