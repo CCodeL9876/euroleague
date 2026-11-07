@@ -1,7 +1,70 @@
 {
-  "issue": 36,
-  "updated": "6. November 2026 · 07:16 Uhr (CH)",
+  "issue": 37,
+  "updated": "7. November 2026 · 07:15 Uhr (CH)",
   "items": [
+    {
+      "tag": "Spielerstimme · Olympiacos",
+      "title": "Konchar debütiert in der EuroLeague",
+      "text": "Der langjährige NBA-Spieler John Konchar gab bei der Niederlage gegen Crvena Zvezda sein EuroLeague-Debüt für Olympiacos. In rund 20 Minuten blieb er ohne Punkte, verbuchte aber 3 Rebounds, 2 Assists und 2 Blocks. «Es gibt mehr Physis als in der NBA, und hier zählt jeder Ballbesitz», sagte er.",
+      "time": "07.11.2026 · 00:01",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031711/konchar-debuts-in-the-euroleague-there-is-more-physicality-than-in-the-nba/",
+      "firstShown": "07.11.2026"
+    },
+    {
+      "tag": "Resultat · Crvena Zvezda",
+      "title": "Zvezda gewinnt bei Olympiacos",
+      "text": "Crvena Zvezda hat in Runde 10 auswärts bei Olympiacos 62:57 gewonnen, Jordan Nwora kam auf 18 Punkte und 13 Rebounds. Bei Olympiacos erzielte Sasha Vezenkov 27 Punkte. Trainer Georgios Bartzokas: «Es gibt keine Ausrede. So wie wir gespielt haben, haben wir den Sieg nicht verdient.»",
+      "time": "06.11.2026 · 23:22",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031679/bartzokas-after-the-defeat-by-zvezda-there-is-no-excuse-we-did-not-deserve-to-win/",
+      "firstShown": "07.11.2026"
+    },
+    {
+      "tag": "Trainerstimme · Besiktas",
+      "title": "Alimpijevic gereizt nach Heimniederlage",
+      "text": "Besiktas-Trainer Dusan Alimpijevic reagierte nach der sechsten EuroLeague-Niederlage der Saison, gegen Zalgiris, unwirsch auf eine Frage zu einem Timeout: «Können wir zur nächsten Frage gehen, bitte?» Sein Team traf 42 Prozent der Zweier und 26 Prozent der Dreier. «Fehlwürfe dürfen keine Ausrede für schlechte Verteidigung sein», sagte er.",
+      "time": "06.11.2026 · 22:19",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031589/alimpijevic-cuts-short-timeout-question-after-besiktas-defeat-next-question-please/",
+      "firstShown": "07.11.2026"
+    },
+    {
+      "tag": "Resultate · Runde 10",
+      "title": "Zalgiris, Dubai und Partizan siegen",
+      "text": "Zalgiris gewann bei Besiktas 83:67 und feierte den vierten EuroLeague-Sieg in Folge. Dubai siegte in Bologna gegen Virtus 93:75 und steht bei 7-3. Partizan schlug Maccabi Tel Aviv ohne den verletzten Center Kevarrius Hayes 88:67 und hält nun bei 5-5.",
+      "time": "06.11.2026 · 20:04",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031432/euroleague-roundup-zalgiris-dominates-besiktas-wins-fourth-in-a-row/",
+      "firstShown": "07.11.2026"
+    },
+    {
+      "tag": "Trainer · Olimpia Milano",
+      "title": "Milano entlässt Poeta, Banchi übernimmt",
+      "text": "Olimpia Milano hat Cheftrainer Peppe Poeta nach einem Saisonstart mit 1-9 Siegen in der EuroLeague von seinen Aufgaben entbunden. Marco Ramondino leitet die Mannschaft interimistisch im Spiel am Sonntag. Nachfolger wird Luca Banchi, der Milano bereits von 2013 bis 2015 trainierte und aktuell Italiens Nationaltrainer ist.",
+      "time": "06.11.2026 · 19:09",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031461/olimpia-milano-relieves-giuseppe-poeta-luca-banchi-is-taking-over/",
+      "firstShown": "07.11.2026"
+    },
+    {
+      "tag": "Verband · Panathinaikos",
+      "title": "Giannakopoulos für zehn Monate gesperrt",
+      "text": "Der Sportrichter der griechischen Liga hat Panathinaikos-Besitzer Dimitris Giannakopoulos mit einem zehnmonatigen Hallenverbot und 60'000 Euro Busse belegt. Grund ist ein Instagram-Beitrag zum Skandal um den griechischen Verband und dessen Schiedsrichterkommission. Der Klub erhielt zusätzlich 30'000 Euro Busse und will rekurrieren.",
+      "time": "06.11.2026 · 18:29",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/heba/2031452/giannakopoulos-handed-10-month-venue-ban-and-e60000-fine/",
+      "firstShown": "07.11.2026"
+    },
+    {
+      "tag": "Verletzung · Olimpia Milano",
+      "title": "Booker fällt rund drei Monate aus",
+      "text": "Devin Booker hat sich einen Sehnenriss im Rectus-femoris-Muskel des rechten Beins zugezogen und fehlt Milano voraussichtlich bis Januar. Der Klub will sich auf dem Markt nach einem Center umsehen. Booker kam bisher auf 6,1 Punkte und 3,8 Rebounds pro Spiel.",
+      "time": "06.11.2026 · 16:18",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2031399/devin-booker-to-miss-three-months-as-milano-enters-the-market/",
+      "firstShown": "07.11.2026"
+    },
     {
       "tag": "Resultat · Fenerbahce",
       "title": "Fenerbahce schlägt Baskonia, Powell debütiert",
@@ -57,15 +120,6 @@
       "firstShown": "06.11.2026"
     },
     {
-      "tag": "Verletzungen · EuroLeague",
-      "title": "Booker fällt bei Milano aus, Bolmaro einsatzbereit",
-      "text": "Olimpia Milano muss auf Devin Booker verzichten, der eine Sehnenverletzung im rechten Oberschenkel erlitten hat. Leandro Bolmaro ist nach muskulären Problemen wieder verfügbar. Bei Hapoel Tel Aviv fehlt Tomas Satoransky mit einer Gehirnerschütterung, bei Valencia fallen Nikola Mirotic und Nate Reuvers aus.",
-      "time": "05.11.2026 · 12:57",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-      "firstShown": "06.11.2026"
-    },
-    {
       "tag": "Stimmen · Real Madrid",
       "title": "Martinez: «Keine Ausreden»",
       "text": "Real-Madrid-Trainer Pedro Martinez wollte die Niederlage gegen Panathinaikos nicht mit den fünf Ausfällen erklären: «Es gibt keine Ausreden. Wir haben mit den Spielern, die wir hatten, gut gekämpft.» Neben Campazzo und Maledon fehlten Deck, Jantunen und Garuba. Die Niederlage beendete Reals Serie von elf Siegen in Liga und EuroLeague.",
@@ -91,60 +145,6 @@
       "source": "Eurohoops",
       "url": "https://www.eurohoops.net/en/euroleague/2030637/nunn-explodes-for-33-points-and-makes-history-panathinaikos-wins-it-against-real-after-ot-drama/",
       "firstShown": "06.11.2026"
-    },
-    {
-      "tag": "Stimmen · ASVEL",
-      "title": "Crowder verteidigt den europäischen Basketball",
-      "text": "ASVEL-Forward Jae Crowder hat Kritik von Gilbert Arenas am europäischen Basketball zurückgewiesen. Gegenüber BasketNews sagte er: «Ich finde, das ist respektlos gegenüber der europäischen Kultur.» Die Teams seien zwar vielleicht nicht athletischer, aber «sehr klug», das verdiene Respekt.",
-      "time": "04.11.2026 · 20:56",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/jae-crowder-defends-european-basketball-its-great-basketball-and-deserves-respect/",
-      "firstShown": "06.11.2026"
-    },
-    {
-      "tag": "Liga national · Virtus Bologna",
-      "title": "Virtus verliert erstmals in der Serie A, Milano siegt in Cantu",
-      "text": "Virtus Bologna hat in der 6. Runde der italienischen Liga zu Hause 93:100 gegen Trieste verloren, die erste Niederlage der Saison. Bester Werfer bei Virtus war Derrick Alston mit 16 Punkten. Olimpia Milano gewann auswärts 95:82 in Cantu und steht neu bei 4:2 Siegen.",
-      "time": "02.11.2026 · 22:32",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/legabasket/2029938/trieste-hands-virtus-first-league-loss-milano-wins-at-cantu/",
-      "firstShown": "03.11.2026"
-    },
-    {
-      "tag": "Liga · Crvena Zvezda",
-      "title": "Hohe Bussen nach dem Belgrader Derby",
-      "text": "Die Euroleague hat Crvena Zvezda nach den Vorfällen im Derby gegen Partizan mit 115'000 Euro gebüsst und die Fans des Klubs für die nächsten fünf Auswärtsspiele ausgeschlossen. Partizan erhielt Bussen von 49'000 Euro, unter anderem für Feuerwerk, Laserpointer, Platzstürme und ungenügende Sicherheitsmassnahmen. Panathinaikos muss wegen Fanverhaltens gegen Baskonia 7'000 Euro bezahlen.",
-      "time": "02.11.2026 · 20:45",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2029890/euroleague-sanctions-partizan-and-crvena-zvezda-after-belgrade-derby/",
-      "firstShown": "03.11.2026"
-    },
-    {
-      "tag": "Transfergerücht · Baskonia",
-      "title": "Baskonia will Perrin und Brazdeikis holen",
-      "text": "Baskonia bemüht sich laut Cadena SER um Zach Perrin (Lleida) und Ignas Brazdeikis (Unicaja); die beiden Zuzüge könnten rund 1,1 Millionen Euro kosten. Perrin, ein 22-jähriger französischer Big Man, würde etwa 500'000 Euro kosten, Brazdeikis rund 600'000 Euro. Trainer Velimir Perasovic sagte: «Ich erwarte in den kommenden Tagen einige neue Gesichter.»",
-      "time": "02.11.2026 · 18:14",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2029843/baskonia-reportedly-targeting-zach-perrin-and-ignas-brazdeikis/",
-      "firstShown": "03.11.2026"
-    },
-    {
-      "tag": "Verletzungen · Baskonia",
-      "title": "Duarte vor Comeback gegen Fenerbahce",
-      "text": "Chris Duarte steigt nach einer Muskelverletzung im rechten Oberschenkel wieder ins Mannschaftstraining von Baskonia ein und soll am Donnerstag gegen Fenerbahce zurückkehren. Der Guard kommt in sechs EuroLeague-Spielen auf 10,7 Punkte im Schnitt. Rodions Kurucs und Tadas Sedekerskis befinden sich weiter in der Rehabilitation.",
-      "time": "02.11.2026 · 17:23",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2029814/chris-duarte-expected-to-return-against-fenerbahce/",
-      "firstShown": "03.11.2026"
-    },
-    {
-      "tag": "Verletzung · Real Madrid",
-      "title": "Campazzo mit Muskelverletzung",
-      "text": "Facundo Campazzo hat sich laut 24segundosenblanco eine Muskelverletzung zugezogen. Weitere Untersuchungen sollen das Ausmass und die Ausfalldauer klären. Real Madrid hatte zuletzt bereits die Ausfälle von Mikael Jantunen und Theo Maledon zu verkraften.",
-      "time": "02.11.2026 · 12:29",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/real-madrids-facundo-campazzo-suffers-muscle-injury-tests-pending/",
-      "firstShown": "03.11.2026"
     }
   ]
 }

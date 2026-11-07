@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-06",
+ "updated": "2026-11-07",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -8,11 +8,11 @@
    "team": "ZAL",
    "status": "out",
    "since": "2026-10-01",
-   "note": "Verletzung, verpasste fast den ganzen Saisonstart; fehlt weiterhin",
+   "note": "Oberschenkelverletzung (Hamstring) erneut verschlimmert; fehlte gegen Besiktas",
    "back": "",
-   "source": "BasketNews",
-   "url": "https://basketnews.com/news-258500-nigel-williams-goss-gets-update-on-injury-after-additional-tests.html",
-   "reported": "2026-10-30"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
   },
   {
    "id": "010106",
@@ -37,18 +37,6 @@
    "source": "Sportando",
    "url": "https://sportando.basketball/en/olympiacos-bartzokas-provides-injury-update-milutinov-and-fournier-still-being-evaluated/",
    "reported": "2026-10-29"
-  },
-  {
-   "id": "013380",
-   "name": "Evan Fournier",
-   "team": "OLY",
-   "status": "doubtful",
-   "since": "2026-10-29",
-   "note": "soll laut Trainer Bartzokas am Freitag gegen Crvena Zvezda spielen",
-   "back": "Freitag gegen Crvena Zvezda erwartet",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2029476/bartzokas-believes-that-fournier-will-be-ready-for-zvezda-thats-the-schedule-hes-doing-well/",
-   "reported": "2026-11-02"
   },
   {
    "id": "010042",
@@ -102,25 +90,25 @@
    "id": "",
    "name": "Derek Willis",
    "team": "PAR",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-10-31",
-   "note": "Knöchelverletzung",
+   "note": "Knöchelverletzung; Einsatz gegen Maccabi kurzfristig entschieden",
    "back": "zweite Novemberwoche",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2028995/vanja-marinkovic-derek-willis-tonye-jekiri-updates-partizan-euroleague/",
-   "reported": "2026-11-01"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
   },
   {
    "id": "",
    "name": "Tonye Jekiri",
    "team": "PAR",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-10-31",
-   "note": "Leistenzerrung seit Mitte Oktober",
+   "note": "Adduktorenverletzung; Einsatz gegen Maccabi kurzfristig entschieden",
    "back": "ca. 2 Wochen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2028995/vanja-marinkovic-derek-willis-tonye-jekiri-updates-partizan-euroleague/",
-   "reported": "2026-11-01"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
   },
   {
    "id": "",
@@ -128,11 +116,11 @@
    "team": "TEL",
    "status": "out",
    "since": "2026-10-20",
-   "note": "Verletzung im Training am 20. Oktober; Klub sucht Ersatz",
+   "note": "Verletzung der Quadrizepssehne; fehlte gegen Partizan",
    "back": "offen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2029140/maccabi-minority-owner-richard-deitz-denies-blocking-signings-the-opposite-is-true/",
-   "reported": "2026-11-01"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
   },
   {
    "id": "",
@@ -152,11 +140,11 @@
    "team": "MIL",
    "status": "out",
    "since": "2026-11-05",
-   "note": "Sehnenverletzung im rechten Oberschenkel; Ausfalldauer noch offen",
-   "back": "offen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
+   "note": "Sehnenriss im Rectus-femoris-Muskel des rechten Beins; Milano sucht Center",
+   "back": "ca. 3 Monate (bis Januar)",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2031399/devin-booker-to-miss-three-months-as-milano-enters-the-market/",
+   "reported": "2026-11-07"
   },
   {
    "id": "",
@@ -349,6 +337,126 @@
    "source": "Sportando",
    "url": "https://sportando.basketball/en/pedro-martinez-after-panathinaikos-loss-no-excuses-we-competed-well/",
    "reported": "2026-11-06"
+  },
+  {
+   "id": "",
+   "name": "Kevarrius Hayes",
+   "team": "PAR",
+   "status": "doubtful",
+   "since": "2026-11-06",
+   "note": "leichte Verletzung; verpasste das Spiel gegen Maccabi",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2031401/kevarrius-hayes-is-reportedly-set-to-miss-the-clash-against-maccabi/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "Vanja Marinkovic",
+   "team": "PAR",
+   "status": "doubtful",
+   "since": "2026-11-06",
+   "note": "Aufbau nach Achillessehnen-Operation; Einsatz gegen Maccabi kurzfristig entschieden",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "Mady Sissoko",
+   "team": "BES",
+   "status": "out",
+   "since": "2026-11-06",
+   "note": "nicht näher bezeichnetes gesundheitliches Problem",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "DaQuan Jeffries",
+   "team": "BES",
+   "status": "out",
+   "since": "2026-11-06",
+   "note": "Erholung nach Bruch des linken Handgelenks",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "Stefan Miljenovic",
+   "team": "RED",
+   "status": "out",
+   "since": "2026-11-06",
+   "note": "Knöchelprobleme",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "Tommaso Baldasso",
+   "team": "VIR",
+   "status": "out",
+   "since": "2026-11-06",
+   "note": "Beinprobleme",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "Justin Anderson",
+   "team": "DUB",
+   "status": "out",
+   "since": "2026-11-06",
+   "note": "Oberschenkelverletzung (Hamstring)",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "Davis Bertans",
+   "team": "DUB",
+   "status": "out",
+   "since": "2026-11-06",
+   "note": "Oberschenkelverletzung (Hamstring)",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "Mouhammadou Jaiteh",
+   "team": "DUB",
+   "status": "out",
+   "since": "2026-11-06",
+   "note": "Erholung nach Achillessehnenverletzung",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
+  },
+  {
+   "id": "",
+   "name": "Thomas Walkup",
+   "team": "DUB",
+   "status": "out",
+   "since": "2026-11-06",
+   "note": "Rückenprobleme",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
+   "reported": "2026-11-07"
   }
  ]
 }
