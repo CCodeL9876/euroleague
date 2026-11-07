@@ -498,7 +498,10 @@ async function bbGame(id) {
   });
   const fits = (g) => match.score && g.filter((x) => x.s === 1).length === match.score.home && g.filter((x) => x.s === 2).length === match.score.away;
   const asIs = build(false), flipped = build(true);
-  const goals = fits(asIs) || !fits(flipped) ? asIs : flipped;
+  // Heißt das Team im Tor-Ereignis anders als im Spiel (z. B. «Leeds» statt «Leeds United»), landen alle Tore beim Gast:
+  // passt nur die vertauschte Verteilung zum Stand, die Seiten tauschen
+  const swapped = asIs.map((g) => ({ ...g, s: 3 - g.s }));
+  const goals = fits(asIs) ? asIs : fits(flipped) ? flipped : fits(swapped) ? swapped : asIs;
   const data = { goals, final: match.status === 'finished' };
   await cacheSet(ck, data);
   return data;

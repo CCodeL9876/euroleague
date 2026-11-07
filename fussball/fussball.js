@@ -145,17 +145,39 @@ function formationRows(t) {
   for (const n of sizes) { out.push(t.start.slice(i, i + n)); i += n; }
   return out;
 }
+// Torschützen pro Seite (1 Heim, 2 Gast) für die Aufstellung: über die Spieler-ID (Sportradar), sonst über den Nachnamen.
+// Eigentore zählen nicht, sonst stünde der Ball beim falschen Team.
+const plainLast = (n) => String(n || '').replace(/\s*\((Pen\.|Eigentor)\)\s*$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().split(/\s+/).pop() || '';
+function scorerMap(m) {
+  const sc = { 1: new Map(), 2: new Map() };
+  const list = goalsOf(m) || [];
+  // Manche Quellen vertauschen Heim und Gast (Teamnamen passen nicht): passt die Verteilung nur vertauscht zum Stand, tauschen
+  const c1 = list.filter((g) => g.s === 1).length, c2 = list.length - c1;
+  const swap = m.hs != null && (c1 !== m.hs || c2 !== m.as) && c1 === m.as && c2 === m.hs;
+  for (const g0 of list) {
+    const g = swap ? { ...g0, s: 3 - g0.s } : g0;
+    if (/\(Eigentor\)/.test(g.n || '') || !sc[g.s]) continue;
+    for (const k of [g.id ? `id:${g.id}` : '', g.n ? `n:${plainLast(g.n)}` : ''].filter(Boolean)) sc[g.s].set(k, (sc[g.s].get(k) || 0) + 1);
+  }
+  return sc;
+}
+const goalsBy = (sc, side, id, name) => (id && sc[side].get(`id:${String(id).replace(/^bb:/, '')}`)) || sc[side].get(`n:${plainLast(name)}`) || 0;
+const BALL = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#fff" stroke="#14211A" stroke-width="1.4"/><path d="M12 7.2l4.2 3-1.6 4.9H9.4L7.8 10.2z" fill="#14211A"/><path d="M12 7.2V1.8M16.2 10.2l5-1.7M14.6 15.1l3.2 4.4M9.4 15.1l-3.2 4.4M7.8 10.2l-5-1.7" stroke="#14211A" stroke-width="1.3"/></svg>';
+const goalBadge = (n) => (n ? `<span class="gl" title="${n === 1 ? '1 Tor' : `${n} Tore`}">${BALL}${n > 1 ? `<b>${n}</b>` : ''}</span>` : '');
 const lastName = (n) => { const w = String(n || '').trim().split(/\s+/); return w.length > 1 ? w.slice(1).join(' ') : w[0] || ''; };
 function pitchHtml(m, d) {
   const hr = formationRows(d.home), ar = formationRows(d.away);
   if (!hr || !ar) return '';
   // yGoal: Torlinie, yMid: Mittellinie (in % der Feldhöhe); Gast gespiegelt
+  const sc = scorerMap(m);
   const place = (rows, side, yGoal, yMid) => rows.map((line, li) => {
     const y = yGoal + (yMid - yGoal) * (li === 0 ? 0 : 0.24 + (li - 1) * (0.68 / Math.max(1, rows.length - 2)));
     return line.map((p, k) => {
       const f = (k + 1) * 100 / (line.length + 1), x = side === 'h' ? 100 - f : f;
-      const inner = `<span class="sh">${esc(p.no)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
-      return p.id ? `<button type="button" class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at} data-act="fb-player" data-pid="${esc(p.id)}" aria-label="Profil ${esc(p.n)}">${inner}</button>`
+      const g = goalsBy(sc, side === 'h' ? 1 : 2, p.id, p.n);
+      const inner = `<span class="sh">${esc(p.no)}${goalBadge(g)}</span><span class="nm">${esc(lastName(p.n))}</span>`, at = `style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"`;
+      const lbl = `${p.n}${g ? `, ${g === 1 ? '1 Tor' : `${g} Tore`}` : ''}`;
+      return p.id ? `<button type="button" class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at} data-act="fb-player" data-pid="${esc(p.id)}" aria-label="Profil ${esc(lbl)}">${inner}</button>`
         : `<div class="fb-pl ${side}${li === 0 ? ' gk' : ''}" ${at}>${inner}</div>`;
     }).join('');
   }).join('');
@@ -188,9 +210,10 @@ function benchHtml(m, d) {
   if (!d.home.bench?.length && !d.away.bench?.length && !d.home.coach && !d.away.coach) return '';
   const cur = benchSide.get(m.id) || 'h';
   const WHISTLE = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="14" r="5"/><path d="M13 11l7-5v4l-5 3"/></svg>';
+  const sc = scorerMap(m);
   const pane = (t, k) => `<div class="fb-bpane" data-side="${k}"${k === cur ? '' : ' hidden'}>
     ${t.coach ? `<div class="fb-coach">${WHISTLE}<span><small>Trainer</small>${esc(t.coach)}</span></div>` : ''}
-    ${t.bench?.length ? `<div class="fb-bgrid">${t.bench.map((n, i) => { const no = t.benchNo?.[i]; const inner = `${no !== '' && no != null ? `<b class="num">${esc(no)}</b>` : ''}<span>${esc(n)}</span>`;
+    ${t.bench?.length ? `<div class="fb-bgrid">${t.bench.map((n, i) => { const no = t.benchNo?.[i]; const inner = `${no !== '' && no != null ? `<b class="num">${esc(no)}</b>` : ''}<span>${esc(n)}</span>${goalBadge(goalsBy(sc, k === 'h' ? 1 : 2, t.benchIds?.[i], n))}`;
       return t.benchIds?.[i] ? `<button type="button" class="fb-bpl" data-act="fb-player" data-pid="${esc(t.benchIds[i])}">${inner}</button>` : `<span class="fb-bpl">${inner}</span>`; }).join('')}</div>` : '<p class="fb-x-note">Keine Ersatzspieler gemeldet.</p>'}</div>`;
   const btn = (k, name, u) => `<button type="button" data-act="fb-bench-side" data-id="${esc(m.id)}" data-side="${k}" aria-pressed="${k === cur}">${logo(u)}<span>${esc(name)}</span></button>`;
   return `<div class="fb-benchbox"><h4>Ersatzbank</h4><div class="fb-bseg" role="group" aria-label="Team wählen">${btn('h', m.h, m.hl)}${btn('a', m.a, m.al)}</div>${pane(d.home, 'h')}${pane(d.away, 'a')}</div>`;
