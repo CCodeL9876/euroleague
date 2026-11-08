@@ -170,7 +170,10 @@ const BB_BASE = 'https://api.bigballsdata.com/v1';
 const bbDailyMax = () => Number(Deno.env.get('BIGBALLS_DAILY')) || 230;
 // Abstand der Live-Abfragen: mit grosser Tagesgrenze (Secret BIGBALLS_DAILY ab 1000, Plan mit 2000/Tag) alle 2 Min., sonst alle 5 Min.
 // (Spieltage mit Spielen von 13 bis 23 Uhr: rund 3 Abfragen pro Durchgang)
-const BB_LIVE_MS_FN = () => (bbDailyMax() >= 1000 ? 2 : 5) * 60 * 1000;
+// Sparsam: 2 Min. nur, solange jemand die Seite offen hat (Abruf ?fb=1 in den letzten 10 Min.) oder ein Lieblingsteam eines
+// Mitteilungs-Abos spielt; sonst 5 Min. (liveEager setzt der Abruf bzw. pushTick)
+let liveEager = true;
+const BB_LIVE_MS_FN = () => (bbDailyMax() >= 1000 && liveEager ? 2 : 5) * 60 * 1000;
 // Tagesgrenze erreicht: Zeitpunkt merken, damit die Seite «Live-Stände pausiert» zeigen kann statt still alte Stände
 let bbPausedAt = 0;
 const bbAllowed = async () => { const ok = await dailyAllowed('bbcount', bbDailyMax()); if (!ok) bbPausedAt = Date.now(); return ok; };
@@ -431,7 +434,8 @@ async function bbLeagues(list, now) {
   // Jeden UTC-Tag mit offenen Spielen abfragen (Abendspiele von gestern stehen nicht in der Liste von heute)
   const days = [...new Set(res.flatMap((r) => r.matches.filter(open).map((m) => m.utc.slice(0, 10))))].sort().slice(-2);
   const liveDay = (d) => res.some((r) => liveWindow(r.matches.filter((m) => m.utc.slice(0, 10) === d), now));
-  const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) ? BB_LIVE_MS_FN() : 15 * 60 * 1000)));
+  // Laufende Stände kommen aus dem Live-Feed; die Tagesliste (Endstände) genügt dann im doppelten Abstand
+  const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) ? 2 * BB_LIVE_MS_FN() : 15 * 60 * 1000)));
   const byId = new Map(lists.flatMap((l) => (l?.list || []).map((x) => [x.id, x.m])));
   // Laufende Spiele: Live-Feed hat Vorrang vor der gespeicherten Tagesliste (die für die Champions League hinterherhinkt)
   if (days.some(liveDay)) {
@@ -660,7 +664,7 @@ async function bbLineup(m, now) {
   const hit = await cacheGet(ck);
   // Ältere gespeicherte Aufstellungen ohne Rückennummern der Ersatzspieler: einmal neu laden
   const noNos = hit?.data?.available && !hit.data.home?.benchNo;
-  if (hit && !noNos && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
+  if (hit && !noNos && (hit.data.final || now - hit.at < (hit.data.available ? 3 * 3600 : 15 * 60) * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await bbAllowed())) return hit?.data || { available: false };
   const d = await bbGet(`stored/matches/${uuid}/lineups`);
@@ -721,7 +725,7 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const hit = await cacheGet(ck);
   // Ältere gespeicherte Aufstellungen ohne Spieler-IDs, Rückennummern oder Nationalität: einmal neu laden
   const noIds = hit?.data?.available && (!hit.data.home?.start?.[0]?.id || !hit.data.home?.benchNo || !hit.data.home?.benchCc || !hit.data.imgv);
-  if (hit && !noIds && (hit.data.final || now - hit.at < 15 * 60 * 1000)) return hit.data;
+  if (hit && !noIds && (hit.data.final || now - hit.at < (hit.data.available ? 3 * 3600 : 15 * 60) * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await srAllowed())) return hit?.data || bbLineup(m, now);
   const d = await srGet(`sport_events/${srUrn(sr.id)}/lineups`).catch(() => null);
@@ -1506,8 +1510,9 @@ async function fbOverview(now) {
     matches: res.flatMap((r) => r.matches.filter((m) => { const t = Date.parse(m.utc); return t >= from && t <= to; })) };
 }
 // Vor dem Anpfiff Aufstellungen vorwärmen; nach Spielende Statistiken und nach dem letzten Tages-Spiel Tabellen vorwärmen.
-async function refreshAroundMatches(now, ov) {
+async function refreshAroundMatches(now, ov, favs = new Set()) {
   const matches = ov.matches || [];
+  const favMatch = (m) => favs.has(String(m.h).toLowerCase()) || favs.has(String(m.a).toLowerCase());
   const today = zurichDay(new Date(now).toISOString());
   const yesterday = zurichDay(new Date(now - 864e5).toISOString());
   const refreshed = { lineups: 0, stats: 0, tables: 0, scorers: 0 };
@@ -1515,15 +1520,13 @@ async function refreshAroundMatches(now, ov) {
   for (const m of matches) {
     if (!DETAIL_LEAGUES.has(m.l) || m.st === 'ft' || m.st === 'off') continue;
     const kickoff = Date.parse(m.utc);
-    if (kickoff - now > 90 * 60 * 1000 || now - kickoff > 130 * 60 * 1000) continue;
-    // Championship (bis 12 Spiele gleichzeitig): eine einmal erhaltene Aufstellung nicht laufend neu holen (Sportradar-Kontingent)
-    if (m.l === 'efl' && (await cacheGet(`srlu:${m.id}`))?.data?.available) continue;
+    if (kickoff - now > 90 * 60 * 1000 || now - kickoff > 130 * 60 * 1000 || !favMatch(m)) continue;
     await fbDetail(m.id, 'lineup', now, ov).catch(() => null);
     refreshed.lineups++;
   }
 
   for (const m of matches) {
-    if (!DETAIL_LEAGUES.has(m.l) || !m.id.startsWith('bb-') || m.st !== 'ft' || now - Date.parse(m.utc) > 8 * 3600e3) continue;
+    if (!DETAIL_LEAGUES.has(m.l) || !m.id.startsWith('bb-') || m.st !== 'ft' || now - Date.parse(m.utc) > 8 * 3600e3 || !favMatch(m)) continue;
     const uuid = m.id.replace(/^bb-/, '');
     const cached = await cacheGet(`bbst:${uuid}`);
     if (cached?.data?.final) continue;
@@ -1674,8 +1677,18 @@ async function handlePush(body) {
 }
 // Jede Minute: Cache-Zeitplan ausführen und Tore seit dem letzten Lauf für Push erkennen
 async function pushTick(now) {
+  // Abos und ihre Lieblingsteams zuerst (nur eigene Datenbank, kein API-Kontingent): bestimmen, was vorgewärmt wird und wie oft live
+  const subs = Deno.env.get('VAPID_PRIVATE') ? await fetch(`${PUSH_URL}?select=endpoint,profile_key`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [];
+  const keys = [...new Set(subs.map((x) => x.profile_key))];
+  const profs = keys.length ? await fetch(`${PROFILES_URL}?key=in.(${keys.map((k) => `"${String(k).replace(/"/g, '')}"`).join(',')})&select=key,fb_favorites`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [];
+  const fav = new Map(profs.map((p) => [p.key, new Set((Array.isArray(p.fb_favorites) ? p.fb_favorites : []).map((n) => String(n).toLowerCase()))]));
+  const favs = new Set([...fav.values()].flatMap((x) => [...x]));
+  const viewer = await cacheGet('fbview');
+  const cached = (await cacheGet('fbov:last'))?.data?.matches || [];
+  liveEager = Boolean(viewer && now - viewer.at < 10 * 60 * 1000) || cached.some((m) => (m.st === 'live' || m.st === 'ht') && (favs.has(String(m.h).toLowerCase()) || favs.has(String(m.a).toLowerCase())));
   const ov = await fbOverview(now);
-  const refresh = await refreshAroundMatches(now, ov);
+  await cacheSet('fbov:last', { matches: ov.matches.filter((m) => m.st === 'live' || m.st === 'ht').map((m) => ({ h: m.h, a: m.a, st: m.st })) });
+  const refresh = await refreshAroundMatches(now, ov, favs);
   const prev = (await cacheGet('push:scores'))?.data || {};
   const cur = {}, events = [], scoreChanges = [];
   for (const m of ov.matches) {
@@ -1701,7 +1714,7 @@ async function pushTick(now) {
   // Aufstellung erschienen (vor dem Anpfiff, von refreshAroundMatches eben geladen): einmal pro Spiel melden
   const lineups = [];
   for (const m of ov.matches) {
-    if (!DETAIL_LEAGUES.has(m.l) || m.st !== 'pre') continue;
+    if (!DETAIL_LEAGUES.has(m.l) || m.st !== 'pre' || !(favs.has(m.h.toLowerCase()) || favs.has(m.a.toLowerCase()))) continue;
     const k = Date.parse(m.utc) - now;
     if (k > 90 * 60 * 1000 || k < -10 * 60 * 1000) continue;
     if ((await cacheGet(`push:lu:${m.id}`))?.data) continue;
@@ -1712,11 +1725,7 @@ async function pushTick(now) {
   }
   if (!Deno.env.get('VAPID_PRIVATE')) return { events: 0, sent: 0, refresh };
   if (!events.length && !lineups.length) return { events: 0, sent: 0, refresh };
-  const subs = await fetch(`${PUSH_URL}?select=endpoint,profile_key`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
   if (!subs.length) return { events: events.length, sent: 0 };
-  const keys = [...new Set(subs.map((x) => x.profile_key))];
-  const profs = await fetch(`${PROFILES_URL}?key=in.(${keys.map((k) => `"${k.replace(/"/g, '')}"`).join(',')})&select=key,fb_favorites`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
-  const fav = new Map(profs.map((p) => [p.key, new Set((Array.isArray(p.fb_favorites) ? p.fb_favorites : []).map((n) => String(n).toLowerCase()))]));
   let sent = 0;
   const hhmm = (iso) => new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
   for (const s of subs) {
@@ -1756,6 +1765,7 @@ async function pushMessages(endpoint, now) {
   return list;
 }
 
+let lastViewMark = 0;
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
@@ -1857,6 +1867,9 @@ async function handle(req) {
     }
   }
   try {
+    // Jemand schaut zu: Live-Stände im kurzen Abstand (höchstens ein Eintrag pro Minute und Instanz)
+    if (Date.now() - lastViewMark > 60 * 1000) { lastViewMark = Date.now(); await cacheSet('fbview', true); }
+    liveEager = true;
     return new Response(JSON.stringify(await fbOverview(Date.now())), { headers: { ...headers, 'Cache-Control': 'public, max-age=30' } });
   } catch {
     return new Response(JSON.stringify({ error: 'Die Fussball-Daten sind gerade nicht erreichbar.' }), { status: 502, headers });
