@@ -146,3 +146,5 @@ a.ms-next{color:inherit;text-decoration:none;}
 .ms-pr .ms-logo.ab{flex:none;width:28px;height:28px;font-size:0.56rem;}
 .ms-tc .ms-logo.ab.lg{width:26px;height:26px;font-size:0.52rem;}
 .ms-tc.c .th b{overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto;}
+/* Eigene Vereinswappen (basketball/img, z. B. BC Arlesheim): weisser Kreis, damit die dunklen Linien lesbar sind */
+img.ms-logo[src$="/img/bca.png"]{background:#fff;border-radius:50%;padding:1px;box-sizing:border-box;}

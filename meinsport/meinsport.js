@@ -111,7 +111,7 @@ function games() {
     list.push({ sport: 'f', id: m.id, l: m.l, utc: m.utc, at: Date.parse(m.utc), st, h: m.h, a: m.a, hl: m.hl, al: m.al, hk: m.h, ak: m.a, hs: m.hs, as: m.as, goals: m.goals, min: m.min,
       label: m.st === 'ht' ? 'Halbzeit' : m.min ? `${m.min}. Minute` : 'Läuft', lg: lg.get(m.l) || '', href: `fussball/?m=${encodeURIComponent(m.id)}`, fav: names.has(m.h.toLowerCase()) || names.has(m.a.toLowerCase()) });
   }
-  const chTeam = (lg, t) => ({ k: `${lg}:${t.c}`, n: lg === 'sbl' ? t.n : t.n.replace(/^(BC|CVJM|TSV|BBC|TV)\s+/, ''), logo: t.logo || '', ab: String(t.k || t.c || '').replace(/^h2l-/, '').slice(0, 3).toUpperCase() });
+  const chTeam = (lg, t) => ({ k: `${lg}:${t.c}`, n: lg === 'sbl' ? t.n : t.n.replace(/^(BC|CVJM|TSV|BBC|TV)\s+/, ''), logo: t.logo || chLogo(t), ab: String(t.k || t.c || '').replace(/^h2l-/, '').slice(0, 3).toUpperCase() });
   for (const [lg, d] of [['sbl', sbl], ['h2l', h2l]]) for (const g of d?.games || []) {
     if (!g.utc || !['pre', 'live', 'ft'].includes(g.st)) continue;
     const h = chTeam(lg, g.h), a = chTeam(lg, g.a);
@@ -122,6 +122,8 @@ function games() {
   return list.sort((x, y) => x.at - y.at);
 }
 
+// Eigene Wappen für Schweizer Vereine ohne Logo in der Quelle (basketball/img); weisser Grund, weil die Linien dunkel sind
+const chLogo = (t) => (/arlesheim/i.test(`${t?.c || ''} ${t?.n || ''}`) ? 'basketball/img/bca.png' : '');
 const crest = (u, cls = '', ab = '') => (u ? `<img class="ms-logo ${cls}" src="${esc(u)}" alt="" loading="lazy">` : `<span class="ms-logo none${ab ? ' ab' : ''} ${cls}" aria-hidden="true">${esc(ab)}</span>`);
 const TV_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M9 2l3 4 3-4"/></svg>';
 const tvText = (g) => (g.sport === 'f' && g.st !== 'ft' ? tvOf({ l: g.l, utc: g.utc, h: g.h, a: g.a }).ch : '');
@@ -361,7 +363,7 @@ function catalog() {
   }
   const ch = new Map();
   for (const g of games().filter((x) => x.sport === 'c')) for (const [k, n, logo, ab] of [[g.hk, g.h, g.hl, g.hab], [g.ak, g.a, g.al, g.aab]]) if (!ch.has(k)) ch.set(k, { s: 'c', k, n, logo, ab, lg: g.lg });
-  for (const r of h2l?.table || []) { const k = `h2l:${r.t.c}`; if (!ch.has(k)) ch.set(k, { s: 'c', k, n: r.t.n.replace(/^(BC|CVJM|TSV|BBC|TV)\s+/, ''), logo: '', ab: String(r.t.k || '').slice(0, 3), lg: CH_LG.h2l }); }
+  for (const r of h2l?.table || []) { const k = `h2l:${r.t.c}`; if (!ch.has(k)) ch.set(k, { s: 'c', k, n: r.t.n.replace(/^(BC|CVJM|TSV|BBC|TV)\s+/, ''), logo: chLogo(r.t), ab: String(r.t.k || '').slice(0, 3), lg: CH_LG.h2l }); }
   return [...list, ...byName.values(), ...ch.values()].sort((a, b) => a.n.localeCompare(b.n, 'de'));
 }
 const isFavTeam = (t) => (t.s === 'b' ? elFav.includes(t.k) : t.s === 'c' ? chFav.includes(t.k) : fbFav.some((n) => n.toLowerCase() === t.k.toLowerCase()));

@@ -37,7 +37,11 @@ async function api(q) {
 }
 
 // Wappen: SBL-Logos von Genius Sports; BVN ohne Logos → Kürzel im Kreis
+// Eigene Wappen für Vereine ohne Logo in der BVN-Quelle (Datei im Ordner basketball/img)
+const CLUB_LOGO = [[/arlesheim/i, '../img/bca.png']];
 function crest(t, size = 'xs') {
+  const own = CLUB_LOGO.find(([re]) => re.test(`${t?.c || ''} ${t?.n || ''}`))?.[1];
+  if (own) return `<span class="logo ${size} club"><img src="${own}" alt="" loading="lazy"></span>`;
   if (t?.logo) return `<span class="logo ${size}"><img src="${esc(t.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>`;
   const k = String(t?.k || t?.c || t?.n || '').replace(/^[a-z0-9]+-/, '').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 5) || '?';
   return `<span class="logo ${size} rg-k" aria-hidden="true">${esc(k.replace(/-\d$/, ''))}</span>`;
