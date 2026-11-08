@@ -1188,14 +1188,22 @@ body.fb-sheet-open{overflow:hidden;}
 .ms-link{display:inline-block;align-self:flex-start;font-size:0.84rem;font-weight:600;color:var(--dim);text-decoration:none;padding:2px 0;}
 .ms-link:hover{color:var(--text);}
 
-/* Basketball: Umschalter zwischen den Wettbewerben (EuroLeague, SB League, 2. Liga); gleich auf allen drei Seiten */
-.bb-switch{display:flex;gap:3px;background:var(--card);border-radius:12px;padding:3px;}
-.bb-switch a{flex:1;display:flex;align-items:center;justify-content:center;min-height:36px;padding:0 6px;border-radius:9px;color:var(--dim);text-decoration:none;
-  font-size:0.82rem;font-weight:500;white-space:nowrap;}
+/* Basketball: Wechsel zwischen den Wettbewerben (EuroLeague, SB League, 2. Liga) als Seitenpunkte wie bei Fotos – zeigt, wo man ist,
+   und lädt zum seitlichen Wischen ein (basketball/swipe.js); Punkte, Pfeile und Name des nächsten Wettbewerbs sind antippbar */
+.bb-switch{display:flex;align-items:center;justify-content:center;gap:6px;}
+.bb-switch a{color:var(--dim);text-decoration:none;}
 .bb-switch a:hover{color:var(--text);}
-.bb-switch a[aria-current="page"]{background:var(--text);color:var(--bg);font-weight:600;}
+.bb-step{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;font-size:1.25rem;line-height:1;}
+.bb-step:is(a):active{background:var(--card);}
+.bb-dots{display:flex;align-items:center;}
+.bb-dots a{display:grid;place-items:center;min-width:22px;height:36px;padding:0 3px;}
+.bb-dots i{display:block;width:7px;height:7px;border-radius:4px;background:var(--line);transition:width .2s ease, background .2s ease;}
+.bb-dots a[aria-current="page"] i{width:20px;background:var(--blue);}
+.bb-next{text-align:center;font-size:0.8rem;font-weight:600;padding:8px 2px;}
+.bb-switch a:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:8px;}
+@media (prefers-reduced-motion:reduce){ .bb-dots i{transition:none;} }
 .brand-area .bb-switch{flex-basis:100%;order:10;margin-top:4px;}
-@media (min-width:821px){ .brand-area .bb-switch{order:0;margin-top:0;} }
+@media (min-width:821px){ .brand-area .bb-switch{order:0;margin-top:0;flex-basis:auto;} }
 
 /* Leiste unten, alle Bereiche (Basketball .mtabs, Fussball .fb-tabs, Mein Sport .ms-tabs): gleiche Höhe, gleicher Abstand
    zum Home-Balken, gleiche Breite. Bis theme-boot.js die Position als ruhig misst, unsichtbar (html.bar-wait). */
