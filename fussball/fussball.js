@@ -421,7 +421,7 @@ function sideRightHtml(lg) {
     const lt = liveTable(lg.id, t);
     const rows = (lt || t.rows).filter((r) => r.rank <= 12 || isFavName(r.team) || r.live);
     table = `${lt ? liveHead : ''}<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
-      <tbody>${rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}${r.live ? ' is-live' : ''}"><td class="pos">${lt ? livePos(r) : esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span>${lt ? liveChip(r) : ''}</span></td>
+      <tbody>${rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}${r.live ? ` is-live${r.old > r.rank ? ' gained' : ''}` : ''}"><td class="pos">${lt ? livePos(r) : esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span>${lt ? liveChip(r) : ''}</span></td>
         <td>${esc(r.p)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>`;
   }
   const scorers = s?.available && s.rows?.length ? `<section class="fb-card"><h3 class="fb-card-h"><b>Torschützen</b><small>${esc(lg.name)}</small></h3>
@@ -497,7 +497,7 @@ function liveTable(id, d) {
 }
 const livePos = (r) => { const d = r.old - r.rank; return `${esc(r.rank)}${r.live && d ? `<span class="fb-mv ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>` : ''}`; };
 const liveChip = (r) => (r.live ? `<span class="fb-lsc ${r.live.res}">${esc(r.live.s)}${r.live.t ? ` ${esc(r.live.t)}` : ''}</span>` : '');
-const liveHead = '<p class="fb-livehead"><b>Live-Tabelle</b>Laufende Spiele eingerechnet · rot = spielt gerade</p>';
+const liveHead = '<p class="fb-livehead"><b>Live-Tabelle</b>Laufende Spiele eingerechnet · farbig = spielt gerade, grün = Plätze gewonnen</p>';
 
 // ---------- Blatt: Tabelle / Torschützen ----------
 function sheetBody(id, tab) {
@@ -512,7 +512,7 @@ function sheetBody(id, tab) {
   const zone = (rank) => (d.zones || []).find(([a, b]) => rank >= a && rank <= b)?.[2] || '';
   const lt = liveTable(id, d);
   return `${lt ? liveHead : ''}<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tore">Tore</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
-    <tbody>${(lt || d.rows).map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}${r.live ? ' is-live' : ''}"><td class="pos">${lt ? livePos(r) : esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span>${lt ? liveChip(r) : ''}</span></td>
+    <tbody>${(lt || d.rows).map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}${r.live ? ` is-live${r.old > r.rank ? ' gained' : ''}` : ''}"><td class="pos">${lt ? livePos(r) : esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span>${lt ? liveChip(r) : ''}</span></td>
       <td>${esc(r.p)}</td><td>${esc(r.gf)}:${esc(r.ga)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>
     <p class="fb-zones">${(d.zones || []).map((z) => `<span class="z-${z[2]}">${ZONE_NAME[z[2]] || ''}</span>`).join('')}</p><p class="fb-x-src">Quelle: ${esc(d.source || 'Big Balls')}</p>`;
 }

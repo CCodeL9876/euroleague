@@ -148,8 +148,9 @@ body:not(.unlocked) .fb{display:none;}
 .fb-tab tr.z-up td.pos{box-shadow:inset 3px 0 0 #3E7BFA;} .fb-tab tr.z-upq td.pos{box-shadow:inset 3px 0 0 #93B4FF;}
 .fb-tab tr.z-clq td.pos{box-shadow:inset 3px 0 0 #93B4FF;} .fb-tab tr.z-rel td.pos{box-shadow:inset 3px 0 0 #F2A3A8;}
 .fb-tab tr.z-ucl-r16 td.pos{box-shadow:inset 3px 0 0 #3E7BFA;} .fb-tab tr.z-ucl-playoff td.pos{box-shadow:inset 3px 0 0 #F59E0B;} .fb-tab tr.z-ucl-out td.pos{box-shadow:inset 3px 0 0 var(--coral);}
-/* Live-Tabelle: Teams im laufenden Spiel leicht rot, Spielstand aus Sicht des Teams, Pfeil = Plätze gegenüber vorher */
+/* Live-Tabelle: Teams im laufenden Spiel leicht rot (grün, wenn sie Plätze gewonnen haben), Spielstand aus Sicht des Teams, Pfeil = Plätze gegenüber vorher */
 .fb-tab tr.is-live td{background:color-mix(in srgb, #E5484D 9%, transparent);}
+.fb-tab tr.is-live.gained td{background:color-mix(in srgb, var(--pitch-hi) 16%, transparent);}
 .fb-mv{display:block;font-size:0.58rem;font-weight:700;line-height:1;margin-top:1px;}
 .fb-mv.up{color:var(--pitch-hi);} .fb-mv.down{color:var(--coral);}
 .fb-lsc{flex:none;font-family:var(--mono);font-size:0.68rem;font-weight:600;border-radius:6px;padding:1px 5px;color:#E5484D;background:color-mix(in srgb, #E5484D 13%, transparent);}
