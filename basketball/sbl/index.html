@@ -25,12 +25,11 @@
     <header class="rg-head brand-area">
       <div class="brand">
         <a class="sport-link" href="../../" aria-label="Zu Mein Sport" title="Zu Mein Sport"><svg class="brand-logo ch-flag" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="16" fill="#E30613"/><path fill="#FFFFFF" d="M13.2 7h5.6v6.2H25v5.6h-6.2V25h-5.6v-6.2H7v-5.6h6.2z"/></svg></a>
-        <h1><em>SB League</em></h1>
+        <h1><button type="button" class="bb-pick" id="bbPick" aria-haspopup="menu" aria-expanded="false" aria-controls="bbMenu"><em>SB League</em><span class="bb-chev" aria-hidden="true">▾</span></button></h1>
       </div>
       <button type="button" class="theme-btn" id="themeBtn" aria-label="Hell oder dunkel"></button>
       <a class="theme-btn profile-btn" id="profileBtn" href="../../?me=1" aria-label="Profil in Mein Sport"></a>
       <a class="ms-link" href="../../">Mein Sport</a>
-      <nav class="bb-switch" aria-label="Wettbewerb"><a class="bb-step" href="../euroleague/" aria-label="Zurück zu EuroLeague">‹</a><span class="bb-dots"><a href="../euroleague/" aria-label="EuroLeague"><i></i></a><a href="./" aria-label="SB League" aria-current="page"><i></i></a><a href="../2liga/" aria-label="2. Liga"><i></i></a></span><a class="bb-next" href="../2liga/">2. Liga ›</a><a class="bb-step" href="../2liga/" aria-label="Weiter zu 2. Liga">›</a></nav>
       <div class="rg-views" role="group" aria-label="Ansicht"><button type="button" data-view="spiele" aria-current="page">Spiele</button><button type="button" data-view="tabelle">Tabelle</button></div>
     </header>
     <main class="rg-main" id="rgMain" aria-live="polite"><p class="notice">Lade Spiele …</p></main>
@@ -43,6 +42,7 @@
   </nav>
   <dialog class="box" id="rgBox" aria-label="Spielbericht"></dialog>
   <script src="../swipe.js" defer></script>
+  <script type="module" src="../switch.js"></script>
   <script type="module" src="../../gate.js"></script>
 </body>
 </html>

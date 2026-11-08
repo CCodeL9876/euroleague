@@ -13,7 +13,7 @@
   // Liegt der Startpunkt in etwas, das selbst seitlich scrollt (oder bewusst nicht wischen soll)?
   const ownScroll = (el) => {
     for (let n = el; n && n !== document.body; n = n.parentElement) {
-      if (n.matches?.('input, textarea, select, dialog, .mtabs, .bb-switch, .ms-tabs')) return true;
+      if (n.matches?.('input, textarea, select, dialog, .mtabs, .bb-menu, .ms-tabs')) return true;
       const cs = getComputedStyle(n);
       if (/(auto|scroll)/.test(cs.overflowX) && n.scrollWidth > n.clientWidth + 2) return true;
     }
@@ -36,7 +36,7 @@
 
   document.addEventListener('touchstart', (e) => {
     reset(false);
-    if (e.touches.length !== 1 || document.querySelector('dialog[open]')) { axis = 'none'; return; }
+    if (e.touches.length !== 1 || document.querySelector('dialog[open], .bb-menu:not([hidden])')) { axis = 'none'; return; }
     const t = e.touches[0];
     if (t.clientX < EDGE || t.clientX > innerWidth - EDGE || ownScroll(e.target)) { axis = 'none'; return; }
     sx = t.clientX; sy = t.clientY;

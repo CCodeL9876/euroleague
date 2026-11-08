@@ -1188,22 +1188,27 @@ body.fb-sheet-open{overflow:hidden;}
 .ms-link{display:inline-block;align-self:flex-start;font-size:0.84rem;font-weight:600;color:var(--dim);text-decoration:none;padding:2px 0;}
 .ms-link:hover{color:var(--text);}
 
-/* Basketball: Wechsel zwischen den Wettbewerben (EuroLeague, SB League, 2. Liga) als Seitenpunkte wie bei Fotos – zeigt, wo man ist,
-   und lädt zum seitlichen Wischen ein (basketball/swipe.js); Punkte, Pfeile und Name des nächsten Wettbewerbs sind antippbar */
-.bb-switch{display:flex;align-items:center;justify-content:center;gap:6px;}
-.bb-switch a{color:var(--dim);text-decoration:none;}
-.bb-switch a:hover{color:var(--text);}
-.bb-step{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;font-size:1.25rem;line-height:1;}
-.bb-step:is(a):active{background:var(--card);}
-.bb-dots{display:flex;align-items:center;}
-.bb-dots a{display:grid;place-items:center;min-width:22px;height:36px;padding:0 3px;}
-.bb-dots i{display:block;width:7px;height:7px;border-radius:4px;background:var(--line);transition:width .2s ease, background .2s ease;}
-.bb-dots a[aria-current="page"] i{width:20px;background:var(--blue);}
-.bb-next{text-align:center;font-size:0.8rem;font-weight:600;padding:8px 2px;}
-.bb-switch a:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:8px;}
-@media (prefers-reduced-motion:reduce){ .bb-dots i{transition:none;} }
-.brand-area .bb-switch{flex-basis:100%;order:10;margin-top:4px;}
-@media (min-width:821px){ .brand-area .bb-switch{order:0;margin-top:0;flex-basis:auto;} }
+/* Basketball: Titel ist zugleich der Wechsel zwischen den Wettbewerben (EuroLeague, SB League, 2. Liga; basketball/switch.js).
+   Antippen öffnet eine Liste mit allen dreien und dem, was dort heute läuft. Seitlich wischen geht weiterhin (swipe.js). */
+.brand{position:relative;}
+.bb-pick{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:4px 6px;margin:-4px -6px;border-radius:10px;font:inherit;color:inherit;cursor:pointer;}
+.bb-pick:hover, .bb-pick[aria-expanded="true"]{background:var(--card);}
+.bb-pick:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+.bb-chev{font-size:0.75em;color:var(--dim);transition:transform .2s ease;}
+.bb-pick[aria-expanded="true"] .bb-chev{transform:rotate(180deg);}
+.bb-menu{position:absolute;left:0;top:calc(100% + 8px);z-index:70;width:min(340px, calc(100vw - 24px));background:var(--card);border-radius:16px;padding:6px;
+  box-shadow:0 18px 40px rgba(10,10,32,0.45), inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:2px;}
+.bb-menu[hidden]{display:none;}
+.bb-menu a{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px;border-radius:11px;color:var(--text);text-decoration:none;}
+.bb-menu a:hover, .bb-menu a:focus-visible{background:var(--card-2);outline:none;}
+.bb-menu a[aria-current="page"]{background:var(--card-2);}
+.bb-menu .bb-lg{width:34px;height:34px;}
+.bb-menu .bb-lg svg{width:100%;height:100%;display:block;}
+.bb-menu b{display:block;font-size:0.92rem;font-weight:600;}
+.bb-menu small{display:block;color:var(--dim);font-size:0.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bb-menu .bb-live{font-size:0.7rem;font-weight:700;color:#E5484D;letter-spacing:0.04em;}
+.bb-menu .bb-ok{color:var(--blue);font-weight:700;}
+@media (prefers-reduced-motion:reduce){ .bb-chev{transition:none;} }
 
 /* Leiste unten, alle Bereiche (Basketball .mtabs, Fussball .fb-tabs, Mein Sport .ms-tabs): gleiche Höhe, gleicher Abstand
    zum Home-Balken, gleiche Breite. Bis theme-boot.js die Position als ruhig misst, unsichtbar (html.bar-wait). */
