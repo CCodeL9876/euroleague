@@ -1841,7 +1841,7 @@ function setupPullToRefresh() {
 }
 
 // Marke: „Sport“ führt zur KI-News-Seite
-$('#siteLink').href = KI_NEWS_URL;
+if ($('#siteLink')) $('#siteLink').href = KI_NEWS_URL;
 
 function boot() {
   setTab(tab, false);
