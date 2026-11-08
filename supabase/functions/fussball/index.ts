@@ -580,7 +580,7 @@ async function srTable(cfg, now, force) {
       return { rank: r.rank, team: srName(name), logo: srLogo(name), p: r.played ?? 0, w: r.win ?? 0, d: r.draw ?? 0, l: r.loss ?? 0,
         gf: r.goals_for ?? 0, ga: r.goals_against ?? 0, pts: r.points ?? 0 };
     }).sort((a, b) => a.rank - b.rank);
-    const data = { available: rows.length > 0, zones: cfg.zones, rows, source: 'Sportradar' };
+    const data = { available: rows.length > 0, zones: cfg.zones, rows, source: 'Sportradar', asOf: new Date(now).toISOString() };
     if (rows.length) await cacheSet(ck, data);
     return data;
   } catch { return hit?.data || { available: false }; }
@@ -630,7 +630,7 @@ async function fbLeague(id, kind, now = Date.now(), force = false) {
       gf: r.goals_for ?? r.goals_scored ?? r.points_for ?? 0, ga: r.goals_against ?? r.goals_conceded ?? r.points_against ?? 0,
       pts: r.points ?? r.pts ?? (w * 3 + draws) };
   }).sort((a, b) => a.rank - b.rank);
-  const data = { available: rows.length > 0, season: String(t?.season || ''), zones: cfg.zones, rows };
+  const data = { available: rows.length > 0, season: String(t?.season || ''), zones: cfg.zones, rows, asOf: new Date(now).toISOString() };
   await cacheSet(ck, data);
   return data;
 }

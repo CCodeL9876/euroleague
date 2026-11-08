@@ -418,9 +418,10 @@ function sideRightHtml(lg) {
   if (t && !t.available) table = '<p class="fb-x-note">Gerade nicht verfügbar.</p>';
   else if (t) {
     const zone = (rank) => (t.zones || []).find(([a, b]) => rank >= a && rank <= b)?.[2] || '';
-    const rows = t.rows.filter((r) => r.rank <= 12 || isFavName(r.team));
-    table = `<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
-      <tbody>${rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}"><td class="pos">${esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span></span></td>
+    const lt = liveTable(lg.id, t);
+    const rows = (lt || t.rows).filter((r) => r.rank <= 12 || isFavName(r.team) || r.live);
+    table = `${lt ? liveHead : ''}<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
+      <tbody>${rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}${r.live ? ' is-live' : ''}"><td class="pos">${lt ? livePos(r) : esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span>${lt ? liveChip(r) : ''}</span></td>
         <td>${esc(r.p)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>`;
   }
   const scorers = s?.available && s.rows?.length ? `<section class="fb-card"><h3 class="fb-card-h"><b>Torschützen</b><small>${esc(lg.name)}</small></h3>
@@ -467,6 +468,37 @@ function openMatch(m) {
   document.querySelector(`.fb-match[data-id="${CSS.escape(m.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// ---------- Live-Tabelle: laufende Spiele (und heute schon beendete, die die Tabelle noch nicht enthält) einrechnen ----------
+const teamKey = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, '').replace(/\b(a?fc|cf|sc)\b/g, '').replace(/[^a-z]/g, '');
+function liveTable(id, d) {
+  if (!d?.rows?.length || !data) return null;
+  const ms = data.matches.filter((m) => m.l === id && m.hs != null && m.as != null);
+  if (!ms.some(isLive)) return null;
+  // Die Tabelle wird erst nach dem letzten Spiel des Tages neu geladen: heute beendete Spiele mitrechnen, wenn die Tabelle älter ist
+  const asOf = Date.parse(d.asOf || '') || 0, today = zDate(new Date());
+  const use = ms.filter((m) => isLive(m) || (m.st === 'ft' && zDate(new Date(m.utc)) === today && (!asOf || asOf < Date.parse(m.utc) + 115 * 60 * 1000)));
+  const rows = d.rows.map((r) => ({ ...r, old: r.rank, live: null }));
+  const exact = new Map(rows.map((r) => [teamKey(r.team), r]));
+  const find = (n) => { const k = teamKey(n); return exact.get(k) || (k.length >= 5 ? rows.find((r) => { const t = teamKey(r.team); return t.startsWith(k.slice(0, 6)) || k.startsWith(t.slice(0, 6)); }) : null); };
+  let n = 0;
+  for (const m of use) {
+    const H = find(m.h), A = find(m.a);
+    if (!H || !A || H === A) continue;
+    n++;
+    for (const [T, f, a] of [[H, m.hs, m.as], [A, m.as, m.hs]]) {
+      T.p += 1; T.gf += f; T.ga += a; T.pts += f > a ? 3 : f === a ? 1 : 0;
+      if (isLive(m)) T.live = { s: `${f}:${a}`, res: f > a ? 'w' : f < a ? 'l' : 'd', t: m.st === 'ht' ? 'HZ' : m.min ? `${m.min}'` : '' };
+    }
+  }
+  if (!n) return null;
+  rows.sort((x, y) => y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf || x.old - y.old);
+  rows.forEach((r, i) => { r.rank = i + 1; });
+  return rows;
+}
+const livePos = (r) => { const d = r.old - r.rank; return `${esc(r.rank)}${r.live && d ? `<span class="fb-mv ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>` : ''}`; };
+const liveChip = (r) => (r.live ? `<span class="fb-lsc ${r.live.res}">${esc(r.live.s)}${r.live.t ? ` ${esc(r.live.t)}` : ''}</span>` : '');
+const liveHead = '<p class="fb-livehead"><b>Live-Tabelle</b>Laufende Spiele eingerechnet · rot = spielt gerade</p>';
+
 // ---------- Blatt: Tabelle / Torschützen ----------
 function sheetBody(id, tab) {
   const d = leagueCache.get(`${id}|${tab}`);
@@ -478,8 +510,9 @@ function sheetBody(id, tab) {
       <span class="who"><b>${esc(r.n)}</b>${r.team ? `<small>${esc(r.team)}</small>` : ''}</span><span class="g">${esc(r.g)}</span>${openLiga ? '' : `<span class="a">${esc(r.a)}</span>`}</div>`).join('')}</div><p class="fb-x-src">Quelle: ${esc(d.source || 'Big Balls')}</p>`;
   }
   const zone = (rank) => (d.zones || []).find(([a, b]) => rank >= a && rank <= b)?.[2] || '';
-  return `<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tore">Tore</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
-    <tbody>${d.rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}"><td class="pos">${esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span></span></td>
+  const lt = liveTable(id, d);
+  return `${lt ? liveHead : ''}<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tore">Tore</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
+    <tbody>${(lt || d.rows).map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}${r.live ? ' is-live' : ''}"><td class="pos">${lt ? livePos(r) : esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span>${lt ? liveChip(r) : ''}</span></td>
       <td>${esc(r.p)}</td><td>${esc(r.gf)}:${esc(r.ga)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>
     <p class="fb-zones">${(d.zones || []).map((z) => `<span class="z-${z[2]}">${ZONE_NAME[z[2]] || ''}</span>`).join('')}</p><p class="fb-x-src">Quelle: ${esc(d.source || 'Big Balls')}</p>`;
 }
@@ -764,6 +797,7 @@ async function load() {
     if (!data) error = err?.message || 'Die Fussball-Daten sind gerade nicht erreichbar.';
   }
   render();
+  if (sheet?.tab === 'table' && leagueCache.get(`${sheet.id}|table`)?.available) { try { renderSheet(); } catch { /* Darstellung fehlgeschlagen */ } }
   // Aufgeklappte Spiele: Torschützen nachführen, bis die Quelle das Spiel als beendet meldet
   for (const id of open) {
     const m = data?.matches.find((x) => x.id === id);

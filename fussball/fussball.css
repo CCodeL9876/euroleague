@@ -148,6 +148,18 @@ body:not(.unlocked) .fb{display:none;}
 .fb-tab tr.z-up td.pos{box-shadow:inset 3px 0 0 #3E7BFA;} .fb-tab tr.z-upq td.pos{box-shadow:inset 3px 0 0 #93B4FF;}
 .fb-tab tr.z-clq td.pos{box-shadow:inset 3px 0 0 #93B4FF;} .fb-tab tr.z-rel td.pos{box-shadow:inset 3px 0 0 #F2A3A8;}
 .fb-tab tr.z-ucl-r16 td.pos{box-shadow:inset 3px 0 0 #3E7BFA;} .fb-tab tr.z-ucl-playoff td.pos{box-shadow:inset 3px 0 0 #F59E0B;} .fb-tab tr.z-ucl-out td.pos{box-shadow:inset 3px 0 0 var(--coral);}
+/* Live-Tabelle: Teams im laufenden Spiel leicht rot, Spielstand aus Sicht des Teams, Pfeil = Plätze gegenüber vorher */
+.fb-tab tr.is-live td{background:color-mix(in srgb, #E5484D 9%, transparent);}
+.fb-mv{display:block;font-size:0.58rem;font-weight:700;line-height:1;margin-top:1px;}
+.fb-mv.up{color:var(--pitch-hi);} .fb-mv.down{color:var(--coral);}
+.fb-lsc{flex:none;font-family:var(--mono);font-size:0.68rem;font-weight:600;border-radius:6px;padding:1px 5px;color:#E5484D;background:color-mix(in srgb, #E5484D 13%, transparent);}
+.fb-lsc.w{color:var(--pitch-hi);background:color-mix(in srgb, var(--pitch-hi) 15%, transparent);}
+.fb-lsc.l{color:var(--coral);background:color-mix(in srgb, var(--coral) 13%, transparent);}
+.fb-livehead{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:0 4px 8px;font-size:0.72rem;color:var(--dim);}
+.fb-livehead b{display:inline-flex;align-items:center;gap:5px;color:#E5484D;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;}
+.fb-livehead b::before{content:"";width:7px;height:7px;border-radius:50%;background:#E5484D;animation:fbLivePulse 1.6s ease-in-out infinite;}
+@keyframes fbLivePulse{50%{opacity:0.3;}}
+@media (prefers-reduced-motion:reduce){ .fb-livehead b::before{animation:none;} }
 .fb-tab tr.fav .nm::after, .fb-scr.fav .who b::after{content:" ★";color:var(--gold);}
 .fb-zones{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 4px 0;font-size:0.68rem;color:var(--dim);}
 .fb-zones span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;}
