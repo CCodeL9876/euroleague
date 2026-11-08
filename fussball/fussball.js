@@ -130,12 +130,14 @@ function goalsHtml(m) {
   // Torschütze antippbar: mit Sportradar-ID direkt (Schweiz), bei Premier/Champions League über die Aufstellung gesucht
   const who = (g) => (g.id ? `<button type="button" class="fb-lu-pl" data-act="fb-player" data-pid="${esc(g.id)}">${esc(g.n)}</button>`
     : hasExtra(m) ? `<button type="button" class="fb-lu-pl" data-act="fb-goal" data-mid="${esc(m.id)}" data-name="${esc(g.n)}">${esc(g.n)}</button>` : esc(g.n));
-  return Array.from({ length: Math.max(h.length, a.length) }, (_, i) => `<span>${h[i] ? `<span class="fb-m">${esc(h[i].m)}'</span>${who(h[i])}` : ''}</span><span class="fb-a">${a[i] ? `${who(a[i])}<span class="fb-m">${esc(a[i].m)}'</span>` : ''}</span>`).join('')
+  return Array.from({ length: Math.max(h.length, a.length) }, (_, i) => `<span>${h[i] ? `<span class="fb-m">${gmin(h[i])}</span>${who(h[i])}` : ''}</span><span class="fb-a">${a[i] ? `${who(a[i])}<span class="fb-m">${gmin(a[i])}</span>` : ''}</span>`).join('')
     + (m.ht ? `<span class="fb-ht">Halbzeit ${esc(m.ht)}</span>` : '');
 }
 
 // Premier League: Reiter Tore · Aufstellung · Statistik im aufgeklappten Spiel
-const hasExtra = (m) => ['pl', 'ucl', 'bl1', 'laliga', 'seriea', 'ligue1'].includes(m.l);
+const hasExtra = (m) => ['pl', 'ucl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1'].includes(m.l);
+// Torminute; unbekannt (Premier League über FPL nach einem Neustart) = leer
+const gmin = (g) => (g.m === '' || g.m == null ? '' : `${esc(g.m)}'`);
 // Aufstellung als Spielfeld: Heim unten (spielt nach oben), Gast oben. Sportradar liefert die Startelf in Reihenfolge
 // Torwart, dann Linie für Linie von hinten nach vorne, innerhalb der Linie von rechts nach links (aus Sicht des Teams).
 function formationRows(t) {
@@ -331,7 +333,7 @@ function tickerHtml(lives) {
   rows.sort((a, b) => b.at - a.at);
   return `<div class="fb-group fb-ticker"><div class="fb-g-head"><b>Letzte Tore</b><small>alle laufenden Spiele</small></div>${rows.slice(0, 5).map((r, i) => {
     const team = r.g.s === 1 ? r.m.h : r.m.a;
-    return `<button type="button" class="fb-tick${i === 0 ? ' new' : ''}" data-act="fb-live" data-id="${esc(r.m.id)}"><span class="fb-tick-min">${esc(r.g.m)}'</span>${logo(r.g.s === 1 ? r.m.hl : r.m.al)}
+    return `<button type="button" class="fb-tick${i === 0 ? ' new' : ''}" data-act="fb-live" data-id="${esc(r.m.id)}"><span class="fb-tick-min">${gmin(r.g) || '⚽'}</span>${logo(r.g.s === 1 ? r.m.hl : r.m.al)}
       <span class="fb-tick-who"><b>${esc(r.g.n || team)}</b><small>${esc(r.m.h)} – ${esc(r.m.a)}</small></span><span class="fb-tick-sc">${r.sc[0]}:${r.sc[1]}</span></button>`;
   }).join('')}</div>`;
 }
@@ -374,7 +376,7 @@ function render() {
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   renderDash(dayMs, matches);
-  $('#fbFoot').textContent = `${data.paused ? 'Live-Stände pausiert: Tageslimit der Datenquelle erreicht (Big Balls). ' : ''}Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz, Championship: Sportradar`;
+  $('#fbFoot').textContent = `${data.paused ? 'Live-Stände pausiert: Tageslimit der Datenquelle erreicht (Big Balls). ' : ''}Stand ${zTime(new Date(data.updated))} · Big Balls · Premier League live: FPL · 2. Bundesliga: OpenLigaDB · Schweiz, Championship: Sportradar`;
 }
 
 // ---------- Desktop-Dashboard: Spalten links und rechts ----------
@@ -684,7 +686,7 @@ function usageSheetHtml() {
       <div class="fb-sheet-body">
         <div class="fb-use-top">${meter('bb', tot('bb'))}${meter('sr', tot('sr'))}</div>
         ${day.rows.length ? order.map(card).join('') : '<p class="fb-x-note">Für diesen Tag noch keine gezählten Abfragen.</p>'}
-        <p class="fb-x-src">Gezählt pro Abfrage an Big Balls und Sportradar (Tag nach UTC). OpenLigaDB (2. Bundesliga), Wikipedia und Wikidata sind frei und nicht gezählt.</p>
+        <p class="fb-x-src">Gezählt pro Abfrage an Big Balls und Sportradar (Tag nach UTC). OpenLigaDB (2. Bundesliga), FPL (Premier League live), Wikipedia und Wikidata sind frei und nicht gezählt.</p>
       </div></section>`;
 }
 function orderSheetHtml() {

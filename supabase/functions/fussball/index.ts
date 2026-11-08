@@ -4,6 +4,7 @@
 //   GET ?fb=1 → Spielübersicht: Spiele ±2 Wochen um heute aus allen Ligen
 //   → { updated, season, leagues: [{ id, name, country, short, color, status: 'ok'|'nokey'|'error', message }],
 //       matches: [{ id, l, utc, round, h, a, hl, al, hs, as, st: 'pre'|'live'|'ht'|'ft'|'off', min, ht, goals? }] }
+//     Premier League live zuerst über Fantasy Premier League (fantasy.premierleague.com/api, gratis, inoffiziell), sonst wie unten.
 //     Champions League, Premier League, Bundesliga, La Liga, Serie A, Ligue 1, Nations League, Länderspiele: bigballsdata.com
 //     (Secret BIGBALLS_KEY, Tagesgrenze Secret BIGBALLS_DAILY, sonst 230): Saison-Spielplan pro Wettbewerb täglich, Live-Stände
 //     aus einer Tagesabfrage für alle Ligen (während Spielen alle 5 Min.), Tore pro Spiel beim Aufklappen. 2. Bundesliga: OpenLigaDB.
@@ -427,16 +428,107 @@ async function espnApply(list, res, now, open, onlyPre) {
   return changed;
 }
 
+// ---------- Fantasy Premier League (inoffizielle, öffentliche Schnittstelle der Premier League; gratis, ohne Schlüssel) ----------
+// Live-Stand, Minute und Torschützen der Premier League: eine Abfrage pro Spielrunde für alle Spiele (während Live alle 60 Sek.).
+// Die Torminute liefert FPL nicht: sie wird beim ersten Erkennen des Tors gemerkt (auf etwa 1–2 Min. genau).
+const FPL = 'https://fantasy.premierleague.com/api';
+const FPL_UA = 'SportPWA/1.0 (private, non-commercial)';
+async function fplJson(path) {
+  const r = await fetch(`${FPL}/${path}`, { headers: { accept: 'application/json', 'user-agent': FPL_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!r.ok) throw new Error(`FPL HTTP ${r.status}`);
+  return r.json();
+}
+async function fplBoot(now) {
+  const hit = await cacheGet('fplboot');
+  if (hit && now - hit.at < 24 * 3600 * 1000) return hit.data;
+  try {
+    const d = await fplJson('bootstrap-static/');
+    const data = { teams: Object.fromEntries((d.teams || []).map((t) => [t.id, t.name])), players: Object.fromEntries((d.elements || []).map((p) => [p.id, p.web_name])),
+      events: (d.events || []).map((e) => ({ id: e.id, dl: e.deadline_time })) };
+    if (Object.keys(data.teams).length) await cacheSet('fplboot', data);
+    return data;
+  } catch { return hit?.data || null; }
+}
+async function fplFixtures(ev, now, live) {
+  const ck = `fplfx:${ev}`;
+  const hit = await cacheGet(ck);
+  if (hit && now - hit.at < (live ? 60 * 1000 : 15 * 60 * 1000)) return hit.data;
+  try { const d = await fplJson(`fixtures/?event=${ev}`); const data = Array.isArray(d) ? d : []; await cacheSet(ck, data); return data; }
+  catch { return hit?.data || []; }
+}
+const FPL_ALIAS = { manutd: 'manchesterunited', mancity: 'manchestercity', spurs: 'tottenhamhotspur', nottmforest: 'nottinghamforest', wolves: 'wolverhamptonwanderers', sheffieldutd: 'sheffieldunited' };
+const fplSame = (fplName, ours) => {
+  const a0 = teamKey(fplName), a = FPL_ALIAS[a0] || a0, b = teamKey(ours);
+  return a.length >= 4 && b.length >= 4 && (a === b || a.startsWith(b.slice(0, 6)) || b.startsWith(a.slice(0, 6)));
+};
+// Torschützen aus den Statistiken; neue Tore bekommen die aktuelle Spielminute, bekannte behalten ihre
+async function fplGoals(f, boot) {
+  const ck = `fplg:${f.id}`;
+  const hit = await cacheGet(ck);
+  const old = hit?.data?.list || [];
+  const stat = (id) => (f.stats || []).find((x) => x.identifier === id) || { h: [], a: [] };
+  const keys = [];
+  const add = (arr, side, pre, suffix) => { for (const g of arr || []) for (let k = 0; k < (g.value || 0); k++) keys.push({ key: `${pre}${g.element}#${k}`, s: side, n: `${boot.players[g.element] || ''}${suffix}` }); };
+  add(stat('goals_scored').h, 1, 'g', ''); add(stat('goals_scored').a, 2, 'g', '');
+  add(stat('own_goals').h, 2, 'o', ' (Eigentor)'); add(stat('own_goals').a, 1, 'o', ' (Eigentor)');
+  const prev = new Map(old.map((g) => [g.key, g]));
+  // Erstmals gesehen (z. B. nach einem Neustart mitten im Spiel): Minute unbekannt
+  const list = keys.map((g) => prev.get(g.key) || { ...g, m: hit ? (f.minutes ? String(f.minutes) : '') : '' });
+  list.sort((x, y) => (Number(String(x.m).split('+')[0]) || 0) - (Number(String(y.m).split('+')[0]) || 0));
+  if (!hit || JSON.stringify(list) !== JSON.stringify(old)) await cacheSet(ck, { list });
+  return list.map(({ m, s: side, n }) => ({ m, s: side, n }));
+}
+// Premier-League-Spiele mit FPL nachführen; zurück: IDs der Spiele, die FPL abdeckt (für die keine andere Quelle mehr nötig ist)
+async function fplApply(list, res, now, open) {
+  const done = new Set();
+  let ft = false;
+  const i = list.findIndex((l) => l.id === 'pl');
+  if (i < 0) return { done, ft };
+  const todo = res[i].matches.map((m, j) => [m, j]).filter(([m]) => open(m) || (m.st === 'pre' && now >= Date.parse(m.utc)));
+  if (!todo.length) return { done, ft };
+  const boot = await fplBoot(now);
+  if (!boot?.events?.length) return { done, ft };
+  const evOf = (t) => boot.events.filter((e) => Date.parse(e.dl) <= t).at(-1)?.id;
+  const evs = [...new Set(todo.map(([m]) => evOf(Date.parse(m.utc))).filter(Boolean))];
+  const fx = (await Promise.all(evs.map((e) => fplFixtures(e, now, true)))).flat();
+  for (const [m, j] of todo) {
+    const t = Date.parse(m.utc);
+    const f = fx.find((x) => x.kickoff_time && Math.abs(Date.parse(x.kickoff_time) - t) < 40 * 60 * 1000 && (fplSame(boot.teams[x.team_h], m.h) || fplSame(boot.teams[x.team_a], m.a)));
+    if (!f) continue;
+    // Noch nicht angepfiffen laut FPL: nur kurz nach der Anstosszeit glauben, danach die anderen Quellen fragen
+    if (!f.started) { if (now - t < 10 * 60 * 1000) done.add(m.id); continue; }
+    const st = f.finished || f.finished_provisional ? 'ft' : 'live';
+    const hs = f.team_h_score ?? 0, as = f.team_a_score ?? 0;
+    const goals = await fplGoals(f, boot).catch(() => null);
+    // Unbekannte Minuten (Kaltstart) aus einer anderen Quelle übernehmen: gleiche Seite, Nachname passt
+    const last = (n) => teamKey(String(n || '').replace(/\(.*\)/, '').split(/[\s.]+/).filter(Boolean).at(-1));
+    if (goals && m.goals?.length) for (const g of goals) if (g.m === '') { const o = m.goals.find((x) => x.s === g.s && x.m !== '' && last(x.n) && last(x.n) === last(g.n)); if (o) g.m = String(o.m); }
+    // Torschützen nur übernehmen, wenn sie zum Stand passen (FPL trägt sie manchmal eine Minute nach dem Tor ein)
+    const g = goals && goals.length === hs + as ? goals : m.goals?.length === hs + as ? m.goals : undefined;
+    res[i].matches[j] = { ...m, st, hs, as, min: st === 'live' ? (f.minutes ? String(f.minutes) : null) : null, goals: g, src: 'fpl' };
+    if (st === 'ft') ft = true;
+    done.add(m.id);
+  }
+  return { done, ft };
+}
+
 async function bbLeagues(list, now) {
   if (!Deno.env.get('BIGBALLS_KEY')) return list.map(() => ({ status: 'nokey', message: 'Big-Balls-Schlüssel fehlt', matches: [] }));
   const res = await Promise.all(list.map((lg) => bbFixtures(lg, now)));
   list.forEach((lg, i) => { for (const m of res[i].matches || []) MATCH_LG.set(m.id, lg.id); });
-  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 30 * 3600e3;
+  const open0 = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 30 * 3600e3;
   const forceKickoff = res.some((r) => r.matches.some((m) => kickoffJustStarted(m, now)));
-  if (!res.some((r) => r.matches.some(open)) && !forceKickoff) return res;
+  if (!res.some((r) => r.matches.some(open0)) && !forceKickoff) return res;
+  // Premier League zuerst über FPL (gratis): was FPL abdeckt, fragt keine andere Quelle mehr ab
+  const fpl = await fplApply(list, res, now, open0).catch(() => ({ done: new Set(), ft: false }));
+  const plIdx = list.findIndex((l) => l.id === 'pl');
+  if (fpl.ft && plIdx >= 0) await cacheSet(`bb2:${list[plIdx].key}`, res[plIdx]);
+  const open = (m) => open0(m) && !fpl.done.has(m.id);
+  const others = (ms) => ms.filter((m) => !fpl.done.has(m.id));
+  if (!res.some((r) => r.matches.some(open)) && !res.some((r) => others(r.matches).some((m) => kickoffJustStarted(m, now)))) return res;
   // Jeden UTC-Tag mit offenen Spielen abfragen (Abendspiele von gestern stehen nicht in der Liste von heute)
   const days = [...new Set(res.flatMap((r) => r.matches.filter(open).map((m) => m.utc.slice(0, 10))))].sort().slice(-2);
-  const liveDay = (d) => res.some((r) => liveWindow(r.matches.filter((m) => m.utc.slice(0, 10) === d), now));
+  const liveDay = (d) => res.some((r) => liveWindow(others(r.matches).filter((m) => m.utc.slice(0, 10) === d), now));
   // Laufende Stände kommen aus dem Live-Feed; die Tagesliste (Endstände) genügt dann im doppelten Abstand
   const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) ? 2 * BB_LIVE_MS_FN() : 15 * 60 * 1000)));
   const byId = new Map(lists.flatMap((l) => (l?.list || []).map((x) => [x.id, x.m])));
@@ -468,9 +560,9 @@ async function bbLeagues(list, now) {
   // League, Premier League) über die Sportradar-Live-Liste (eine Abfrage für alle Spiele weltweit) nachführen
   if (Deno.env.get('SPORTRADAR_KEY')) {
     const srIdx = list.map((lg, i) => (FB_LEAGUES.find((l) => l.id === lg.id)?.sr ? i : -1)).filter((i) => i >= 0);
-    const need = srIdx.some((i) => res[i].matches.some((m) => open(m) || kickoffJustStarted(m, now)));
+    const need = srIdx.some((i) => others(res[i].matches).some((m) => open(m) || kickoffJustStarted(m, now)));
     if (need) {
-      const live = srIdx.some((i) => liveWindow(res[i].matches, now)) ? await srLive(now, forceKickoff).catch(() => null) : null;
+      const live = srIdx.some((i) => liveWindow(others(res[i].matches), now)) ? await srLive(now, forceKickoff).catch(() => null) : null;
       const byIdSr = new Map((live?.list || []).map((x) => [x.id, x]));
       for (const i of srIdx) {
         const lg = FB_LEAGUES.find((l) => l.id === list[i].id);
