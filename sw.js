@@ -2,7 +2,7 @@
 // aktuell ist); ohne Netz kommt der letzte Stand – bei den Spieldaten mit Kopfzeile „x-offline“, damit die Seite
 // „Offline – Stand von …“ anzeigt. Logos und Spielerfotos: zuerst aus dem Zwischenspeicher (ändern sich kaum).
 
-const CACHE = 'euroleague-v137';
+const CACHE = 'euroleague-v138';
 const IMAGES = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//;
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 const DATA = /\/functions\/v1\/euroleague/;
@@ -58,17 +58,22 @@ const FB_FN = 'https://vbipkljatgandplwould.supabase.co/functions/v1/fussball';
 const FB_ANON = 'sb_publishable_dg4tPjjsYOGRHxuf0Is43Q_LZRRzfs4';
 self.addEventListener('push', (e) => {
   e.waitUntil((async () => {
-    let msgs = [];
-    try {
-      const sub = await self.registration.pushManager.getSubscription();
-      const res = await fetch(`${FB_FN}?fbpushmsg=${encodeURIComponent(sub?.endpoint || '')}`, { headers: { apikey: FB_ANON }, cache: 'no-store' });
-      msgs = await res.json();
-    } catch { /* ohne Netz: allgemeine Meldung */ }
+    // Meldungen abholen; klappt es nicht gleich (Handy eben erst aufgewacht, Netz langsam), bis zu dreimal kurz warten und neu versuchen,
+    // damit der richtige Text («⚽ Vamooooos! - Tor für …») kommt statt der allgemeinen Meldung
+    let list = [];
+    const sub = await self.registration.pushManager.getSubscription().catch(() => null);
+    for (let i = 0; i < 4 && !list.length; i++) {
+      if (i) await new Promise((r) => setTimeout(r, 1500 * i));
+      try {
+        const res = await fetch(`${FB_FN}?fbpushmsg=${encodeURIComponent(sub?.endpoint || '')}`, { headers: { apikey: FB_ANON }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+        const msgs = await res.json();
+        list = (Array.isArray(msgs) ? msgs : []).filter((m) => Date.now() - m.at < 30 * 60 * 1000);
+      } catch { /* ohne Netz: nochmals versuchen, sonst allgemeine Meldung */ }
+    }
     // Nur die neueste Meldung pro Spiel (bei mehreren Toren kurz hintereinander) – Testmeldungen nur die letzte
-    const list = (Array.isArray(msgs) ? msgs : []).filter((m) => Date.now() - m.at < 15 * 60 * 1000);
     const byGame = new Map(list.map((m) => [`${m.kind || 'goal'}:${m.id || 'test'}`, m]));
     const fresh = [...byGame.values()].slice(-3);
-    if (!fresh.length) return self.registration.showNotification('⚽ Fussball', { body: 'Neues zu deinen Teams.', tag: 'fb-goal', icon: 'fussball/icon-180.png', data: { url: 'fussball/' } });
+    if (!fresh.length) return self.registration.showNotification('⚽ Vamooooos!', { body: 'Neues von deinen Teams – tippen für den Spielstand.', tag: 'fb-goal', icon: 'fussball/icon-180.png', data: { url: 'fussball/' } });
     // Gleiche Meldung (tag = Spiel + Stand) ersetzt sich selbst, darum keine Doppelten
     await Promise.all(fresh.map((m) => self.registration.showNotification(m.title, { body: m.body, tag: m.tag, icon: 'fussball/icon-180.png', data: { url: /^fussball\/\?m=[\w%-]+(&tab=lineup)?$/.test(m.url || '') ? m.url : m.id ? `fussball/?m=${encodeURIComponent(m.id)}` : 'fussball/' } })));
   })());

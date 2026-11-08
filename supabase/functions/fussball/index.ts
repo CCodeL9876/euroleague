@@ -1075,7 +1075,61 @@ const SR_NAME = { 'Young Boys Bern': 'Young Boys', 'Servette Geneva': 'Servette'
   'Brighton & Hove Albion': 'Brighton', 'Tottenham Hotspur': 'Tottenham', 'Manchester United': 'Man United', 'Manchester City': 'Man City', 'AFC Bournemouth': 'Bournemouth' };
 const srName = (n) => SR_NAME[n] || String(n || '').replace(/ (19|18)\d\d$/, '').replace(/ A?FC$/, '');
 const SR_LOGO_SHORT = Object.fromEntries(Object.keys(SR_LOGO).map((n) => [srName(n), SR_LOGO[n]]));
-const srLogo = (n) => { const f = SR_LOGO[n] || SR_LOGO_SHORT[n]; return f ? `https://upload.wikimedia.org/wikipedia/${f}` : ''; };
+// Wappen der englischen Ligaklubs (Premier League bis League Two, Stand 2026/27) von Wikipedia, 120 px; Schlüssel = Name ohne FC/AFC,
+// nur Buchstaben – so passt auch eine leicht andere Schreibweise von Sportradar (z. B. «Wrexham AFC», «Sheffield Wednesday FC»)
+const EN_CREST = {
+  accringtonstanley: 'en/thumb/b/ba/Accrington_Stanley_F.C._logo.svg/120px-Accrington_Stanley_F.C._logo.svg.png', arsenal: 'en/thumb/5/53/Arsenal_FC.svg/120px-Arsenal_FC.svg.png',
+  astonvilla: 'en/thumb/9/9a/Aston_Villa_FC_new_crest.svg/120px-Aston_Villa_FC_new_crest.svg.png', barnet: 'en/thumb/a/a2/Barnet_FC.svg/120px-Barnet_FC.svg.png',
+  barnsley: 'en/thumb/c/c9/Barnsley_FC.svg/120px-Barnsley_FC.svg.png', birminghamcity: 'en/thumb/6/68/Birmingham_City_FC_logo.svg/120px-Birmingham_City_FC_logo.svg.png',
+  blackburnrovers: 'en/thumb/0/0f/Blackburn_Rovers.svg/120px-Blackburn_Rovers.svg.png', blackpool: 'en/thumb/d/df/Blackpool_FC_logo.svg/120px-Blackpool_FC_logo.svg.png',
+  boltonwanderers: 'en/thumb/8/82/Bolton_Wanderers_FC_logo.svg/120px-Bolton_Wanderers_FC_logo.svg.png', bradfordcity: 'en/thumb/0/04/Bradford_City_AFC_crest.svg/120px-Bradford_City_AFC_crest.svg.png',
+  brentford: 'en/thumb/2/2a/Brentford_FC_crest.svg/120px-Brentford_FC_crest.svg.png', brightonhovealbion: 'en/thumb/d/d0/Brighton_and_Hove_Albion_FC_crest.svg/120px-Brighton_and_Hove_Albion_FC_crest.svg.png',
+  bristolcity: 'en/thumb/f/f5/Bristol_City_crest.svg/120px-Bristol_City_crest.svg.png', bristolrovers: 'en/thumb/4/47/Bristol_Rovers_F.C._logo.svg/120px-Bristol_Rovers_F.C._logo.svg.png',
+  bromley: 'en/thumb/3/35/Bromley_FC_crest.svg/120px-Bromley_FC_crest.svg.png', burnley: 'en/thumb/6/6d/Burnley_FC_Logo.svg/120px-Burnley_FC_Logo.svg.png',
+  burtonalbion: 'en/thumb/9/93/Burton_Albion_FC_crest.svg/120px-Burton_Albion_FC_crest.svg.png', cambridgeunited: 'en/thumb/5/57/Cambridge_United_FC_crest.svg/120px-Cambridge_United_FC_crest.svg.png',
+  cardiffcity: 'en/thumb/3/3c/Cardiff_City_crest.svg/120px-Cardiff_City_crest.svg.png', charltonathletic: 'en/thumb/f/f5/Charlton_Athletic_FC_crest.svg/120px-Charlton_Athletic_FC_crest.svg.png',
+  chelsea: 'en/thumb/c/cc/Chelsea_FC.svg/120px-Chelsea_FC.svg.png', cheltenhamtown: 'en/thumb/c/c3/Cheltenham_Town_F.C._logo.svg/120px-Cheltenham_Town_F.C._logo.svg.png',
+  chesterfield: 'en/thumb/9/94/Chesterfield_FC_crest.svg/120px-Chesterfield_FC_crest.svg.png', colchesterunited: 'en/thumb/9/9c/Colchester_United_FC_crest.svg/120px-Colchester_United_FC_crest.svg.png',
+  coventrycity: 'en/thumb/7/7b/Coventry_City_FC_crest.svg/120px-Coventry_City_FC_crest.svg.png', crawleytown: 'en/thumb/1/11/Crawley_Town_FC_crest.svg/120px-Crawley_Town_FC_crest.svg.png',
+  crewealexandra: 'en/thumb/9/9d/Crewe_Alexandra.svg/120px-Crewe_Alexandra.svg.png', crystalpalace: 'en/thumb/a/a2/Crystal_Palace_FC_logo_%282022%29.svg/120px-Crystal_Palace_FC_logo_%282022%29.svg.png',
+  derbycounty: 'en/thumb/4/4a/Derby_County_crest.svg/120px-Derby_County_crest.svg.png', doncasterrovers: 'en/thumb/c/c5/Doncaster_Rovers_F.C._logo.svg/120px-Doncaster_Rovers_F.C._logo.svg.png',
+  everton: 'en/thumb/7/7c/Everton_FC_logo.svg/120px-Everton_FC_logo.svg.png', exetercity: 'en/thumb/7/71/Exeter_City_FC.svg/120px-Exeter_City_FC.svg.png',
+  fleetwoodtown: 'en/thumb/e/ed/Fleetwood_Town_F.C._logo.svg/120px-Fleetwood_Town_F.C._logo.svg.png', fulham: 'en/thumb/e/eb/Fulham_FC_%28shield%29.svg/120px-Fulham_FC_%28shield%29.svg.png',
+  gillingham: 'en/thumb/5/5e/FC_Gillingham_Logo.svg/120px-FC_Gillingham_Logo.svg.png', grimsbytown: 'en/thumb/d/db/Grimsby_Town_F.C._logo.svg/120px-Grimsby_Town_F.C._logo.svg.png',
+  huddersfieldtown: 'en/thumb/4/43/Huddersfield_Town_AFC_crest.svg/120px-Huddersfield_Town_AFC_crest.svg.png', hullcity: 'en/thumb/5/54/Hull_City_A.F.C._logo.svg/120px-Hull_City_A.F.C._logo.svg.png',
+  ipswichtown: 'en/thumb/4/43/Ipswich_Town.svg/120px-Ipswich_Town.svg.png', leedsunited: 'en/thumb/5/54/Leeds_United_F.C._logo.svg/120px-Leeds_United_F.C._logo.svg.png',
+  leicestercity: 'en/thumb/2/2d/Leicester_City_crest.svg/120px-Leicester_City_crest.svg.png', leytonorient: 'en/thumb/a/a8/Leyton_Orient_F.C._logo.svg/120px-Leyton_Orient_F.C._logo.svg.png',
+  lincolncity: 'en/thumb/3/39/Lincoln_City_FC_2024_crest.svg/120px-Lincoln_City_FC_2024_crest.svg.png', liverpool: 'en/thumb/0/0c/Liverpool_FC.svg/120px-Liverpool_FC.svg.png',
+  lutontown: 'en/thumb/9/9d/Luton_Town_logo.svg/120px-Luton_Town_logo.svg.png', manchestercity: 'en/thumb/e/eb/Manchester_City_FC_badge.svg/120px-Manchester_City_FC_badge.svg.png',
+  manchesterunited: 'en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png', mansfieldtown: 'en/thumb/7/7d/Mansfield_Town_FC.svg/120px-Mansfield_Town_FC.svg.png',
+  middlesbrough: 'en/thumb/2/2c/Middlesbrough_FC_crest.svg/120px-Middlesbrough_FC_crest.svg.png', millwall: 'en/thumb/9/98/Millwall_FC_crest.svg/120px-Millwall_FC_crest.svg.png',
+  miltonkeynesdons: 'en/thumb/e/e5/Milton_Keynes_Dons_FC_2025_crest.svg/120px-Milton_Keynes_Dons_FC_2025_crest.svg.png', newcastleunited: 'en/thumb/8/87/Newcastle_United_FC_2026_crest.svg/120px-Newcastle_United_FC_2026_crest.svg.png',
+  newportcounty: 'en/thumb/4/44/Newport_County_AFC_crest.svg/120px-Newport_County_AFC_crest.svg.png', northamptontown: 'en/thumb/2/2d/Northampton_Town_F.C._logo.svg/120px-Northampton_Town_F.C._logo.svg.png',
+  norwichcity: 'en/thumb/1/17/Norwich_City_FC_logo.svg/120px-Norwich_City_FC_logo.svg.png', nottinghamforest: 'en/thumb/e/e5/Nottingham_Forest_F.C._logo.svg/120px-Nottingham_Forest_F.C._logo.svg.png',
+  nottscounty: 'en/thumb/2/2e/Notts_County_Logo.svg/120px-Notts_County_Logo.svg.png', oldhamathletic: 'en/thumb/a/a2/Oldham_Athletic_AFC_%28emblem%29.svg/120px-Oldham_Athletic_AFC_%28emblem%29.svg.png',
+  oxfordunited: 'en/thumb/3/3e/Oxford_United_FC_logo.svg/120px-Oxford_United_FC_logo.svg.png', peterboroughunited: 'en/thumb/9/9a/Peterborough_United_FC_crest.svg/120px-Peterborough_United_FC_crest.svg.png',
+  plymouthargyle: 'en/thumb/a/a8/Plymouth_Argyle_F.C._logo.svg/120px-Plymouth_Argyle_F.C._logo.svg.png', portsmouth: 'en/thumb/3/38/Portsmouth_FC_logo.svg/120px-Portsmouth_FC_logo.svg.png',
+  portvale: 'en/thumb/5/5f/Port_Vale_logo.svg/120px-Port_Vale_logo.svg.png', prestonnorthend: 'en/thumb/8/82/Preston_North_End_FC.svg/120px-Preston_North_End_FC.svg.png',
+  queensparkrangers: 'en/thumb/3/31/Queens_Park_Rangers_crest.svg/120px-Queens_Park_Rangers_crest.svg.png', reading: 'en/thumb/1/11/Reading_FC.svg/120px-Reading_FC.svg.png',
+  rochdale: 'en/thumb/b/bb/Rochdale_AFC_crest.svg/120px-Rochdale_AFC_crest.svg.png', rotherhamunited: 'en/thumb/4/42/Rotherham_United_F.C._svg.svg/120px-Rotherham_United_F.C._svg.svg.png',
+  salfordcity: 'en/thumb/7/70/Salford_City_F.C._new_logo.svg/120px-Salford_City_F.C._new_logo.svg.png', sheffieldunited: 'en/thumb/9/9c/Sheffield_United_FC_logo.svg/120px-Sheffield_United_FC_logo.svg.png',
+  sheffieldwednesday: 'en/thumb/b/b8/Sheffield_Wednesday_FC_2026_crest.svg/120px-Sheffield_Wednesday_FC_2026_crest.svg.png', shrewsburytown: 'en/thumb/1/1b/Shrewsbury_Town_F.C._logo.svg/120px-Shrewsbury_Town_F.C._logo.svg.png',
+  southampton: 'en/thumb/c/c9/FC_Southampton.svg/120px-FC_Southampton.svg.png', stevenage: 'en/thumb/4/49/Stevenage_FC_crest.svg/120px-Stevenage_FC_crest.svg.png',
+  stockportcounty: 'en/thumb/4/43/Stockport_County_FC_logo_2020.svg/120px-Stockport_County_FC_logo_2020.svg.png', stokecity: 'en/thumb/b/bf/Stoke_City_FC_crest_2026.svg/120px-Stoke_City_FC_crest_2026.svg.png',
+  sunderland: 'en/thumb/7/77/Logo_Sunderland.svg/120px-Logo_Sunderland.svg.png', swanseacity: 'en/thumb/f/f9/Swansea_City_AFC_logo.svg/120px-Swansea_City_AFC_logo.svg.png',
+  swindontown: 'en/thumb/a/a3/Swindon_Town_FC.svg/120px-Swindon_Town_FC.svg.png', tottenhamhotspur: 'en/thumb/b/b4/Tottenham_Hotspur.svg/120px-Tottenham_Hotspur.svg.png',
+  tranmererovers: 'en/thumb/5/55/Tranmere_Rovers_FC_crest.svg/120px-Tranmere_Rovers_FC_crest.svg.png', walsall: 'en/thumb/e/ef/Walsall_FC.svg/120px-Walsall_FC.svg.png',
+  watford: 'en/thumb/e/e2/Watford.svg/120px-Watford.svg.png', westbromwichalbion: 'en/thumb/8/8b/West_Bromwich_Albion.svg/120px-West_Bromwich_Albion.svg.png',
+  westhamunited: 'en/thumb/c/c2/West_Ham_United_FC_logo.svg/120px-West_Ham_United_FC_logo.svg.png', wiganathletic: 'en/thumb/4/43/Wigan_Athletic.svg/120px-Wigan_Athletic.svg.png',
+  wolverhamptonwanderers: 'en/thumb/c/c9/Wolverhampton_Wanderers_FC_crest.svg/120px-Wolverhampton_Wanderers_FC_crest.svg.png', wrexham: 'en/thumb/0/0d/Wrexham_A.F.C._Logo.svg/120px-Wrexham_A.F.C._Logo.svg.png',
+  wycombewanderers: 'en/thumb/f/fb/Wycombe_Wanderers_FC_logo.svg/120px-Wycombe_Wanderers_FC_logo.svg.png', yorkcity: 'en/thumb/7/71/York_City_FC.svg/120px-York_City_FC.svg.png',
+};
+const EN_ALIAS = { qpr: 'queensparkrangers', westbrom: 'westbromwichalbion', sheffieldwed: 'sheffieldwednesday', mkdons: 'miltonkeynesdons',
+  wolves: 'wolverhamptonwanderers', spurs: 'tottenhamhotspur', manutd: 'manchesterunited', manunited: 'manchesterunited', mancity: 'manchestercity',
+  brighton: 'brightonhovealbion', brightonandhovealbion: 'brightonhovealbion', prestonne: 'prestonnorthend' };
+const crestKey = (n) => String(n || '').toLowerCase().replace(/&/g, '').replace(/\b(a\.?f\.?c\.?|f\.?c\.?)(?=\W|$)/g, '').replace(/[^a-z]/g, '');
+const enCrest = (n) => { const k = crestKey(n); return EN_CREST[EN_ALIAS[k] || k] || ''; };
+const srLogo = (n) => { const f = SR_LOGO[n] || SR_LOGO_SHORT[n] || enCrest(n); return f ? `https://upload.wikimedia.org/wikipedia/${f}` : ''; };
 export function mapSr(lg, sum) {
   const ev = sum.sport_event || {}, es = sum.sport_event_status || {};
   const comp = ev.competitors || [];
