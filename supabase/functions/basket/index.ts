@@ -5,6 +5,7 @@
 //     Spielplan von swiss.basketball (Widget 2, nur ab heute), Live-Stände von FIBA LiveStats (Genius Sports, öffentlich).
 //     Beendete Spiele werden in el_fb_cache (Schlüssel sbl-results) gesammelt, daraus Resultate. Tabelle offiziell von swiss.basketball
 //     (swiss.basketball/basketplan/showRankingForLeague.do, alle 30 Min.), sonst aus den gesammelten Resultaten gerechnet.
+//   GET ?sblleaders=1 → Spieler-Bestenlisten (Schnitt pro Spiel: Punkte, Rebounds, Assists, Steals, Blocks, Dreier, Bewertung), je Top 10
 //   GET ?sblgame=<Spiel-Nr.> → Spielbericht: Stand, Viertel, Trainer, Spieler (Pkt/Reb/Ass/Min), letzte Körbe
 //   GET ?bvn=<liga> → BVN-Liga (z. B. h2l = Herren 2. Liga): { updated, league, games, table } über die offene BVN-API (api.bvn.ch)
 //
@@ -125,7 +126,18 @@ async function sbl() {
   if (changed) await cacheSet('sbl-results', results);
   // Gespeicherte Resultate (nicht mehr im Spielplan) dazu
   const seen = new Set(games.map((g) => g.id));
-  for (const r of Object.values(results)) if (!seen.has(r.id)) games.push(r);
+  for (const r of Object.values(results)) if (!seen.has(r.id)) { games.push(r); seen.add(r.id); }
+  // Ganzer Spielplan der Saison von swiss.basketball (Resultate seit Saisonstart, Halle, Video); laufende/eigene Stände haben Vorrang
+  const season = await sblSeasonGames(games).catch(() => []);
+  const byId = new Map(games.map((g) => [g.id, g]));
+  // Künftige Spiele haben bei basketplan oft noch keine FIBA-Nr.: zusätzlich über Tag und Teams abgleichen (sonst doppelt)
+  const pair = (g) => `${String(g.utc).slice(0, 10)}|${g.h?.c || g.h?.n}|${g.a?.c || g.a?.n}`;
+  const byPair = new Map(games.map((g) => [pair(g), g]));
+  for (const x of season) {
+    const g = byId.get(x.id) || byPair.get(pair(x));
+    if (g) { if (x.video) g.video = x.video; if (x.venue) g.venue = x.venue; continue; }
+    games.push(x); seen.add(x.id);
+  }
   games.sort((x, y) => x.utc.localeCompare(y.utc) || x.id - y.id);
   const own = tableOf(games.filter((g) => g.st === 'ft'), (g) => g.h.c, (g) => g.a.c, (g) => g.h, (g) => g.a);
   // Offizielle Tabelle des Verbands (alle Spiele der Saison); sonst die aus den gesammelten Resultaten gerechnete
@@ -151,13 +163,13 @@ async function sblHoldingId() {
     // SB League Men (leagueId 1): die laufende Phase, sonst die zuletzt begonnene
     const list = [...xml.matchAll(/<LeagueHoldingRSS [^>]*>/g)].map((m) => xmlAttrs(m[0])).filter((h) => h.leagueId === '1' && h.from <= today)
       .sort((a, b) => b.from.localeCompare(a.from));
-    return (list.find((h) => !h.to || h.to >= today) || list[0])?.id || null;
+    return list.find((h) => !h.to || h.to >= today) || list[0] || null;
   });
 }
 const tKey = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 async function sblOfficialTable(games) {
   return memo('sbl-official', 30 * 60 * 1000, async () => {
-    const id = await sblHoldingId();
+    const id = (await sblHoldingId())?.id;
     if (!id) return null;
     const xml = await sbXml(`showRankingForLeague.do?lang=de&xmlView=rss&leagueId=1&leagueHoldingId=${encodeURIComponent(id)}&resultType=big`);
     const rows = [...xml.matchAll(/<RankingRSS [^>]*>/g)].map((m) => xmlAttrs(m[0]));
@@ -185,6 +197,57 @@ function tableOf(done, hk, ak, ht, at) {
     if (g.hs > g.as) { h.w++; a.l++; } else if (g.as > g.hs) { a.w++; h.l++; }
   }
   return [...m.values()].sort((x, y) => y.w - x.w || x.l - y.l || (y.pf - y.pa) - (x.pf - x.pa) || y.pf - x.pf).map((r, i) => ({ ...r, rank: i + 1 }));
+}
+
+// Teams des Spielplans (Kürzel, Kurzname, Logo) über den vollen Vereinsnamen finden
+function teamFinder(games) {
+  const teams = new Map();
+  for (const g of games) for (const t of [g.h, g.a]) if (t?.full) teams.set(tKey(t.full), t);
+  return (n) => { const k = tKey(n); return teams.get(k) || [...teams.entries()].find(([tk]) => tk.startsWith(k.slice(0, 8)) || k.startsWith(tk.slice(0, 8)))?.[1]
+    || { n: SBL_SHORT_BY_NAME(n), full: str(n, 60), c: '', logo: '' }; };
+}
+const SBL_SHORT_BY_NAME = (n) => str(String(n || '').replace(/\s+pwd by.*$/i, '').replace(/^(BBC|A\+\+)\s+/, ''), 40);
+// Alle Spiele der laufenden Phase (eine Abfrage, 30 Min.): Nr. = FIBA-LiveStats-Nr. (wie im Spielplan-Widget), sonst negative basketplan-Nr.
+async function sblSeasonGames(known) {
+  return memo('sbl-season', 30 * 60 * 1000, async () => {
+    const h = await sblHoldingId();
+    if (!h?.id) return [];
+    const xml = await sbXml(`showLeagueSchedule.do?lang=de&xmlView=rss&leagueId=1&leagueHoldingId=${encodeURIComponent(h.id)}&daysBack=2500&daysFuture=2250&totalGames=200&resultType=big`);
+    const find = teamFinder(known);
+    const out = [];
+    for (const m of xml.matchAll(/<GameRSS ([^>]*)>([\s\S]*?)<\/GameRSS>/g)) {
+      const g = xmlAttrs(`<x ${m[1]}>`);
+      const ht = xmlAttrs((/<homeTeam [^>]*>/.exec(m[2]) || [''])[0]), gt = xmlAttrs((/<guestTeam [^>]*>/.exec(m[2]) || [''])[0]);
+      if (!/^\d{4}-\d\d-\d\d$/.test(g.date || '') || !ht.name || !gt.name) continue;
+      const fiba = num((/\/u\/SUI\/(\d+)/.exec(g.liveStatsLink || '') || [])[1]);
+      const hs = num(ht.result), as = num(gt.result);
+      const done = hs != null && as != null && (hs > 0 || as > 0);
+      out.push({ id: fiba || -(num(g.id) || 0), utc: zurichUtc(g.date, /^\d\d:\d\d/.test(g.time || '') ? g.time.slice(0, 5) : '12:00'), round: num(g.round),
+        h: find(ht.name), a: find(gt.name), st: done ? 'ft' : 'pre', ...(done ? { hs, as } : {}),
+        venue: str(g.locationName, 60), video: /^https:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]{6,20}$/.test(g.videoLink || '') ? g.videoLink : '' });
+    }
+    return out;
+  });
+}
+// Spieler-Bestenlisten (Schnitt pro Spiel), je Kategorie eine Abfrage, 60 Min. gemerkt; je die besten 10
+const LEADER_TYPES = [['POINTS', 'Punkte'], ['REBOUNDS_TOTAL', 'Rebounds'], ['ASSISTS', 'Assists'], ['RECAPTURED_BALLES', 'Steals'], ['BLOCKS', 'Blocks'], ['THREE_POINTS_SUCCESS', 'Dreier'], ['EVALUATION', 'Bewertung']];
+async function sblLeaders() {
+  return memo('sbl-leaders', 60 * 60 * 1000, async () => {
+    const h = await sblHoldingId();
+    if (!h?.id) return { cats: [] };
+    const find = teamFinder((await sblSchedule().catch(() => [])).concat(Object.values((await cacheGet('sbl-results')) || {})));
+    const cats = [];
+    for (const [type, name] of LEADER_TYPES) {
+      try {
+        const xml = await sbXml(`showAverageHoldingPlayer.do?lang=de&xmlView=rss&cmd=searchAfterLeagueHolding&leagueId=1&federationId=12&searchLevel=LEAGUEHOLDING&fromDate=${h.from}&toDate=${h.to || ''}&leagueHoldingId=${h.id}&satisticType=${type}`);
+        const rows = [...xml.matchAll(/<AverageHoldingPlayerGuiRow [^>]*>/g)].map((m) => xmlAttrs(m[0])).slice(0, 10).map((r) => ({
+          rank: num(r.rank), n: str(`${String(r.playerFirstName || '').split(' ')[0]} ${r.playerLastName || ''}`.trim() || r.playerName, 40),
+          t: find(r.teamName), avg: str(r.average, 8), gp: num(r.gameCount) }));
+        if (rows.length) cats.push({ id: type, name, rows });
+      } catch { /* Kategorie fehlt dann */ }
+    }
+    return { updated: new Date().toISOString(), phase: str(h.name, 40), cats };
+  });
 }
 
 async function sblGame(id) {
@@ -243,6 +306,7 @@ async function handle(req) {
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers });
   const p = new URL(req.url).searchParams;
   try {
+    if (p.has('sblleaders')) return new Response(JSON.stringify(await sblLeaders()), { headers: { ...headers, 'Cache-Control': 'max-age=600' } });
     if (p.has('sbl')) return new Response(JSON.stringify(await sbl()), { headers: { ...headers, 'Cache-Control': 'max-age=15' } });
     if (p.has('sblgame')) {
       const id = Number(p.get('sblgame'));

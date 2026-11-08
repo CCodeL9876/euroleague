@@ -82,7 +82,7 @@ function row(g) {
   const when = live ? '<b class="rg-live">Live</b>' : done ? '<span class="rg-end">Ende</span>' : g.st === 'open' ? '<span class="rg-end">offen</span>' : t ? esc(hm(t)) : '–';
   const mine = !onlyMine && (isFav(g.h) || isFav(g.a));
   const tag = IS_SBL ? 'button' : 'div';
-  const attrs = IS_SBL && g.st !== 'pre' ? ` type="button" data-game="${g.id}"` : IS_SBL ? ' type="button" disabled' : '';
+  const attrs = IS_SBL && g.st !== 'pre' && g.id > 0 ? ` type="button" data-game="${g.id}"` : IS_SBL ? ' type="button" disabled' : '';
   const where = !IS_SBL && g.gym && !done ? `<small class="rg-gym">${esc(g.gym)}</small>` : '';
   return `<${tag} class="rg-row${mine ? ' mine' : ''}${done ? ' done' : ''}"${attrs}>
     <span class="rg-t num">${when}</span>
@@ -124,7 +124,7 @@ function gamesView() {
   const done = section(onlyMine && favTeam ? 'Letzte Resultate' : 'Resultate', past, onlyMine && favTeam ? 99 : 5);
   parts.push(...(onlyMine && favTeam ? [done, next] : [next, done]));
   if (!upcoming.length && !past.length && !lives.length) parts.push('<p class="notice">Keine Spiele gefunden.</p>');
-  parts.push(`<p class="rg-src">${IS_SBL ? 'Spielplan: swiss.basketball · Live-Stände und Statistik: FIBA LiveStats. Resultate sammelt die App ab Saisonstart selbst.' : 'Daten: BVN-API (Basketball Verband Nordwestschweiz). Resultate erscheinen, sobald sie erfasst sind; live gibt es keine Stände.'}${data.updated ? ` Stand ${esc(hm(new Date(data.updated)))}.` : ''}</p>`);
+  parts.push(`<p class="rg-src">${IS_SBL ? 'Spielplan und Resultate: swiss.basketball · Live-Stände und Statistik: FIBA LiveStats.' : 'Daten: BVN-API (Basketball Verband Nordwestschweiz). Resultate erscheinen, sobald sie erfasst sind; live gibt es keine Stände.'}${data.updated ? ` Stand ${esc(hm(new Date(data.updated)))}.` : ''}</p>`);
   return parts.join('');
 }
 
@@ -142,10 +142,33 @@ function tableView() {
     <p class="rg-src">Tippe auf ein Team, um es zu deinen Teams hinzuzufügen oder zu entfernen (auch in Mein Sport)${IS_SBL ? (official ? '. Tabelle: swiss.basketball.' : '. Die Tabelle rechnet die App aus den gesammelten Resultaten.') : '.'}</p></section>`;
 }
 
+// ---------- Spieler-Bestenlisten (nur SB League; swiss.basketball, Schnitt pro Spiel) ----------
+let leaders = null, leadersErr = '', leadersBusy = false, cat = 'POINTS';
+async function loadLeaders() {
+  if (leadersBusy || (leaders && Date.now() - leaders.at < 30 * 60 * 1000)) return;
+  leadersBusy = true;
+  try { leaders = { ...(await api('sblleaders=1')), at: Date.now() }; leadersErr = ''; } catch (e) { leadersErr = `Bestenlisten nicht erreichbar (${e.message}).`; }
+  leadersBusy = false;
+  if (view === 'spieler') render();
+}
+function leadersView() {
+  if (!leaders) { loadLeaders(); return `<p class="notice">${esc(leadersErr || 'Lade Bestenlisten …')}</p>`; }
+  if (!leaders.cats?.length) return '<p class="notice">Noch keine Bestenlisten.</p>';
+  const c = leaders.cats.find((x) => x.id === cat) || leaders.cats[0];
+  const top = Number(String(c.rows[0]?.avg).replace(',', '.')) || 1;
+  return `<div class="rg-filter rg-cats" role="group" aria-label="Kategorie">${leaders.cats.map((x) => `<button type="button" data-cat="${esc(x.id)}" aria-pressed="${x.id === c.id}">${esc(x.name)}</button>`).join('')}</div>
+    <section class="rg-sec"><h2>${esc(c.name)} pro Spiel</h2><ol class="rg-lead">${c.rows.map((r) => {
+      const v = Number(String(r.avg).replace(',', '.')) || 0;
+      return `<li class="${isFav(r.t) ? 'mine' : ''}"><span class="rk num">${esc(r.rank)}</span><span class="who"><b>${esc(r.n)}</b><small>${crest(r.t)}${esc(teamName(r.t))} · ${esc(r.gp)} ${r.gp === 1 ? 'Spiel' : 'Spiele'}</small></span>
+        <span class="val num">${esc(r.avg)}</span><i style="--w:${Math.max(4, Math.round((v / top) * 100))}%"></i></li>`;
+    }).join('')}</ol></section>
+    <p class="rg-src">Quelle: swiss.basketball${leaders.phase ? ` · ${esc(/preliminary/i.test(leaders.phase) ? 'Qualifikation' : /play.?off/i.test(leaders.phase) ? 'Playoffs' : leaders.phase)}` : ''}. Eigene Teams hervorgehoben.</p>`;
+}
+
 function render() {
   const main = $('#rgMain');
   const keep = main.querySelector('.hero-scroll')?.scrollLeft || 0;
-  main.innerHTML = view === 'tabelle' ? tableView() : gamesView();
+  main.innerHTML = view === 'tabelle' ? tableView() : view === 'spieler' && IS_SBL ? leadersView() : gamesView();
   const hs = main.querySelector('.hero-scroll'); if (hs) hs.scrollLeft = keep;
   document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false'));
 }
@@ -211,12 +234,13 @@ function gameHtml(g) {
 
 // ---------- Ereignisse ----------
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-game],[data-view],[data-mine],[data-fav],[data-close],[data-boxtab]');
+  const t = e.target.closest('[data-game],[data-view],[data-mine],[data-fav],[data-close],[data-boxtab],[data-cat]');
   if (!t) { if (e.target === dlg) dlg.close(); return; }
   if (t.dataset.close !== undefined) { dlg.close(); return; }
   if (t.dataset.boxtab) { boxTab = t.dataset.boxtab; refreshGame(); return; }
   if (t.dataset.game) { if (IS_SBL) openGame(Number(t.dataset.game)); return; }
   if (t.dataset.view) { view = t.dataset.view; render(); window.scrollTo({ top: 0 }); return; }
+  if (t.dataset.cat) { cat = t.dataset.cat; render(); return; }
   if (t.dataset.mine) { onlyMine = t.dataset.mine === '1'; render(); return; }
   if (t.dataset.fav !== undefined) {
     const k = t.dataset.fav;

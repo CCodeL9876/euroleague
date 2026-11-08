@@ -81,3 +81,20 @@ button.rg-row:disabled{opacity:1;}
 /* Eigene Vereinswappen (z. B. BC Arlesheim): dunkle Linien auf weissem Kreis, damit sie auch im Dunkelmodus lesbar sind */
 .logo.club{background:#fff;}
 .logo.club img{width:92%;height:92%;}
+
+/* Spieler-Bestenlisten (SB League) */
+.rg-cats{overflow-x:auto;scrollbar-width:none;align-self:stretch;}
+.rg-cats button{flex:none;overflow:visible;}
+.rg-cats::-webkit-scrollbar{display:none;}
+.rg-lead{list-style:none;margin:0;padding:0;background:var(--card);border-radius:14px;}
+.rg-lead li{display:grid;grid-template-columns:28px minmax(0,1fr) auto;grid-template-areas:"rk who val" "rk bar bar";gap:4px 10px;align-items:center;padding:9px 12px;border-top:1px solid var(--line);}
+.rg-lead li:first-child{border-top:0;}
+.rg-lead li.mine{background:color-mix(in srgb, var(--gold) 12%, transparent);}
+.rg-lead .rk{grid-area:rk;color:var(--dim);font-weight:600;text-align:center;}
+.rg-lead .who{grid-area:who;min-width:0;}
+.rg-lead .who b{display:block;font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rg-lead .who small{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:0.76rem;margin-top:2px;}
+.rg-lead .who small .logo.xs{width:18px;height:18px;}
+.rg-lead .val{grid-area:val;font-family:var(--mono);font-weight:700;font-size:1.05rem;}
+.rg-lead i{grid-area:bar;display:block;height:3px;border-radius:2px;background:var(--line);position:relative;overflow:hidden;}
+.rg-lead i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--w);background:var(--blue);border-radius:2px;}
