@@ -593,6 +593,13 @@ function renderSheet() {
         <div class="fb-sheet-body">${playerHtml(playerCache.get(sheet.pid))}</div></section>`;
     return;
   }
+  if (sheet.id === 'usage') {
+    if (!el) { el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap'; document.body.appendChild(el); document.body.classList.add('fb-sheet-open'); }
+    const keepScroll = el.querySelector('.fb-sheet-body')?.scrollTop || 0;
+    el.innerHTML = usageSheetHtml();
+    el.querySelector('.fb-sheet-body').scrollTop = keepScroll;
+    return;
+  }
   if (sheet.id === 'order') {
     if (!el) { el = document.createElement('div'); el.id = 'fbSheet'; el.className = 'fb-sheet-wrap'; document.body.appendChild(el); document.body.classList.add('fb-sheet-open'); }
     const keepScroll = el.querySelector('.fb-sheet-body')?.scrollTop || 0;
@@ -632,6 +639,53 @@ let leagueOrder = (() => { try { const v = JSON.parse(store.get('el-fb-order', '
 function orderedLeagues() {
   const list = data?.leagues || [], pos = (lg, i) => { const k = leagueOrder.indexOf(lg.id); return k < 0 ? 1000 + i : k; };
   return list.map((lg, i) => ({ lg, p: pos(lg, i) })).sort((a, b) => a.p - b.p).map((x) => x.lg);
+}
+// ---------- Blatt: API-Verbrauch pro Liga und Datenelement (Zähler der Funktion, ?usage=1) ----------
+let usage = null, usageDay = 0;
+async function loadUsage() {
+  try {
+    const res = await fetch(`${DATA_URL}?usage=1`, { headers: { apikey: SUPABASE_ANON_KEY }, cache: 'no-store', signal: AbortSignal.timeout(20000) });
+    const d = await res.json();
+    usage = Array.isArray(d?.days) ? d : { error: 'Der Zähler läuft erst nach dem Neu-Einspielen der Funktion «fussball».' };
+  } catch { usage = { error: 'Verbrauch gerade nicht erreichbar.' }; }
+  if (sheet?.id === 'usage') renderSheet();
+}
+const SRC_NAME = { bb: 'Big Balls', sr: 'Sportradar' };
+function usageSheetHtml() {
+  const head = `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
+    <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
+      <div class="fb-sheet-h"><span class="fb-lg" style="--c:var(--pitch)">≋</span><b id="fbSheetTitle">API-Verbrauch</b>
+        <button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Schliessen">✕</button></div>`;
+  if (!usage) return `${head}<div class="fb-sheet-body"><p class="fb-x-note">Lade …</p></div></section>`;
+  if (usage.error) return `${head}<div class="fb-sheet-body"><p class="fb-x-note">${esc(usage.error)}</p></div></section>`;
+  const day = usage.days[usageDay] || usage.days[0];
+  const lgs = new Map(usage.leagues.map((l) => [l.id, l]));
+  const label = (d, i) => (i === 0 ? 'Heute' : i === 1 ? 'Gestern' : new Intl.DateTimeFormat('de-CH', { weekday: 'short', day: 'numeric', month: 'numeric' }).format(new Date(`${d}T12:00:00Z`)));
+  const tot = (src) => day.rows.filter((r) => r.src === src).reduce((a, r) => a + r.n, 0);
+  const meter = (src, counted) => {
+    const n = day[src] ?? counted, max = usage.max[src] || 0, pct = max ? Math.min(100, Math.round((n / max) * 100)) : 0;
+    return `<div class="fb-use-m"><span><b>${SRC_NAME[src]}</b> ${esc(n)} von ${esc(max)}</span><i style="--w:${pct}%"></i></div>`;
+  };
+  // Nach Liga gruppieren: zuerst «alle Ligen» (Live-Feed, Tagesliste), dann die Ligen nach Verbrauch
+  const groups = new Map();
+  for (const r of day.rows) { const k = r.lg || '?'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+  const sum = (list) => list.reduce((a, r) => a + r.n, 0);
+  const order = [...groups.keys()].sort((a, b) => (a === 'alle' ? -1 : b === 'alle' ? 1 : a === '?' ? 1 : b === '?' ? -1 : sum(groups.get(b)) - sum(groups.get(a))));
+  const top = Math.max(1, ...day.rows.map((r) => r.n));
+  const card = (k) => {
+    const lg = lgs.get(k), list = groups.get(k).sort((a, b) => b.n - a.n);
+    const name = k === 'alle' ? 'Alle Ligen zusammen' : k === '?' ? 'Ohne Zuordnung' : lg?.name || k;
+    const badge = k === 'alle' ? '<span class="fb-lg" style="--c:var(--pitch)">≡</span>' : lg ? `<span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>` : '<span class="fb-lg" style="--c:#6B7280">?</span>';
+    return `<section class="fb-use-card"><h3>${badge}<b>${esc(name)}</b><small>${sum(list)}</small></h3>
+      ${list.map((r) => `<div class="fb-use-r"><span class="el">${esc(r.el)}</span><span class="src ${esc(r.src)}">${SRC_NAME[r.src] || esc(r.src)}</span><span class="n">${esc(r.n)}</span><i style="--w:${Math.max(2, Math.round((r.n / top) * 100))}%"></i></div>`).join('')}</section>`;
+  };
+  return `${head}
+      <div class="fb-seg fb-use-days" role="tablist">${usage.days.map((d, i) => `<button type="button" role="tab" data-act="fb-use-day" data-i="${i}" aria-selected="${i === usageDay}">${esc(label(d.day, i))}</button>`).join('')}</div>
+      <div class="fb-sheet-body">
+        <div class="fb-use-top">${meter('bb', tot('bb'))}${meter('sr', tot('sr'))}</div>
+        ${day.rows.length ? order.map(card).join('') : '<p class="fb-x-note">Für diesen Tag noch keine gezählten Abfragen.</p>'}
+        <p class="fb-x-src">Gezählt pro Abfrage an Big Balls und Sportradar (Tag nach UTC). OpenLigaDB (2. Bundesliga), Wikipedia und Wikidata sind frei und nicht gezählt.</p>
+      </div></section>`;
 }
 function orderSheetHtml() {
   const list = orderedLeagues();
@@ -851,6 +905,7 @@ const ICON = {
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
   bell: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   sort: '<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
   star: '<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
 };
@@ -881,7 +936,7 @@ function renderMenu() {
   if (!menuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
   menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profileName))}</span><span><b>${esc(profileName)}</b><small>Teams: ${esc(FAV ? [...FAV.values()].join(', ') || 'keine' : LEGACY_FAV.join(', ') || 'keine')}</small></span></div>
-    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('fb-push', 'bell', pushOn ? 'Mitteilungen (Tore, Aufstellung): Ein' : 'Mitteilungen (Tore, Aufstellung): Aus')}${item('fb-push-test', 'bell', 'Testmeldung senden')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
+    ${item('fb-fav', 'star', 'Teams wählen')}${item('fb-order-open', 'sort', 'Reihenfolge der Ligen')}${item('fb-usage', 'chart', 'API-Verbrauch')}${item('fb-push', 'bell', pushOn ? 'Mitteilungen (Tore, Aufstellung): Ein' : 'Mitteilungen (Tore, Aufstellung): Aus')}${item('fb-push-test', 'bell', 'Testmeldung senden')}${item('copy-link', 'share', 'Link für Home-App kopieren')}<hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
   menu.querySelector('.pm-item')?.focus();
 }
 function toast(msg) {
@@ -942,6 +997,8 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (act === 'fb-push') { menuOpen = false; renderMenu(); togglePush(); return; }
+  if (act === 'fb-usage') { menuOpen = false; renderMenu(); usage = null; usageDay = 0; sheet = { id: 'usage' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); loadUsage(); return; }
+  if (act === 'fb-use-day') { usageDay = Number(e.target.closest('[data-act]').dataset.i) || 0; renderSheet(); return; }
   if (act === 'fb-order-open') { menuOpen = false; renderMenu(); sheet = { id: 'order' }; renderSheet(); document.querySelector('.fb-sheet-x')?.focus(); return; }
   if (act === 'fb-order') { const b = e.target.closest('[data-id]'); moveLeague(b.dataset.id, Number(b.dataset.dir)); return; }
   if (act === 'fb-order-reset') { leagueOrder = []; store.set('el-fb-order', '[]'); renderSheet(); render(); return; }

@@ -20,6 +20,7 @@
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
 //     Karriere und Foto aus Wikipedia/Wikidata
 //   POST { kind: 'push-sub'|'push-unsub', endpoint, name, pin } → Gerät für Tor-Mitteilungen an-/abmelden (Tabelle el_fb_push)
+//   GET ?usage=1 → Verbrauch der letzten 7 Tage pro Quelle, Datenelement und Liga (gezählt in el_fb_cache «use:<Tag>»)
 //   GET ?fbpushtick=1 → (Zeitplan, jede Minute) Tore der Lieblingsteams erkennen und Push senden; ?fbpushmsg=<endpoint> → Meldungen fürs Gerät
 //   GET ?bbtest=1 → Test: Aufstellungen und Spielerdaten von Big Balls für Fussball (≈8 Abfragen), höchstens alle 30 Min.
 //   GET ?bbusage=1 → Big-Balls-Konto: Plan, Tageslimit, GitHub verknüpft, heute verbraucht (/v1/user/me, /v1/usage), höchstens alle 10 Min.
@@ -178,6 +179,7 @@ const BB_LIVE_MS_FN = () => (bbDailyMax() >= 1000 && liveEager ? 2 : 5) * 60 * 1
 let bbPausedAt = 0;
 const bbAllowed = async () => { const ok = await dailyAllowed('bbcount', bbDailyMax()); if (!ok) bbPausedAt = Date.now(); return ok; };
 async function bbGet(path, params = {}) {
+  countUse('bb', path, params);
   const q = new URLSearchParams(params);
   const res = await fetch(`${BB_BASE}/${path}${String(q) ? `?${q}` : ''}`, { headers: { 'x-api-key': Deno.env.get('BIGBALLS_KEY') || '' }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
   const d = await res.json().catch(() => null);
@@ -428,6 +430,7 @@ async function espnApply(list, res, now, open, onlyPre) {
 async function bbLeagues(list, now) {
   if (!Deno.env.get('BIGBALLS_KEY')) return list.map(() => ({ status: 'nokey', message: 'Big-Balls-Schlüssel fehlt', matches: [] }));
   const res = await Promise.all(list.map((lg) => bbFixtures(lg, now)));
+  list.forEach((lg, i) => { for (const m of res[i].matches || []) MATCH_LG.set(m.id, lg.id); });
   const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 30 * 3600e3;
   const forceKickoff = res.some((r) => r.matches.some((m) => kickoffJustStarted(m, now)));
   if (!res.some((r) => r.matches.some(open)) && !forceKickoff) return res;
@@ -647,6 +650,7 @@ async function srMatchFor(m, now) {
   const sr = lg?.sr || SR_LINEUP[m.l];
   if (!sr || !Deno.env.get('SPORTRADAR_KEY')) return null;
   const sched = await srFixtures({ ...lg, key: sr }, now);
+  for (const x of sched.matches) if (!MATCH_LG.has(x.id)) MATCH_LG.set(x.id, m.l);
   const t = Date.parse(m.utc);
   return sched.matches.find((x) => x.id === m.id) || sched.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 3 * 3600e3 && (nameKey(x.h) === nameKey(m.h) || nameKey(x.a) === nameKey(m.a))) || null;
 }
@@ -999,7 +1003,8 @@ const SR_STATS_MS = 5 * 60 * 1000;
 const srAllowed = () => dailyAllowed('srcount', srDailyMax());
 // Test-Zugang: höchstens 1 Abfrage pro Sekunde, darum nacheinander mit Abstand
 let srLast = 0;
-async function srGet(path, params = {}) {
+async function srGet(path, params = {}, el = '') {
+  countUse('sr', path, params, el);
   const wait = srLast + 1100 - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   srLast = Date.now();
@@ -1008,6 +1013,57 @@ async function srGet(path, params = {}) {
   const d = await res.json().catch(() => null);
   if (!res.ok) throw new Error(String(d?.message || `HTTP ${res.status}`));
   return d;
+}
+// ---------- Verbrauch pro Datenelement und Liga (Big Balls, Sportradar) ----------
+// Jede Abfrage wird im Speicher gezählt und am Ende jeder Anfrage in el_fb_cache «use:<Tag>» zusammengeführt (ungefähr, keine API-Kosten)
+const MATCH_LG = new Map(), SEASON_LG = new Map(), USE = new Map();
+const lgOfKey = (k) => FB_LEAGUES.find((l) => l.key === k || l.sr === k)?.id || Object.entries(SR_LINEUP).find(([, v]) => v === k)?.[0]
+  || Object.entries(BB_TABLE).find(([, v]) => v.key === k || v.scorers === k || v.sr === k)?.[0] || '';
+function useTag(src, path, params, el) {
+  const m = (re) => (re.exec(path) || [])[1];
+  if (src === 'bb') {
+    if (path === 'matches') return ['Spielplan', lgOfKey(params.league)];
+    if (path === 'scores') return [params.date ? 'Tagesliste (Endstände)' : 'Live-Feed', 'alle'];
+    if (path === 'standings') return ['Tabelle', lgOfKey(params.league)];
+    let id = m(/^leagues\/([^/]+)\/top-scorers/); if (id) return ['Torschützenliste', lgOfKey(id)];
+    id = m(/^(?:stored\/)?matches\/([^/]+)/);
+    if (id) return [/lineups$/.test(path) ? 'Aufstellung' : /statistics$/.test(path) ? 'Statistik' : 'Tore & Torschützen', MATCH_LG.get(`bb-${id}`) || ''];
+    if (/^players\//.test(path)) return ['Spielerprofil', 'alle'];
+    return ['Sonstiges', 'alle'];
+  }
+  let id = m(/^competitions\/([^/]+)\/seasons/); if (id) return ['Saison', lgOfKey(id)];
+  id = m(/^seasons\/([^/]+)\/(summaries|standings|competitors)/);
+  if (id) return [/standings/.test(path) ? 'Tabelle' : /competitors/.test(path) ? 'Spielerprofil' : 'Spielplan', SEASON_LG.get(id) || ''];
+  if (path === 'schedules/live/timelines') return ['Live-Feed', 'alle'];
+  id = m(/^sport_events\/sr:sport_event:(\d+)/);
+  if (id) return [el || (/lineups$/.test(path) ? 'Aufstellung' : 'Tore & Torschützen'), MATCH_LG.get(`sr-${id}`) || ''];
+  if (/^players\//.test(path)) return ['Spielerprofil', 'alle'];
+  return ['Sonstiges', 'alle'];
+}
+function countUse(src, path, params = {}, el = '') {
+  try {
+    const [e, lg] = useTag(src, path, params, el);
+    const k = `${src}|${e}|${lg || '?'}`;
+    USE.set(k, (USE.get(k) || 0) + 1);
+  } catch { /* Zählen darf nie stören */ }
+}
+async function flushUse() {
+  if (!USE.size) return;
+  const delta = new Map(USE); USE.clear();
+  const ck = `use:${new Date().toISOString().slice(0, 10)}`;
+  const cur = (await cacheGet(ck))?.data || {};
+  for (const [k, n] of delta) cur[k] = (cur[k] || 0) + n;
+  await cacheSet(ck, cur);
+}
+async function usageReport(now) {
+  const days = [...Array(7)].map((_, i) => new Date(now - i * 864e5).toISOString().slice(0, 10));
+  const out = [];
+  for (const d of days) {
+    const u = (await cacheGet(`use:${d}`))?.data || {};
+    out.push({ day: d, bb: (await cacheGet(`bbcount:${d}`))?.data ?? null, sr: (await cacheGet(`srcount:${d}`))?.data ?? null,
+      rows: Object.entries(u).map(([k, n]) => { const [src, el, lg] = k.split('|'); return { src, el, lg, n }; }).sort((a, b) => b.n - a.n) });
+  }
+  return { leagues: FB_LEAGUES.map((l) => ({ id: l.id, name: l.name, short: l.short, color: l.color })), max: { bb: bbDailyMax(), sr: srDailyMax() }, days: out };
 }
 const srId = (urn) => `sr-${String(urn || '').split(':').pop()}`;
 const srUrn = (id) => `sr:sport_event:${String(id).replace(/^sr-/, '')}`;
@@ -1151,6 +1207,7 @@ export function mapSr(lg, sum) {
 async function srSeason(lg, now) {
   const ck = `srseason:${lg.key}`;
   const hit = await cacheGet(ck);
+  if (hit?.data) SEASON_LG.set(hit.data, lgOfKey(lg.key));
   if (hit && now - hit.at < 24 * 3600 * 1000) return hit.data;
   if (!(await srAllowed())) return hit?.data || null;
   const d = await srGet(`competitions/${lg.key}/seasons`);
@@ -1158,7 +1215,7 @@ async function srSeason(lg, now) {
   const list = (d?.seasons || []).filter((x) => x.start_date && x.start_date <= today).sort((a, b) => b.start_date.localeCompare(a.start_date));
   const cur = list.find((x) => !x.end_date || x.end_date >= today) || list[0];
   const id = cur?.id || null;
-  if (id) await cacheSet(ck, id);
+  if (id) { await cacheSet(ck, id); SEASON_LG.set(id, lgOfKey(lg.key)); }
   return id;
 }
 // Spielplan der Saison (bis 200 Spiele pro Abfrage), täglich; Fehler nur 30 Min. merken
@@ -1234,7 +1291,7 @@ async function srMatchStats(sr, match, now) {
   if (hit && (hit.data.final || now - hit.at < SR_STATS_MS)) return hit.data;
   if (match.st === 'pre') return { available: false, final: false, message: 'Die Live-Statistik erscheint nach Anpfiff.', src: 'Sportradar' };
   if (!Deno.env.get('SPORTRADAR_KEY') || !(await srAllowed())) return hit?.data || { available: false, final: false, src: 'Sportradar' };
-  const d = await srGet(`sport_events/${srUrn(sr.id)}/timeline`);
+  const d = await srGet(`sport_events/${srUrn(sr.id)}/timeline`, {}, 'Statistik');
   const teams = d?.statistics?.totals?.competitors || d?.statistics?.competitors || [];
   const raw = (qualifier) => teams.find((x) => x.qualifier === qualifier)?.statistics || null;
   const side = (x) => x && ({
@@ -1252,6 +1309,7 @@ async function srLeagues(list, now) {
   if (!Deno.env.get('SPORTRADAR_KEY')) return list.map(() => ({ status: 'nokey', message: 'Sportradar-Schlüssel fehlt', matches: [] }));
   const res = [];
   for (const lg of list) res.push(await srFixtures(lg, now)); // nacheinander (1 Abfrage/Sek.)
+  list.forEach((lg, i) => { for (const m of res[i].matches || []) MATCH_LG.set(m.id, lg.id); });
   const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 12 * 3600e3;
   if (!res.some((r) => r.matches.some(open))) return res;
   const forceKickoff = res.some((r) => r.matches.some((m) => kickoffJustStarted(m, now)));
@@ -1506,6 +1564,7 @@ async function fbOverview(now) {
     }
   });
   for (const r of res) for (const m of r.matches || []) { m.hl = crest.get(m.h) || m.hl; m.al = crest.get(m.a) || m.al; }
+  FB_LEAGUES.forEach((lg, i) => { for (const m of res[i].matches || []) MATCH_LG.set(m.id, lg.id); });
   return { updated: new Date(now).toISOString(), season, paused: now - bbPausedAt < 15 * 60 * 1000,
     leagues: FB_LEAGUES.map((lg, i) => ({ id: lg.id, name: lg.name, country: lg.country, short: lg.short, color: lg.color, status: res[i].status, message: res[i].message })),
     matches: res.flatMap((r) => r.matches.filter((m) => { const t = Date.parse(m.utc); return t >= from && t <= to; })) };
@@ -1796,6 +1855,7 @@ async function handle(req) {
   }
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET oder POST' }), { status: 405, headers });
   const params = new URL(req.url).searchParams;
+  if (params.has('usage')) return new Response(JSON.stringify(await usageReport(Date.now())), { headers });
   if (params.has('fbpushtick')) {
     try { return new Response(JSON.stringify(await pushTick(Date.now())), { headers }); }
     catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
@@ -1894,4 +1954,12 @@ async function handle(req) {
 }
 
 // Nur auf dem Server starten
-if (typeof Deno !== 'undefined') Deno.serve(handle);
+// Nach jeder Anfrage den gezählten Verbrauch speichern (im Hintergrund, wo die Laufzeit das erlaubt)
+async function serve(req) {
+  try { return await handle(req); }
+  finally {
+    const p = flushUse().catch(() => {});
+    if (globalThis.EdgeRuntime?.waitUntil) globalThis.EdgeRuntime.waitUntil(p); else await p;
+  }
+}
+if (typeof Deno !== 'undefined') Deno.serve(serve);
