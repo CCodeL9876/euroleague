@@ -160,6 +160,7 @@ body:not(.unlocked) .fb{display:none;}
 .fb-livehead b{display:inline-flex;align-items:center;gap:5px;color:#E5484D;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;}
 .fb-livehead b::before{content:"";width:7px;height:7px;border-radius:50%;background:#E5484D;animation:fbLivePulse 1.6s ease-in-out infinite;}
 @keyframes fbLivePulse{50%{opacity:0.3;}}
+.fb-livehead.done b{color:var(--pitch-hi);} .fb-livehead.done b::before{background:var(--pitch-hi);animation:none;}
 @media (prefers-reduced-motion:reduce){ .fb-livehead b::before{animation:none;} }
 .fb-tab tr.fav .nm::after, .fb-scr.fav .who b::after{content:" ★";color:var(--gold);}
 .fb-zones{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 4px 0;font-size:0.68rem;color:var(--dim);}

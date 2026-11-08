@@ -638,6 +638,7 @@ async function fbLeague(id, kind, now = Date.now(), force = false) {
   await cacheSet(ck, data);
   return data;
 }
+const teamKey = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, '').replace(/\b(a?fc|cf|sc)\b/g, '').replace(/[^a-z]/g, '');
 const zurichDay = (iso) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich' }).format(new Date(iso));
 // Premier League und Champions League: Aufstellung und Live-Spielstatistik nach Möglichkeit von Sportradar
 const nameKey = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\b(fc|afc|cf)\b/g, '').replace(/[^a-z]/g, '').slice(0, 6);
@@ -1548,8 +1549,24 @@ async function refreshAroundMatches(now, ov, favs = new Set()) {
       if (attempt && now - attempt.at < 15 * 60 * 1000) continue;
       await cacheSet(attemptKey, true);
       if (!tableDone) {
+        // Alte Tabelle merken, neue holen und prüfen, ob die Resultate seit dem alten Stand drin sind (ein Spiel mehr bei beiden Teams).
+        // Fehlt etwas (Quelle trägt Resultate erst später ein): die Spiel-IDs als «missing» mitgeben – die Seite rechnet sie selbst ein –
+        // und in 15 Min. nochmals holen, höchstens 8-mal; danach bleibt «missing» bis zur nächsten Tabelle
+        const ck = BB_TABLE[id].sr ? `srtab:${BB_TABLE[id].sr}` : `bbtab:${BB_TABLE[id].key}`;
+        const old = (await cacheGet(ck))?.data;
         const table = await fbLeague(id, 'table', now, true).catch(() => ({ available: false }));
-        if (table.available) { await cacheSet(tableDoneKey, true); refreshed.tables++; }
+        if (table.available) {
+          const oldAt = Date.parse(old?.asOf || '') || 0;
+          const row = (rows, n) => { const k = teamKey(n); return (rows || []).find((r) => teamKey(r.team) === k) || (rows || []).find((r) => { const t = teamKey(r.team); return k.length >= 5 && (t.startsWith(k.slice(0, 6)) || k.startsWith(t.slice(0, 6))); }); };
+          const missing = old?.available ? dayMatches.filter((m) => m.st === 'ft' && Date.parse(m.utc) + 115 * 60 * 1000 > oldAt).filter((m) => {
+            const oh = row(old.rows, m.h), oa = row(old.rows, m.a), nh = row(table.rows, m.h), na = row(table.rows, m.a);
+            return oh && oa && nh && na && (nh.p <= oh.p || na.p <= oa.p);
+          }).map((m) => m.id) : [];
+          const tries = Number((await cacheGet(`fbtable_try:${id}:${day}`))?.data || 0) + 1;
+          await cacheSet(`fbtable_try:${id}:${day}`, tries);
+          await cacheSet(ck, { ...table, missing });
+          if (!missing.length || tries >= 8) { await cacheSet(tableDoneKey, true); refreshed.tables++; }
+        }
       }
       if (!scorerDone) {
         const scorers = await fbLeague(id, 'scorers', now, true).catch(() => ({ available: false }));
