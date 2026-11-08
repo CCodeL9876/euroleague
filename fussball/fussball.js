@@ -97,9 +97,9 @@ const detailCache = new Map(); // `${id}|${kind}` → Antwort von ?fbdetail=
 const lastFlaps = new Map();
 
 // Blatt von unten mit Tabelle und Torschützen (grosse Ligen)
-const ZONE_NAME = { cl: 'Champions League', clq: 'CL-Qualifikation', el: 'Europa League', co: 'Conference League', rel: 'Relegation', ab: 'Abstieg',
+const ZONE_NAME = { up: 'Aufstieg', upq: 'Aufstiegs-Play-offs', cl: 'Champions League', clq: 'CL-Qualifikation', el: 'Europa League', co: 'Conference League', rel: 'Relegation', ab: 'Abstieg',
   'ucl-r16': 'Achtelfinale', 'ucl-playoff': 'Play-off-Runde', 'ucl-out': 'Ausgeschieden' };
-const TABLE_LEAGUES = new Set(['ucl', 'pl', 'bl1', 'laliga', 'seriea', 'ligue1']);
+const TABLE_LEAGUES = new Set(['ucl', 'pl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1']);
 const leagueCache = new Map(); // `${id}|${kind}` → Antwort von ?fbleague=
 // Desktop-Dashboard (drei Spalten, Grenze wie in fussball.css): links Ligen und Teams, rechts Tabelle, Torschützen, letzte Tore
 const DASH = matchMedia('(min-width:1100px)');
@@ -374,7 +374,7 @@ function render() {
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   renderDash(dayMs, matches);
-  $('#fbFoot').textContent = `${data.paused ? 'Live-Stände pausiert: Tageslimit der Datenquelle erreicht (Big Balls). ' : ''}Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz: Sportradar`;
+  $('#fbFoot').textContent = `${data.paused ? 'Live-Stände pausiert: Tageslimit der Datenquelle erreicht (Big Balls). ' : ''}Stand ${zTime(new Date(data.updated))} · Big Balls · 2. Bundesliga: OpenLigaDB · Schweiz, Championship: Sportradar`;
 }
 
 // ---------- Desktop-Dashboard: Spalten links und rechts ----------
@@ -481,7 +481,7 @@ function sheetBody(id, tab) {
   return `<table class="fb-tab"><thead><tr><th>#</th><th class="tm">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Tore">Tore</abbr></th><th><abbr title="Tordifferenz">+/-</abbr></th><th><abbr title="Punkte">Pkt</abbr></th></tr></thead>
     <tbody>${d.rows.map((r) => `<tr class="${zone(r.rank) ? `z-${zone(r.rank)}` : ''}${isFavName(r.team) ? ' fav' : ''}"><td class="pos">${esc(r.rank)}</td><td class="tm"><span class="fb-tmw">${logo(r.logo).replace(' loading="lazy"', '')}<span class="nm">${esc(r.team)}</span></span></td>
       <td>${esc(r.p)}</td><td>${esc(r.gf)}:${esc(r.ga)}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${esc(r.gf - r.ga)}</td><td class="pts">${esc(r.pts)}</td></tr>`).join('')}</tbody></table>
-    <p class="fb-zones">${(d.zones || []).map((z) => `<span class="z-${z[2]}">${ZONE_NAME[z[2]] || ''}</span>`).join('')}</p><p class="fb-x-src">Quelle: Big Balls</p>`;
+    <p class="fb-zones">${(d.zones || []).map((z) => `<span class="z-${z[2]}">${ZONE_NAME[z[2]] || ''}</span>`).join('')}</p><p class="fb-x-src">Quelle: ${esc(d.source || 'Big Balls')}</p>`;
 }
 // ---------- Blatt: Teams wählen ----------
 const NATION_LEAGUES = new Set(['unl', 'wcq', 'emq', 'wc', 'em', 'fr']);
@@ -575,17 +575,18 @@ function renderSheet() {
     document.body.appendChild(el); document.body.classList.add('fb-sheet-open');
   }
   const keep = el.querySelector('.fb-sheet-body')?.scrollTop || 0;
-  const tabs = [['table', 'Tabelle'], ['scorers', 'Torschützen']];
+  // Championship: nur Tabelle (Sportradar liefert hier keine Torschützenliste)
+  const tabs = sheet.id === 'efl' ? [] : [['table', 'Tabelle'], ['scorers', 'Torschützen']];
   el.innerHTML = `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
     <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
       <div class="fb-sheet-h"><span class="fb-lg" style="--c:${esc(lg?.color || '#555')}">${esc(lg?.short || '')}</span><b id="fbSheetTitle">${esc(lg?.name || '')}</b>
         <button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Schliessen">✕</button></div>
-      <div class="fb-seg" role="tablist">${tabs.map(([k, t]) => `<button type="button" role="tab" data-act="fb-sheet-tab" data-tab="${k}" aria-selected="${sheet.tab === k}">${t}</button>`).join('')}</div>
+      ${tabs.length ? `<div class="fb-seg" role="tablist">${tabs.map(([k, t]) => `<button type="button" role="tab" data-act="fb-sheet-tab" data-tab="${k}" aria-selected="${sheet.tab === k}">${t}</button>`).join('')}</div>` : ''}
       <div class="fb-sheet-body">${sheetBody(sheet.id, sheet.tab)}</div></section>`;
   el.querySelector('.fb-sheet-body').scrollTop = keep;
 }
 async function openSheet(id, tab) {
-  sheet = { id, tab }; renderSheet();
+  sheet = { id, tab: id === 'efl' ? 'table' : tab }; renderSheet();
   document.querySelector('.fb-sheet-x')?.focus();
   if (await fetchLeague(id, tab) && sheet && sheet.id === id && sheet.tab === tab) renderSheet();
 }

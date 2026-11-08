@@ -13,7 +13,7 @@
 //     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, Neuaufsteiger dort ergänzen). Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
 //     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
 //     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
-//   GET ?fbleague=ucl|pl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste; nach letztem Spiel am Tag vorgewärmt, sonst Cache bis zu 24 Std.
+//   GET ?fbleague=ucl|pl|efl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste; nach letztem Spiel am Tag vorgewärmt, sonst Cache bis zu 24 Std.
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Startelf, Ersatzbank mit Rückennummern benchNo, Trainer) bzw. Teamstatistik eines Spiels;
 //     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst Big Balls; Statistik nach Spielende von Big Balls, Sportradar (PL/CL) als Ersatz; ESPN ist abgeschaltet (sperrt Server-Abfragen)
 //   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
@@ -53,8 +53,8 @@ async function getJson(url) {
 const FB_LEAGUES = [
   { id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', src: 'bb', key: 'ucl', sr: 'sr:competition:7' },
   { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'bb', key: 'epl', sr: 'sr:competition:17', lf: 1008 },
-  // Championship (2. Liga England): Big-Balls-Schlüssel wie die Länderspiel-Wettbewerbe über den Namen; prüfen mit ?bbleagues=1
-  { id: 'efl', name: 'Championship', country: 'England', short: 'EFL', color: '#1C2D5A', src: 'bb', key: 'Championship' },
+  // Championship (2. Liga England): Big Balls führt sie nicht, darum Sportradar wie die Schweizer Ligen (Spielplan, Live, Tabelle)
+  { id: 'efl', name: 'Championship', country: 'England', short: 'EFL', color: '#1C2D5A', src: 'sr', key: 'sr:competition:18' },
   { id: 'bl1', name: 'Bundesliga', country: 'Deutschland', short: 'BL', color: '#D20515', src: 'bb', key: 'bundesliga', oldb: 'bl1' },
   { id: 'laliga', name: 'La Liga', country: 'Spanien', short: 'LL', color: '#E2342B', src: 'bb', key: 'laliga' },
   { id: 'seriea', name: 'Serie A', country: 'Italien', short: 'SA', color: '#0A5DB8', src: 'bb', key: 'seriea' },
@@ -561,10 +561,34 @@ const BB_TABLE = {
   laliga: { key: 'laliga', scorers: 'laliga', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
   seriea: { key: 'seriea', scorers: 'serie-a', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
   ligue1: { key: 'ligue1', scorers: 'ligue-1', zones: [[1, 3, 'cl'], [4, 4, 'clq'], [5, 5, 'el'], [6, 6, 'co'], [16, 16, 'rel'], [17, 18, 'ab']] },
+  // Championship: Tabelle von Sportradar (keine Torschützenliste)
+  efl: { sr: 'sr:competition:18', zones: [[1, 2, 'up'], [3, 6, 'upq'], [22, 24, 'ab']] },
 };
+// Tabelle eines Sportradar-Wettbewerbs (eine Abfrage), bis 6 Std. gespeichert
+async function srTable(cfg, now, force) {
+  const ck = `srtab:${cfg.sr}`;
+  const hit = await cacheGet(ck);
+  if (hit && !force && now - hit.at < 6 * 3600 * 1000) return hit.data;
+  if (!Deno.env.get('SPORTRADAR_KEY') || !(await srAllowed())) return hit?.data || { available: false };
+  try {
+    const season = await srSeason({ key: cfg.sr }, now);
+    if (!season) return hit?.data || { available: false };
+    const d = await srGet(`seasons/${season}/standings`);
+    const st = (d?.standings || []).find((x) => x.type === 'total') || d?.standings?.[0];
+    const rows = (st?.groups?.[0]?.standings || []).map((r) => {
+      const name = r.competitor?.name || '';
+      return { rank: r.rank, team: srName(name), logo: srLogo(name), p: r.played ?? 0, w: r.win ?? 0, d: r.draw ?? 0, l: r.loss ?? 0,
+        gf: r.goals_for ?? 0, ga: r.goals_against ?? 0, pts: r.points ?? 0 };
+    }).sort((a, b) => a.rank - b.rank);
+    const data = { available: rows.length > 0, zones: cfg.zones, rows, source: 'Sportradar' };
+    if (rows.length) await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || { available: false }; }
+}
 async function fbLeague(id, kind, now = Date.now(), force = false) {
   const cfg = BB_TABLE[id];
   if (!cfg) return { available: false };
+  if (cfg.sr) return kind === 'scorers' ? { available: false } : srTable(cfg, now, force);
   if (kind === 'scorers') {
     if (id === 'ucl') {
       const season = String(fbSeason(new Date(now)));
@@ -619,7 +643,7 @@ async function srMatchFor(m, now) {
   if (!sr || !Deno.env.get('SPORTRADAR_KEY')) return null;
   const sched = await srFixtures({ ...lg, key: sr }, now);
   const t = Date.parse(m.utc);
-  return sched.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 3 * 3600e3 && (nameKey(x.h) === nameKey(m.h) || nameKey(x.a) === nameKey(m.a))) || null;
+  return sched.matches.find((x) => x.id === m.id) || sched.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 3 * 3600e3 && (nameKey(x.h) === nameKey(m.h) || nameKey(x.a) === nameKey(m.a))) || null;
 }
 // Ligen mit Aufstellung und Teamstatistik: Premier League und Champions League mit Sportradar-Aufstellung (genauer: Formation,
 // Positionen links/rechts), sonst und als Ersatz die Aufstellung von Big Balls (nur Tor/Verteidigung/Mittelfeld/Sturm)
@@ -663,6 +687,7 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
     // ESPN überbrückt die rund 30 Min., bis Big Balls die Statistik hat. Sportradar nur, wenn beide nichts liefern.
     if (m.st === 'pre') return { available: false };
     const bbStats = async () => {
+      if (!id.startsWith('bb-')) return { available: false };
       const uuid = id.replace(/^bb-/, '');
       const ck = `bbst:${uuid}`;
       const hit = await cacheGet(ck);
@@ -677,7 +702,7 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
       return data;
     };
     const srStats = async () => {
-      if (!['ucl', 'pl'].includes(m.l) || !Deno.env.get('SPORTRADAR_KEY')) return null;
+      if (!['ucl', 'pl', 'efl'].includes(m.l) || !Deno.env.get('SPORTRADAR_KEY')) return null;
       const sr = await srMatchFor(m, now).catch(() => null);
       return sr ? srMatchStats(sr, m, now).catch(() => null) : null;
     };
@@ -691,7 +716,7 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   }
   // Aufstellung: erst ab 90 Min. vor Anpfiff sinnvoll; nach Spielende dauerhaft. Sportradar, wo vorhanden, sonst Big Balls
   const sr = await srMatchFor(m, now).catch(() => null);
-  if (!sr) return bbLineup(m, now);
+  if (!sr) return m.id.startsWith('bb-') ? bbLineup(m, now) : { available: false };
   const ck = `srlu:${sr.id}`;
   const hit = await cacheGet(ck);
   // Ältere gespeicherte Aufstellungen ohne Spieler-IDs, Rückennummern oder Nationalität: einmal neu laden
@@ -1437,12 +1462,14 @@ async function refreshAroundMatches(now, ov) {
     if (!DETAIL_LEAGUES.has(m.l) || m.st === 'ft' || m.st === 'off') continue;
     const kickoff = Date.parse(m.utc);
     if (kickoff - now > 90 * 60 * 1000 || now - kickoff > 130 * 60 * 1000) continue;
+    // Championship (bis 12 Spiele gleichzeitig): eine einmal erhaltene Aufstellung nicht laufend neu holen (Sportradar-Kontingent)
+    if (m.l === 'efl' && (await cacheGet(`srlu:${m.id}`))?.data?.available) continue;
     await fbDetail(m.id, 'lineup', now, ov).catch(() => null);
     refreshed.lineups++;
   }
 
   for (const m of matches) {
-    if (!DETAIL_LEAGUES.has(m.l) || m.st !== 'ft' || now - Date.parse(m.utc) > 8 * 3600e3) continue;
+    if (!DETAIL_LEAGUES.has(m.l) || !m.id.startsWith('bb-') || m.st !== 'ft' || now - Date.parse(m.utc) > 8 * 3600e3) continue;
     const uuid = m.id.replace(/^bb-/, '');
     const cached = await cacheGet(`bbst:${uuid}`);
     if (cached?.data?.final) continue;
