@@ -71,7 +71,9 @@ button.rg-row:disabled{opacity:1;}
 .rg-pbp .logo.xs{width:20px;height:20px;}
 
 @media (max-width:820px){
-  .rg{border-radius:0;box-shadow:none;min-height:0;}
+  /* wie die EuroLeague-Seite (.app in style.css): mindestens bildschirmhoch, sonst blendet Safari bei kurzen Seiten seine Leiste ein
+     und die Navigationsleiste unten steht höher */
+  .rg{border-radius:0;box-shadow:none;min-height:100lvh;}
   .rg-views{display:none;}
   /* gleicher Abstand zum Umschalter wie auf der EuroLeague-Seite (dort steht eine leere Profil-Zeile mit 4px Abstand dazwischen) */
   .rg-head .bb-switch{margin-top:8px;}
