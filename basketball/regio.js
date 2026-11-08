@@ -131,12 +131,15 @@ function gamesView() {
 function tableView() {
   if (!data) return `<p class="notice">${esc(error || 'Lade Tabelle …')}</p>`;
   if (!data.table.length) return `<p class="notice">Noch keine Tabelle${IS_SBL ? ': sie entsteht aus den Resultaten, sobald die ersten Spiele beendet sind.' : '.'}</p>`;
+  // Punkte: 2. Liga immer; SB League, sobald die offizielle Tabelle von swiss.basketball kommt
+  const hasPts = data.table.every((r) => r.pts != null);
+  const official = IS_SBL && data.tableSrc === 'swiss.basketball';
   const rows = data.table.map((r) => `<tr class="${isFav(r.t) ? 'mine' : ''}" data-fav="${esc(favKey(r.t))}">
     <td class="num">${r.rank}</td><td class="team">${crest(r.t)}<span>${esc(teamName(r.t))}</span></td><td class="num">${r.gp}</td><td class="num">${r.w}–${r.l}</td>
-    <td class="num">${r.pf - r.pa > 0 ? '+' : ''}${r.pf - r.pa}</td>${IS_SBL ? '' : `<td class="num"><b>${r.pts}</b></td>`}</tr>`).join('');
+    <td class="num">${r.pf - r.pa > 0 ? '+' : ''}${r.pf - r.pa}</td>${hasPts ? `<td class="num"><b>${r.pts}</b></td>` : ''}</tr>`).join('');
   return `<section class="rg-sec"><h2>Tabelle</h2><div class="rg-table-wrap"><table class="rg-table">
-    <thead><tr><th>#</th><th>Team</th><th>Sp</th><th>S–N</th><th>Diff</th>${IS_SBL ? '' : '<th>Pkt</th>'}</tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="rg-src">Tippe auf ein Team, um es zu deinen Teams hinzuzufügen oder zu entfernen (auch in Mein Sport)${IS_SBL ? '. Die Tabelle rechnet die App aus den gesammelten Resultaten.' : '.'}</p></section>`;
+    <thead><tr><th>#</th><th>Team</th><th>Sp</th><th>S–N</th><th>Diff</th>${hasPts ? '<th>Pkt</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="rg-src">Tippe auf ein Team, um es zu deinen Teams hinzuzufügen oder zu entfernen (auch in Mein Sport)${IS_SBL ? (official ? '. Tabelle: swiss.basketball.' : '. Die Tabelle rechnet die App aus den gesammelten Resultaten.') : '.'}</p></section>`;
 }
 
 function render() {

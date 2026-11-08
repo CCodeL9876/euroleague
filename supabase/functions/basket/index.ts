@@ -3,7 +3,8 @@
 //
 //   GET ?sbl=1 → SB League Men: { updated, games: [{ id, utc, round, h, a, hs, as, st: 'pre'|'live'|'ft', per, clk }], table }
 //     Spielplan von swiss.basketball (Widget 2, nur ab heute), Live-Stände von FIBA LiveStats (Genius Sports, öffentlich).
-//     Beendete Spiele werden in el_fb_cache (Schlüssel sbl-results) gesammelt, daraus Resultate und Tabelle.
+//     Beendete Spiele werden in el_fb_cache (Schlüssel sbl-results) gesammelt, daraus Resultate. Tabelle offiziell von swiss.basketball
+//     (swiss.basketball/basketplan/showRankingForLeague.do, alle 30 Min.), sonst aus den gesammelten Resultaten gerechnet.
 //   GET ?sblgame=<Spiel-Nr.> → Spielbericht: Stand, Viertel, Trainer, Spieler (Pkt/Reb/Ass/Min), letzte Körbe
 //   GET ?bvn=<liga> → BVN-Liga (z. B. h2l = Herren 2. Liga): { updated, league, games, table } über die offene BVN-API (api.bvn.ch)
 //
@@ -126,7 +127,53 @@ async function sbl() {
   const seen = new Set(games.map((g) => g.id));
   for (const r of Object.values(results)) if (!seen.has(r.id)) games.push(r);
   games.sort((x, y) => x.utc.localeCompare(y.utc) || x.id - y.id);
-  return { updated: new Date().toISOString(), games, table: tableOf(games.filter((g) => g.st === 'ft'), (g) => g.h.c, (g) => g.a.c, (g) => g.h, (g) => g.a) };
+  const own = tableOf(games.filter((g) => g.st === 'ft'), (g) => g.h.c, (g) => g.a.c, (g) => g.h, (g) => g.a);
+  // Offizielle Tabelle des Verbands (alle Spiele der Saison); sonst die aus den gesammelten Resultaten gerechnete
+  const official = await sblOfficialTable(games).catch(() => null);
+  return { updated: new Date().toISOString(), games, table: official?.length ? official : own, tableSrc: official?.length ? 'swiss.basketball' : 'eigene Rechnung' };
+}
+
+// ---------- Offizielle Tabelle SB League (swiss.basketball, Daten von basketplan über swiss.basketball/basketplan/) ----------
+// Eine Abfrage für die Liste der Wettbewerbe (einmal am Tag), eine für die Tabelle (alle 30 Min.). robots.txt von swiss.basketball erlaubt.
+const SB_UA = 'SportPWA/1.0 (private, non-commercial)';
+async function sbXml(path) {
+  const res = await fetch(`https://swiss.basketball/basketplan/${path}`, { headers: { 'user-agent': SB_UA, accept: 'text/xml' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}
+const xmlAttrs = (tag) => Object.fromEntries([...tag.matchAll(/(\w+)="([^"]*)"/g)].map(([, k, v]) => [k, v.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")]));
+// Saison-Nummer bei basketplan: 31 = 2026/27 (Saison beginnt im Juli)
+const sbSeasonId = () => { const d = new Date(); return 31 + (d.getUTCMonth() >= 6 ? d.getUTCFullYear() : d.getUTCFullYear() - 1) - 2026; };
+async function sblHoldingId() {
+  return memo('sbl-holding', 24 * 3600 * 1000, async () => {
+    const xml = await sbXml(`findAllLeagueHoldings.do?lang=de&xmlView=rss&federationId=12&seasonId=${sbSeasonId()}`);
+    const today = new Date().toISOString().slice(0, 10);
+    // SB League Men (leagueId 1): die laufende Phase, sonst die zuletzt begonnene
+    const list = [...xml.matchAll(/<LeagueHoldingRSS [^>]*>/g)].map((m) => xmlAttrs(m[0])).filter((h) => h.leagueId === '1' && h.from <= today)
+      .sort((a, b) => b.from.localeCompare(a.from));
+    return (list.find((h) => !h.to || h.to >= today) || list[0])?.id || null;
+  });
+}
+const tKey = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+async function sblOfficialTable(games) {
+  return memo('sbl-official', 30 * 60 * 1000, async () => {
+    const id = await sblHoldingId();
+    if (!id) return null;
+    const xml = await sbXml(`showRankingForLeague.do?lang=de&xmlView=rss&leagueId=1&leagueHoldingId=${encodeURIComponent(id)}&resultType=big`);
+    const rows = [...xml.matchAll(/<RankingRSS [^>]*>/g)].map((m) => xmlAttrs(m[0]));
+    if (!rows.length) return null;
+    // Teams des Spielplans (Kürzel, Kurzname, Logo) über den vollen Vereinsnamen zuordnen
+    const teams = new Map();
+    for (const g of games) for (const t of [g.h, g.a]) if (t?.full) teams.set(tKey(t.full), t);
+    const find = (n) => { const k = tKey(n); return teams.get(k) || [...teams.entries()].find(([tk]) => tk.startsWith(k.slice(0, 8)) || k.startsWith(tk.slice(0, 8)))?.[1]; };
+    return rows.map((r) => {
+      const t = find(r.teamName) || { n: str(r.teamName, 40), full: str(r.teamName, 60), c: '', logo: '' };
+      const a = num(r.pointsMade) ?? 0, b = num(r.pointsReceived) ?? 0, diff = num(r.difference);
+      // basketplan vertauscht die Namen: «difference» = pointsReceived − pointsMade = eigene minus erhaltene Punkte
+      const [pf, pa] = diff != null && diff === b - a ? [b, a] : [a, b];
+      return { t, gp: num(r.gamesCount) ?? 0, w: num(r.gamesWon) ?? 0, l: num(r.gamesLost) ?? 0, pf, pa, pts: num(r.points) ?? 0, rank: num(r.ranking) ?? 0 };
+    }).sort((x, y) => x.rank - y.rank);
+  });
 }
 // Tabelle aus Resultaten: Siege, Niederlagen, Punkte für/gegen; Rang nach Siegen, dann Differenz
 function tableOf(done, hk, ak, ht, at) {
