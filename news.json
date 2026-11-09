@@ -1,7 +1,79 @@
 {
-  "issue": 38,
-  "updated": "8. November 2026 · 07:15 Uhr (CH)",
+  "issue": 39,
+  "updated": "9. November 2026 · 07:20 Uhr (CH)",
   "items": [
+    {
+      "tag": "Liga Pro A · Paris",
+      "title": "Paris schlägt Bourg mit 107 Punkten",
+      "text": "Paris Basketball besiegte JL Bourg in der französischen Liga 107:77 und steht bei 7:1 Siegen. Allan Dokossi verbuchte 18 Punkte und 11 Rebounds. ASVEL gewann gegen Pau Orthez 106:97 und liegt mit 6:1 auf Rang zwei.",
+      "time": "08.11.2026 · 20:17",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/proa/2032499/paris-scores-107-points-and-easily-beats-jl-bourg/",
+      "firstShown": "09.11.2026"
+    },
+    {
+      "tag": "Lega Basket · Olimpia Milano",
+      "title": "Mailand gewinnt knapp gegen Trento",
+      "text": "Olimpia Milano setzte sich im ersten Spiel nach der Trennung von Peppe Poeta gegen Trento 88:86 durch. Garrison Mathews und Moses Wright kamen auf je 11 Punkte. Der neue Trainer Luca Banchi stand noch nicht an der Seitenlinie.",
+      "time": "08.11.2026 · 19:19",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/legabasket/2032474/milano-defeats-trento-in-a-nail-biter/",
+      "firstShown": "09.11.2026"
+    },
+    {
+      "tag": "ABA-Liga · Partizan",
+      "title": "Partizan dreht 14-Punkte-Rückstand",
+      "text": "Partizan gewann in der ABA-Liga gegen SC Derby 92:80 und bleibt mit 6:0 Siegen ungeschlagen. Der Klub lag im zweiten Viertel 19:33 zurück; Robert Franks war mit 16 Punkten bester Werfer. Carlik Jones und Luca Vildoza fehlten.",
+      "time": "08.11.2026 · 15:54",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/aba/2032352/partizan-erase-14-point-deficit-to-stay-unbeaten-in-aba-league/",
+      "firstShown": "09.11.2026"
+    },
+    {
+      "tag": "Liga HEBA · Olympiacos",
+      "title": "Ward rettet Olympiacos, Badio glänzt für Panathinaikos",
+      "text": "Olympiacos gewann gegen Marousi 83:81, Tyson Ward traf drei Sekunden vor Schluss zum Sieg; Evan Fournier erzielte 20 Punkte. Panathinaikos schlug AEK 83:74, Brancou Badio verwertete sechs von sieben Dreiern und kam auf 25 Punkte.",
+      "time": "08.11.2026 · 14:18",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/heba/2032289/brancou-badio-hits-six-threes-as-panathinaikos-beat-aek/",
+      "firstShown": "09.11.2026"
+    },
+    {
+      "tag": "Trainer · Olimpia Milano",
+      "title": "Banchi offiziell zurück in Mailand",
+      "text": "Olimpia Milano hat Luca Banchi mit einem mehrjährigen Vertrag als Nachfolger von Peppe Poeta verpflichtet, elf Jahre nach seiner ersten Amtszeit. Banchi bleibt zugleich italienischer Nationaltrainer; sein Verbandsvertrag wird laut La Stampa auf Teilzeit umgestellt, das Salär von rund 600'000 Euro brutto sinkt. Während des Länderfenster-Zusammenzugs ab 23. November leitet Assistent Marco Ramondino das Team interimistisch.",
+      "time": "08.11.2026 · 11:10",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/olimpia-milano-luca-banchi-is-back/",
+      "firstShown": "09.11.2026"
+    },
+    {
+      "tag": "Liga · Hapoel Tel Aviv",
+      "title": "Hapoel Tel Aviv vor Franchise-Lizenz",
+      "text": "Hapoel Tel Aviv steht laut einem Bericht von Arale Weisberg kurz vor dem Erhalt einer EuroLeague-Franchise-Lizenz. Der Entscheid soll an der Sitzung des Liga-Boards Ende November fallen; als weitere Kandidaten gelten Dubai, Valencia und PAOK. Hapoel Jerusalem dürfte nicht berücksichtigt werden.",
+      "time": "08.11.2026 · 10:11",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/euroleague-hapoel-tel-aviv-set-to-receive-a-franchise-license/",
+      "firstShown": "09.11.2026"
+    },
+    {
+      "tag": "Liga ACB · Barcelona",
+      "title": "Barcelona siegt, Punter und Evbuomwan angeschlagen",
+      "text": "Barcelona schlug in der ACB Rio Breogan 99:91 und feierte den siebten Sieg in Folge. Kevin Punter schied mit Knöchelproblemen aus, Tosan Evbuomwan konnte nach einem Schlag auf die Brust nicht weiterspielen. Real Madrid (90:71 gegen Murcia), Valencia (100:93 gegen Burgos) und Baskonia (98:93 in Lleida) gewannen ebenfalls.",
+      "time": "07.11.2026 · 23:15",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/acb/2032111/acb-roundup-manresa-secures-its-first-win-baskonia-gets-the-job-done-on-the-road/",
+      "firstShown": "09.11.2026"
+    },
+    {
+      "tag": "Liga BSL · Anadolu Efes",
+      "title": "Efes verliert bei Tofas, Payne ausgeschlossen",
+      "text": "Anadolu Efes unterlag in der türkischen Liga Tofas auswärts 87:93. Cameron Payne wurde im dritten Viertel nach einem absichtlichen Foul ausgeschlossen. Fenerbahce gewann bei Bursaspor 78:59, Onuralp Bitim erzielte 19 Punkte.",
+      "time": "07.11.2026 · 21:43",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/tbl/2032101/fenerbahce-wins-comfortably-on-the-road/",
+      "firstShown": "09.11.2026"
+    },
     {
       "tag": "Spieler · Panathinaikos",
       "title": "Nunn reist für Einbürgerung nach Katar",
@@ -9,15 +81,6 @@
       "time": "07.11.2026 · 18:14",
       "source": "Eurohoops",
       "url": "https://www.eurohoops.net/en/fibawc/2031989/kendrick-nunn-travels-to-qatar-to-resolve-passport-issue/",
-      "firstShown": "08.11.2026"
-    },
-    {
-      "tag": "Trainer · Olimpia Milano",
-      "title": "Details zu Banchis Wechsel nach Mailand",
-      "text": "Luca Banchi übernimmt Olimpia Milano von Giuseppe Poeta, sein Vertrag soll insgesamt rund zwei Millionen Euro wert sein. Verbandspräsident Gianni Petrucci stimmte dem Wechsel zu, die Nationalmannschaft hat aber Vorrang: Banchi soll Milano voraussichtlich ab dem Spiel gegen Zalgiris bis zum Ligaspiel in Tortona am 22. November betreuen und ab dem 23. November beim Nationalteam sein. In dieser Woche würde Assistent Marco Ramondino übernehmen.",
-      "time": "07.11.2026 · 17:32",
-      "source": "BasketNews",
-      "url": "https://basketnews.com/news-259021-details-of-luca-banchis-move-to-olimpia-milano-revealed.html",
       "firstShown": "08.11.2026"
     },
     {
@@ -82,69 +145,6 @@
       "source": "Eurohoops",
       "url": "https://www.eurohoops.net/en/euroleague/2031679/bartzokas-after-the-defeat-by-zvezda-there-is-no-excuse-we-did-not-deserve-to-win/",
       "firstShown": "07.11.2026"
-    },
-    {
-      "tag": "Trainerstimme · Besiktas",
-      "title": "Alimpijevic gereizt nach Heimniederlage",
-      "text": "Besiktas-Trainer Dusan Alimpijevic reagierte nach der sechsten EuroLeague-Niederlage der Saison, gegen Zalgiris, unwirsch auf eine Frage zu einem Timeout: «Können wir zur nächsten Frage gehen, bitte?» Sein Team traf 42 Prozent der Zweier und 26 Prozent der Dreier. «Fehlwürfe dürfen keine Ausrede für schlechte Verteidigung sein», sagte er.",
-      "time": "06.11.2026 · 22:19",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031589/alimpijevic-cuts-short-timeout-question-after-besiktas-defeat-next-question-please/",
-      "firstShown": "07.11.2026"
-    },
-    {
-      "tag": "Resultate · Runde 10",
-      "title": "Zalgiris, Dubai und Partizan siegen",
-      "text": "Zalgiris gewann bei Besiktas 83:67 und feierte den vierten EuroLeague-Sieg in Folge. Dubai siegte in Bologna gegen Virtus 93:75 und steht bei 7-3. Partizan schlug Maccabi Tel Aviv ohne den verletzten Center Kevarrius Hayes 88:67 und hält nun bei 5-5.",
-      "time": "06.11.2026 · 20:04",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031432/euroleague-roundup-zalgiris-dominates-besiktas-wins-fourth-in-a-row/",
-      "firstShown": "07.11.2026"
-    },
-    {
-      "tag": "Verband · Panathinaikos",
-      "title": "Giannakopoulos für zehn Monate gesperrt",
-      "text": "Der Sportrichter der griechischen Liga hat Panathinaikos-Besitzer Dimitris Giannakopoulos mit einem zehnmonatigen Hallenverbot und 60'000 Euro Busse belegt. Grund ist ein Instagram-Beitrag zum Skandal um den griechischen Verband und dessen Schiedsrichterkommission. Der Klub erhielt zusätzlich 30'000 Euro Busse und will rekurrieren.",
-      "time": "06.11.2026 · 18:29",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/heba/2031452/giannakopoulos-handed-10-month-venue-ban-and-e60000-fine/",
-      "firstShown": "07.11.2026"
-    },
-    {
-      "tag": "Verletzung · Olimpia Milano",
-      "title": "Booker fällt rund drei Monate aus",
-      "text": "Devin Booker hat sich einen Sehnenriss im Rectus-femoris-Muskel des rechten Beins zugezogen und fehlt Milano voraussichtlich bis Januar. Der Klub will sich auf dem Markt nach einem Center umsehen. Booker kam bisher auf 6,1 Punkte und 3,8 Rebounds pro Spiel.",
-      "time": "06.11.2026 · 16:18",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031399/devin-booker-to-miss-three-months-as-milano-enters-the-market/",
-      "firstShown": "07.11.2026"
-    },
-    {
-      "tag": "Resultat · Fenerbahce",
-      "title": "Fenerbahce schlägt Baskonia, Powell debütiert",
-      "text": "Fenerbahce hat Baskonia in Istanbul 84:65 geschlagen und den siebten EuroLeague-Sieg der Saison gefeiert. Neuzugang Dwight Powell kam bei seinem Debüt in 14 Minuten auf 3 Punkte und 7 Rebounds. Trainer Sarunas Jasikevicius lobte ihn: «Sein Motor ist unglaublich», mahnte nach erst zwei Trainings aber zur Geduld.",
-      "time": "05.11.2026 · 21:21",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031192/dwight-powell-debuts-in-the-euroleague-he-was-very-good/",
-      "firstShown": "06.11.2026"
-    },
-    {
-      "tag": "Resultat · Paris",
-      "title": "Paris siegt trotz 33 Punkten von Payne in Istanbul",
-      "text": "Paris hat bei Anadolu Efes 95:90 gewonnen und den dritten EuroLeague-Sieg in Folge geholt. Nadir Hifi überragte mit 28 Punkten und 9 Assists, Cameron Payne kam für Efes auf 33 Punkte mit sieben Dreiern. In Tel Aviv setzte sich Barcelona bei Hapoel 93:90 durch, Dario Brizuela erzielte 22 Punkte.",
-      "time": "05.11.2026 · 20:25",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031067/euroleague-roundup-payne-scores-33-put-paris-wins-third-in-a-row/",
-      "firstShown": "06.11.2026"
-    },
-    {
-      "tag": "Resultat · Valencia",
-      "title": "Valencia dreht Spiel in Mailand, Bayern gewinnt in Lyon",
-      "text": "Valencia hat bei Olimpia Milano 84:73 gewonnen, nachdem Milano vor dem Schlussviertel 59:51 geführt hatte. Milano steht damit bei 1:9 Siegen. Bayern siegte bei ASVEL 99:95, Austin Wiley kam auf 22 Punkte und 9 Rebounds.",
-      "time": "05.11.2026 · 20:24",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031067/euroleague-roundup-payne-scores-33-put-paris-wins-third-in-a-row/",
-      "firstShown": "06.11.2026"
     }
   ]
 }

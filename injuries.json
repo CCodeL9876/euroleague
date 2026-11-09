@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-08",
+ "updated": "2026-11-09",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -457,6 +457,30 @@
    "source": "BasketNews",
    "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
    "reported": "2026-11-08"
+  },
+  {
+   "id": "",
+   "name": "Kevin Punter",
+   "team": "BAR",
+   "status": "doubtful",
+   "since": "2026-11-07",
+   "note": "Knöchelprobleme; schied gegen Breogan (ACB) aus",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/acb/2032111/acb-roundup-manresa-secures-its-first-win-baskonia-gets-the-job-done-on-the-road/",
+   "reported": "2026-11-09"
+  },
+  {
+   "id": "",
+   "name": "Tosan Evbuomwan",
+   "team": "BAR",
+   "status": "doubtful",
+   "since": "2026-11-07",
+   "note": "Schlag auf die Brust; konnte gegen Breogan (ACB) nicht weiterspielen",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/acb/2032111/acb-roundup-manresa-secures-its-first-win-baskonia-gets-the-job-done-on-the-road/",
+   "reported": "2026-11-09"
   }
  ]
 }
