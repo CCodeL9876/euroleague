@@ -119,10 +119,10 @@ function gamesView() {
     const days = [...groupByDay(list)].slice(0, limit);
     return `<section class="rg-sec"><h2>${esc(title)}</h2>${days.map(([k, l]) => `<h3>${esc(k === 'offen' ? 'Datum noch offen' : dayName(k))}</h3><div class="rg-list">${l.map(row).join('')}</div>`).join('')}</section>`;
   };
-  // Eigenes Team: zuerst die letzten Resultate, dann alle nächsten Spiele; alle Spiele: zuerst die nächsten Spieltage
+  // Immer zuerst die nächsten Spiele, darunter die Resultate (eigenes Team: alle, sonst die nächsten bzw. letzten Spieltage)
   const next = section('Nächste Spiele', upcoming.filter((g) => g.st !== 'live'), onlyMine && favTeam ? 99 : 6);
   const done = section(onlyMine && favTeam ? 'Letzte Resultate' : 'Resultate', past, onlyMine && favTeam ? 99 : 5);
-  parts.push(...(onlyMine && favTeam ? [done, next] : [next, done]));
+  parts.push(next, done);
   if (!upcoming.length && !past.length && !lives.length) parts.push('<p class="notice">Keine Spiele gefunden.</p>');
   parts.push(`<p class="rg-src">${IS_SBL ? 'Spielplan und Resultate: swiss.basketball · Live-Stände und Statistik: FIBA LiveStats.' : 'Daten: BVN-API (Basketball Verband Nordwestschweiz). Resultate erscheinen, sobald sie erfasst sind; live gibt es keine Stände.'}${data.updated ? ` Stand ${esc(hm(new Date(data.updated)))}.` : ''}</p>`);
   return parts.join('');
