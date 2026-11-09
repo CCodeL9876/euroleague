@@ -29,7 +29,17 @@ try {
   var root = document.documentElement;
   root.classList.add('bar-wait');
   var shown = false;
-  var reveal = function () { if (!shown) { shown = true; root.classList.remove('bar-wait'); } };
+  // Home-App (iPhone): nach dem Laden einmal 1 px scrollen und zurück – wie ein kurzes Ziehen. iOS berechnet dabei die Lage der
+  // fixierten Leiste neu; ohne das blieb sie nach einem Neuladen manchmal zu hoch stehen, bis man die Seite zog.
+  var nudge = function () {
+    try {
+      if (!(navigator.standalone === true || matchMedia('(display-mode: standalone)').matches)) return;
+      var y = window.scrollY;
+      window.scrollTo(0, y + 1);
+      requestAnimationFrame(function () { window.scrollTo(0, y); });
+    } catch (e) { /* ohne Nachhilfe */ }
+  };
+  var reveal = function () { if (!shown) { shown = true; root.classList.remove('bar-wait'); nudge(); setTimeout(nudge, 400); } };
   setTimeout(reveal, 1600);
   document.addEventListener('DOMContentLoaded', function () {
     var start = Date.now(), last = -1, same = 0;

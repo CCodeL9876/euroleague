@@ -7,7 +7,8 @@
 body{padding:0;background:var(--bg);}
 body::before{background:var(--bg);}
 body:not(.unlocked) .ms, body:not(.unlocked) .ms-tabs{display:none;}
-.ms{max-width:1120px;min-height:100vh;min-height:100dvh;margin:0 auto;padding:calc(16px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) calc(104px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));}
+/* Mindesthöhe wie die anderen Bereiche (100lvh, nicht dvh): beim Neuladen in der Home-App ist dvh kurz kleiner, die Leiste unten stand dann zu hoch */
+.ms{max-width:1120px;min-height:100vh;min-height:100lvh;margin:0 auto;padding:calc(16px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) calc(104px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));}
 .ms-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 4px 12px;}
 .ms-top h1{margin:0;font-size:1.45rem;font-weight:600;letter-spacing:-0.02em;line-height:1.15;}
 .ms-top small{color:var(--dim);font-size:0.8rem;}
