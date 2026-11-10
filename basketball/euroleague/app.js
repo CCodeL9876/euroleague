@@ -755,8 +755,9 @@ function renderCenter(m) {
     const gs = m.rounds[shown];
     const pl = gs.filter((g) => g.status === 'final');
     const big = [...pl].sort((a, b) => Math.abs(b.hs - b.as) - Math.abs(a.hs - a.as) || b.at - a.at)[0];
+    const total = nrs.length, pos = at + 1;
     const arrow = (dir, to, label) => `<button type="button" class="round-btn" id="round-${dir}" data-act="round" data-r="${to ?? ''}"${to == null ? ' disabled' : ''} aria-label="${label}">${dir === 'prev' ? '‹' : '›'}</button>`;
-    center.appendChild(el('div', 'stats-head', `<h2 class="round-nav">${arrow('prev', nrs[at - 1], 'Vorheriger Spieltag')}<span>Spieltag ${shown} · ${pl.length ? 'Highlights &amp; Resultate' : 'Spielplan'}</span>${arrow('next', nrs[at + 1], 'Nächster Spieltag')}</h2>`));
+    center.appendChild(el('div', 'stats-head', `<div class="round-nav">${arrow('prev', nrs[at - 1], 'Vorheriger Spieltag')}<div class="rn-mid"><h2 class="rn-top">Spieltag ${shown}<span class="rn-of">von ${total}</span></h2><div class="rn-bar" role="img" aria-label="Spieltag ${pos} von ${total}"><i style="width:${Math.round(pos / total * 100)}%"></i></div></div>${arrow('next', nrs[at + 1], 'Nächster Spieltag')}</div>`));
     const withVideo = gs.filter((g) => g.status === 'final' && mainVideo(g.code));
     if (withVideo.length) {
       const strip = el('section', 'vstrip', `<div class="vstrip-list" data-keep-scroll="videos">${withVideo.map((g) => {
