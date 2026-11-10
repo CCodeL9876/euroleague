@@ -306,6 +306,42 @@ const profName = (() => { try { return localStorage.getItem('el-profile-name') |
 const pb = $('#profileBtn');
 if (pb) { const w = profName.trim().split(/\s+/).filter(Boolean); pb.textContent = (w.length > 1 ? w[0][0] + w[1][0] : (w[0] || '?').slice(0, 2)).toUpperCase(); }
 
+// ---------- Ganz oben nach unten ziehen lädt die Seite neu (wie auf der EuroLeague-Seite, gleiche Stile .ptr) ----------
+(() => {
+  const THRESHOLD = 70, MAX = 110;
+  const ind = document.createElement('div');
+  ind.className = 'ptr'; ind.setAttribute('aria-hidden', 'true');
+  ind.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>';
+  document.body.append(ind);
+  let startY = null, startX = 0, dy = 0, busy = false;
+  const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
+  window.addEventListener('touchstart', (e) => {
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || dlg.open || e.target.closest?.('.bb-menu')) return;
+    startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (startY == null) return;
+    const y = e.touches[0].clientY - startY, x = e.touches[0].clientX - startX;
+    // Seitwärts wischen (Wettbewerb wechseln) oder nach oben scrollen: kein Aktualisieren
+    if (y <= 0 || Math.abs(x) > y || window.scrollY > 0) { startY = null; reset(); return; }
+    dy = y * 0.6;
+    const pos = Math.min(dy, MAX);
+    ind.style.transform = `translate(-50%, ${pos - 50}px) rotate(${pos * 3}deg)`;
+    ind.style.opacity = String(Math.min(pos / THRESHOLD, 1));
+    ind.classList.toggle('is-ready', dy >= THRESHOLD);
+  }, { passive: true });
+  window.addEventListener('touchend', () => {
+    if (startY == null) return;
+    startY = null;
+    if (dy < THRESHOLD) return reset();
+    busy = true;
+    ind.classList.add('is-loading');
+    ind.style.transform = 'translate(-50%, 20px)'; ind.style.opacity = '1';
+    location.reload();
+  });
+  window.addEventListener('touchcancel', () => { startY = null; reset(); });
+})();
+
 // Direktlink aus Mein Sport: basketball/sbl/?game=<Spiel-Nr.> öffnet den Spielbericht
 const linkGame = Number(new URLSearchParams(location.search).get('game'));
 if (IS_SBL && Number.isInteger(linkGame) && linkGame > 0) { history.replaceState(null, '', location.pathname); openGame(linkGame); }
