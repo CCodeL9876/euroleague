@@ -247,9 +247,9 @@ export function mapBb(lg, m) {
     : raw === 'live' || raw === 'in_progress' ? 'live' : 'pre';
   // Unbekannter Status nach dem Anpfiff: bis 150 Min. als laufend werten (Spielstand sichtbar), danach mit Spielstand als beendet
   if (st === 'pre' && raw && !known.includes(raw) && sinceKo > 0) st = sinceKo < 150 * 60 * 1000 ? 'live' : m.score?.home != null ? 'ft' : 'pre';
-  // Big Balls hat für Fussball keinen echten Live-Feed: ein «laufendes» Spiel 160 Min. nach Anpfiff (inkl. Verlängerung und
+  // Big Balls hat für Fussball keinen echten Live-Feed: ein «laufendes» Spiel 180 Min. nach Anpfiff (inkl. Verlängerung und
   // Penaltyschiessen) ist vorbei; mit Spielstand als beendet werten, sonst bliebe es für immer live
-  if ((st === 'live' || st === 'ht') && sinceKo > 160 * 60 * 1000 && m.score?.home != null) st = 'ft';
+  if ((st === 'live' || st === 'ht') && sinceKo > 180 * 60 * 1000 && m.score?.home != null) st = 'ft';
   const ls = m.linescore;
   const ht = ls?.home?.length > 1 && ls.home[0] != null ? `${ls.home[0]}:${ls.away[0]}` : '';
   return { id: `bb-${m.id}`, l: lg.id, utc: new Date(m.kickoff_utc).toISOString(), round: String(m.round || '').replace(/^Regular Season - /, ''),
@@ -454,7 +454,8 @@ async function fplFixtures(ev, now, live) {
   const hit = await cacheGet(ck);
   if (hit && now - hit.at < (live ? 60 * 1000 : 15 * 60 * 1000)) return hit.data;
   try { const d = await fplJson(`fixtures/?event=${ev}`); const data = Array.isArray(d) ? d : []; await cacheSet(ck, data); return data; }
-  catch { return hit?.data || []; }
+  // Bei einem FPL-Ausfall nur ganz frische Daten weiterverwenden, sonst übernehmen die anderen Quellen
+  catch { return hit && now - hit.at < 3 * 60 * 1000 ? hit.data : []; }
 }
 const FPL_ALIAS = { manutd: 'manchesterunited', mancity: 'manchestercity', spurs: 'tottenhamhotspur', nottmforest: 'nottinghamforest', wolves: 'wolverhamptonwanderers', sheffieldutd: 'sheffieldunited' };
 const fplSame = (fplName, ours) => {
@@ -493,7 +494,7 @@ async function fplApply(list, res, now, open) {
   const fx = (await Promise.all(evs.map((e) => fplFixtures(e, now, true)))).flat();
   for (const [m, j] of todo) {
     const t = Date.parse(m.utc);
-    const f = fx.find((x) => x.kickoff_time && Math.abs(Date.parse(x.kickoff_time) - t) < 40 * 60 * 1000 && (fplSame(boot.teams[x.team_h], m.h) || fplSame(boot.teams[x.team_a], m.a)));
+    const f = fx.find((x) => x.kickoff_time && Math.abs(Date.parse(x.kickoff_time) - t) < 40 * 60 * 1000 && (fplSame(boot.teams[x.team_h], m.h) && fplSame(boot.teams[x.team_a], m.a)));
     if (!f) continue;
     // Noch nicht angepfiffen laut FPL: nur kurz nach der Anstosszeit glauben, danach die anderen Quellen fragen
     if (!f.started) { if (now - t < 10 * 60 * 1000) done.add(m.id); continue; }
@@ -1861,8 +1862,9 @@ async function pushTick(now) {
   const cur = {}, events = [], scoreChanges = [];
   for (const m of ov.matches) {
     if (m.hs == null || m.as == null || !['live', 'ht', 'ft'].includes(m.st)) continue;
-    cur[m.id] = [m.hs, m.as];
     const p = prev[m.id];
+    // Höchster bekannter Stand: fällt eine Quelle kurz aus und zeigt einen tieferen, gäbe es später einen zweiten Push fürs selbe Tor
+    cur[m.id] = p ? [Math.max(m.hs, p[0]), Math.max(m.as, p[1])] : [m.hs, m.as];
     // Nur echte Änderungen (erster Stand nach dem Anpfiff = Ausgangslage, ausser es steht schon ein Tor und das Spiel ist frisch)
     if (!p) {
       if (m.hs + m.as > 0 && m.st !== 'ft' && now - Date.parse(m.utc) < 10 * 60 * 1000) {
