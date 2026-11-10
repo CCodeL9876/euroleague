@@ -1202,6 +1202,7 @@ body.fb-sheet-open{overflow:hidden;}
 .bb-menu .bb-lg{width:34px;height:34px;}
 .bb-menu .bb-lg svg{width:100%;height:100%;display:block;}
 .bb-menu .bb-lg-img{width:100%;height:100%;display:block;box-sizing:border-box;object-fit:contain;padding:3px;border-radius:9px;background:#fff;}
+.bb-menu .bb-lg-img.plain{background:none;padding:0;}
 .bb-menu b{display:block;font-size:0.92rem;font-weight:600;}
 .bb-menu small{display:block;color:var(--dim);font-size:0.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .bb-menu .bb-live{font-size:0.7rem;font-weight:700;color:#E5484D;letter-spacing:0.04em;}
