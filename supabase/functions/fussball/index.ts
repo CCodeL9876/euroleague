@@ -1851,14 +1851,129 @@ async function handlePush(body) {
     body: JSON.stringify({ endpoint, profile_key: key, created_at: new Date().toISOString() }) });
   return { ok: r.ok, error: r.ok ? '' : `db ${r.status}` };
 }
+// ---------- EuroLeague-Mitteilungen: Viertelstände und Endresultat der Lieblingsteams ----------
+// Läuft im selben Minutentakt wie die Tor-Mitteilungen und nutzt dieselben Abos (el_fb_push). Die Stände kommen von der
+// Funktion «euroleague» (Übersicht; Spielbericht nur für die Viertelsummen). Ohne Spiel eines Lieblingsteams schläft
+// die Abfrage bis kurz vor dem nächsten Anpfiff (Zustand in el_fb_cache, Schlüssel «elpush»).
+const EL_FN = `${SUPABASE_URL}/functions/v1/euroleague`;
+async function elJson(q = '') {
+  const r = await fetch(`${EL_FN}${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!r.ok) throw new Error(`euroleague ${r.status}`);
+  return r.json();
+}
+// Ein Spiel und sein gemerkter Zustand → neuer Zustand und höchstens ein Ereignis ({ kind: 'q', q } Viertel zu Ende,
+// { kind: 'ot' } Verlängerung, { kind: 'final' } Schluss – den bestätigt der Aufrufer). st: { q: gemeldete Viertel
+// (-1 = noch unbekannt), ot, p: Pause schon geprüft, final, at }. pauseQ: gespielte Viertel laut Spielbericht, falls
+// die Übersicht in einer Pause kein Viertel nennt. Erst mitten im Spiel entdeckt: nichts nachmelden.
+export function elDetect(g, st, pauseQ = 0) {
+  const n = Number((/\d+/.exec(g.period || '') || [])[0]) || 0;
+  if (g.status === 'live') {
+    if (!st) return { st: { q: n ? n - 1 : -1, ot: n > 4, at: Date.parse(g.utc) }, ev: null };
+    st = { ...st };
+    const some = (g.hs || 0) + (g.as || 0) > 0;
+    if (!n) {
+      if (!pauseQ) return { st, ev: null };
+      st.p = true;
+      if (st.q >= 0 && pauseQ > st.q && pauseQ <= 3 && some) { st.q = pauseQ; return { st, ev: { kind: 'q', q: pauseQ, exact: true } }; }
+      if (pauseQ > st.q) st.q = pauseQ;
+      return { st, ev: null };
+    }
+    st.p = false;
+    if (st.q < 0) { st.q = n - 1; st.ot = n > 4; return { st, ev: null }; }
+    if (n > 4) { if (st.ot) return { st, ev: null }; st.ot = true; st.q = 4; return { st, ev: { kind: 'ot' } }; }
+    const exact = g.clock === '00:00', doneQ = exact ? n : n - 1;
+    if (doneQ > st.q && doneQ <= 3 && some) { st.q = doneQ; return { st, ev: { kind: 'q', q: doneQ, exact } }; }
+    if (doneQ > st.q) st.q = doneQ;
+    return { st, ev: null };
+  }
+  if (g.status === 'final' && st && !st.final) return { st: { ...st }, ev: { kind: 'final' } };
+  return { st, ev: null };
+}
+// Text der Mitteilung für ein Abo (f = seine Lieblingsteams): Sieg und Führung klingen anders als Niederlage und Rückstand
+export function elMessage(e, f, nm, now) {
+  const { g } = e, both = f.has(g.home) && f.has(g.away), my = f.has(g.home) ? g.home : g.away;
+  const mine = my === g.home ? e.hs : e.as, opp = my === g.home ? e.as : e.hs, lead = e.hs > e.as ? g.home : g.away;
+  const score = `${nm(g.home)} ${e.hs}:${e.as} ${nm(g.away)}`;
+  const when = e.q === 2 ? 'zur Halbzeit' : `nach dem ${e.q}. Viertel`;
+  let title;
+  if (e.kind === 'ot') title = '⏱️ Verlängerung!';
+  else if (e.kind === 'final') title = both ? `🏀 Schluss: Sieg für ${nm(lead)}` : mine > opp ? `🏀 Vamooooos! Sieg für ${nm(my)}` : `😤 Niederlage für ${nm(my)}`;
+  else if (mine === opp) title = `🏀 Gleichstand ${when}`;
+  else if (both) title = `🏀 ${nm(lead)} führt ${when}`;
+  else title = mine > opp ? `🏀 ${nm(my)} führt ${when}` : `⚠️ ${nm(my)} liegt ${when} zurück`;
+  return { id: `el-${g.code}`, kind: 'el', tag: `el-${g.code}-${e.kind}${e.q || ''}`, at: now, url: `basketball/euroleague/?game=${g.code}`,
+    title, body: e.kind === 'final' ? `Endstand: ${score}` : score };
+}
+async function elPushTick(now, subs, profs) {
+  if (!subs.length) return { skip: 'keine Abos' };
+  const fav = new Map(profs.map((p) => [p.key, new Set((Array.isArray(p.favorites) ? p.favorites : []).map(String))]));
+  const favs = new Set([...fav.values()].flatMap((x) => [...x]));
+  if (!favs.size) return { skip: 'keine Teams' };
+  const state = (await cacheGet('elpush'))?.data || { sleep: 0, games: {} };
+  if (now < state.sleep) return { sleep: new Date(state.sleep).toISOString() };
+  const ov = await elJson();
+  const mine = (ov.games || []).filter((g) => favs.has(g.home) || favs.has(g.away));
+  const games = {}, events = [];
+  const qsum = (box, i, k) => (box?.quarters?.[i] || []).slice(0, k).reduce((x, v) => x + (v || 0), 0);
+  for (const g of mine) {
+    const code = String(g.code), old = state.games?.[code];
+    if (!old && g.status !== 'live') continue;
+    let box = null, pauseQ = 0;
+    // Pause ohne Viertel in der Übersicht: einmal pro Pause im Spielbericht nachzählen, wie viele Viertel gespielt sind
+    if (g.status === 'live' && old && !old.p && !/\d/.test(g.period || '') && g.clock === '00:00' && g.hs + g.as > 0) {
+      box = await elJson(`?game=${g.code}`).catch(() => null);
+      const qs = box?.quarters || [];
+      while (pauseQ < 4 && ((qs[0]?.[pauseQ] || 0) + (qs[1]?.[pauseQ] || 0)) > 0) pauseQ++;
+    }
+    let { st, ev } = elDetect(g, old, pauseQ);
+    let hs = g.hs, as = g.as;
+    if (ev?.kind === 'q' && !ev.exact) {
+      // Das nächste Viertel läuft schon: Stand am Viertelende aus den Viertelsummen
+      box = await elJson(`?game=${g.code}`).catch(() => null);
+      const a = qsum(box, 0, ev.q), b = qsum(box, 1, ev.q);
+      if (a + b > 0 && a <= g.hs && b <= g.as) { hs = a; as = b; }
+    }
+    if (ev?.kind === 'final') {
+      // Schluss erst melden, wenn der Spielbericht ein gespieltes 4. Viertel zeigt und nicht mehr läuft (höchstens 15 Min. warten)
+      box = await elJson(`?game=${g.code}`).catch(() => null);
+      st.tries = (st.tries || 0) + 1;
+      if (!(box && !box.live && qsum(box, 0, 4) + qsum(box, 1, 4) > qsum(box, 0, 3) + qsum(box, 1, 3)) && st.tries < 15) ev = null;
+      else st.final = true;
+    }
+    if (ev) events.push({ g, kind: ev.kind, q: ev.q, hs, as });
+    if (now - (st.at || 0) < 30 * 3600e3) games[code] = st;
+  }
+  // Nichts los: bis 5 Min. vor dem nächsten Spiel eines Lieblingsteams schlafen (höchstens 3 Std., falls der Spielplan ändert)
+  const t = (g) => Date.parse(g.utc);
+  const busy = mine.some((g) => g.status === 'live' || (games[g.code] && !games[g.code].final && now - t(g) < 5 * 3600e3)
+    || (g.status === 'pre' && t(g) - now < 6 * 60 * 1000 && now - t(g) < 4 * 3600e3));
+  const next = Math.min(...mine.filter((g) => g.status === 'pre' && t(g) > now).map(t));
+  await cacheSet('elpush', { sleep: busy ? 0 : Math.min(Number.isFinite(next) ? next - 5 * 60 * 1000 : Infinity, now + 3 * 3600e3), games });
+  if (!events.length) return { events: 0, live: busy };
+  const nm = (c) => ov.teams?.[c]?.short || ov.teams?.[c]?.name || c;
+  let sent = 0;
+  for (const s of subs) {
+    const f = fav.get(s.profile_key);
+    const msgs = f ? events.filter((e) => f.has(e.g.home) || f.has(e.g.away)).map((e) => elMessage(e, f, nm, now)) : [];
+    if (!msgs.length) continue;
+    const hash = await sha256Hex(s.endpoint);
+    const old = (await cacheGet(`pushmsg:${hash}`))?.data || [];
+    await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), ...msgs].slice(-10));
+    const st = await pushPing(s.endpoint).catch(() => 0);
+    if (st >= 200 && st < 300) sent++;
+  }
+  return { events: events.length, sent };
+}
 // Jede Minute: Cache-Zeitplan ausführen und Tore seit dem letzten Lauf für Push erkennen
 async function pushTick(now) {
   // Abos und ihre Lieblingsteams zuerst (nur eigene Datenbank, kein API-Kontingent): bestimmen, was vorgewärmt wird und wie oft live
   const subs = Deno.env.get('VAPID_PRIVATE') ? await fetch(`${PUSH_URL}?select=endpoint,profile_key`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [];
   const keys = [...new Set(subs.map((x) => x.profile_key))];
-  const profs = keys.length ? await fetch(`${PROFILES_URL}?key=in.(${keys.map((k) => `"${String(k).replace(/"/g, '')}"`).join(',')})&select=key,fb_favorites`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [];
+  const profs = keys.length ? await fetch(`${PROFILES_URL}?key=in.(${keys.map((k) => `"${String(k).replace(/"/g, '')}"`).join(',')})&select=key,fb_favorites,favorites`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [];
   const fav = new Map(profs.map((p) => [p.key, new Set((Array.isArray(p.fb_favorites) ? p.fb_favorites : []).map((n) => String(n).toLowerCase()))]));
   const favs = new Set([...fav.values()].flatMap((x) => [...x]));
+  // EuroLeague zuerst und unabhängig vom Fussball: ein Fehler dort hält die Tor-Mitteilungen nicht auf
+  const el = await elPushTick(now, subs, profs).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
   const viewer = await cacheGet('fbview');
   const cached = (await cacheGet('fbov:last'))?.data?.matches || [];
   liveEager = Boolean(viewer && now - viewer.at < 10 * 60 * 1000) || cached.some((m) => (m.st === 'live' || m.st === 'ht') && (favs.has(String(m.h).toLowerCase()) || favs.has(String(m.a).toLowerCase())));
@@ -1900,9 +2015,9 @@ async function pushTick(now) {
     await cacheSet(`push:lu:${m.id}`, 1);
     lineups.push({ m, d });
   }
-  if (!Deno.env.get('VAPID_PRIVATE')) return { events: 0, sent: 0, refresh };
-  if (!events.length && !lineups.length) return { events: 0, sent: 0, refresh };
-  if (!subs.length) return { events: events.length, sent: 0 };
+  if (!Deno.env.get('VAPID_PRIVATE')) return { el, events: 0, sent: 0, refresh };
+  if (!events.length && !lineups.length) return { el, events: 0, sent: 0, refresh };
+  if (!subs.length) return { el, events: events.length, sent: 0 };
   let sent = 0;
   const hhmm = (iso) => new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
   for (const s of subs) {
@@ -1930,7 +2045,7 @@ async function pushTick(now) {
     if (st === 404 || st === 410) await fetch(`${PUSH_URL}?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: 'DELETE', headers: serviceHeaders() }).catch(() => {});
     else if (st >= 200 && st < 300) sent++;
   }
-  return { events: events.length, lineups: lineups.length, sent, refresh };
+  return { el, events: events.length, lineups: lineups.length, sent, refresh };
 }
 // Das Gerät holt nach dem Anstoss seine Meldungen ab (nur die der letzten 30 Min.); abgeholt = gelöscht, damit
 // beim nächsten Anstoss nicht ältere Meldungen nochmals erscheinen

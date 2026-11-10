@@ -2,7 +2,7 @@
 // Meldungen aus news.json (täglich von einer Claude-Aufgabe geschrieben) und zeichnet daraus das Dashboard.
 // Während ein Spiel läuft, fragt die Seite jede Minute nach, sonst alle 10 Minuten und beim Zurückkehren zur Seite.
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY, KI_NEWS_URL, RUBRIKEN } from '../../config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, KI_NEWS_URL, RUBRIKEN, VAPID_PUBLIC } from '../../config.js';
 
 const FAV_COLOR = { PAN: '#4CC38A', OLY: '#EE5F68', PAM: '#E8935F', ULK: '#5B7CFA' };
 const FAV_PALETTE = ['#4CC38A', '#EE5F68', '#E8935F', '#5B7CFA', '#C86DD7', '#2EC4C6', '#D4A72C', '#8E8CFF'];
@@ -57,6 +57,7 @@ const ICON = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
+  bell: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
 };
 const icon = (name, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
@@ -330,6 +331,38 @@ function renderFavSheet() {
   });
   el.querySelector('.fb-sheet-x').focus();
 }
+// ---------- Mitteilungen (Web Push) ----------
+// Dasselbe Abo wie im Fussball-Bereich (Funktion «fussball», Tabelle el_fb_push): ein Schalter pro Gerät für beides.
+// Die Funktion meldet für Lieblingsteams jedes Viertelende und den Endstand. iPhone: nur in der App vom Home-Bildschirm.
+let pushOn = false;
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+async function pushState() {
+  if (!pushSupported()) return;
+  try { const reg = await navigator.serviceWorker.getRegistration('../../'); pushOn = Boolean(await reg?.pushManager.getSubscription()) && Notification.permission === 'granted'; } catch { pushOn = false; }
+  if (profileMenuOpen) renderProfileMenu();
+}
+async function togglePush() {
+  if (!pushSupported()) { toast(/iphone|ipad/i.test(navigator.userAgent) && !standalone() ? 'Mitteilungen gehen nur in der App vom Home-Bildschirm.' : 'Dieser Browser kann keine Mitteilungen empfangen.'); return; }
+  const call = (body) => fetch(`${SUPABASE_URL}/functions/v1/fussball`, { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) }).then((r) => r.json()).catch(() => ({ ok: false }));
+  try {
+    const reg = await navigator.serviceWorker.register('../../sw.js', { scope: '../../' });
+    await navigator.serviceWorker.ready;
+    const cur = await reg.pushManager.getSubscription();
+    if (pushOn && cur) {
+      await call({ kind: 'push-unsub', endpoint: cur.endpoint });
+      await cur.unsubscribe();
+      pushOn = false; toast('Mitteilungen ausgeschaltet (auch die vom Fussball).'); return;
+    }
+    if ((await Notification.requestPermission()) !== 'granted') { toast('Mitteilungen sind in den Einstellungen nicht erlaubt.'); return; }
+    const key = Uint8Array.from(atob(VAPID_PUBLIC.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+    const sub = cur || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    const r = await call({ kind: 'push-sub', endpoint: sub.endpoint, name: store.get('el-profile-name', ''), pin: store.get('el-profile-pin', '') });
+    if (!r.ok) { toast(r.error === 'profil' ? 'Profil nicht gefunden – bitte neu anmelden.' : 'Anmelden für Mitteilungen hat nicht geklappt.'); return; }
+    pushOn = true; toast('Mitteilungen eingeschaltet: Viertelstände und Endresultat deiner Lieblingsteams.');
+  } catch (err) { toast(`Mitteilungen konnten nicht eingeschaltet werden (${String(err?.message || err).slice(0, 80)}).`); }
+}
+pushState();
+
 function closeFavSheet() { favEdit = false; renderFavSheet(); $('#profileBtn')?.focus(); }
 function renderProfileMenu() {
   const btn = $('#profileBtn'), menu = $('#profileMenu');
@@ -341,7 +374,7 @@ function renderProfileMenu() {
   if (!profileMenuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
   menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profile?.name))}</span><span><b>${esc(profile?.name || '')}</b><small>${FAV.length} ${FAV.length === 1 ? 'Lieblingsteam' : 'Lieblingsteams'}</small></span></div>
-    ${item('fav-edit', 'star', 'Lieblingsteams bearbeiten')}${item('copy-link', 'share', 'Link für Home-App kopieren')}
+    ${item('fav-edit', 'star', 'Lieblingsteams bearbeiten')}${item('copy-link', 'share', 'Link für Home-App kopieren')}${item('push-toggle', 'bell', `Mitteilungen (Viertel, Endstand): ${pushOn ? 'Ein' : 'Aus'}`)}
     <hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
 }
 
@@ -1746,6 +1779,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'fav-edit') { favEdit = true; profileMenuOpen = false; profileError = ''; renderProfileMenu(); renderFavSheet(); }
   else if (act === 'fav-close') closeFavSheet();
   else if (act === 'profile-logout') { profileMenuOpen = false; renderProfileMenu(); profileLogout(); }
+  else if (act === 'push-toggle') { profileMenuOpen = false; renderProfileMenu(); togglePush(); }
   else if (act === 'copy-link') { profileMenuOpen = false; renderProfileMenu(); copyAccessLink(); }
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
   else if (act === 'onboarding-done') { if (!FAV.length) return; onboarding = false; introStage = true; refreshProfileUI(); }

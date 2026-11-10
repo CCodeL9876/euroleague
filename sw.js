@@ -2,7 +2,7 @@
 // aktuell ist); ohne Netz kommt der letzte Stand – bei den Spieldaten mit Kopfzeile „x-offline“, damit die Seite
 // „Offline – Stand von …“ anzeigt. Logos und Spielerfotos: zuerst aus dem Zwischenspeicher (ändern sich kaum).
 
-const CACHE = 'euroleague-v153';
+const CACHE = 'euroleague-v154';
 const IMAGES = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//;
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 const DATA = /\/functions\/v1\/euroleague/;
@@ -75,7 +75,7 @@ self.addEventListener('push', (e) => {
     const fresh = [...byGame.values()].slice(-3);
     if (!fresh.length) return self.registration.showNotification('⚽ Vamooooos!', { body: 'Neues von deinen Teams – tippen für den Spielstand.', tag: 'fb-goal', icon: 'fussball/icon-180.png', data: { url: 'fussball/' } });
     // Gleiche Meldung (tag = Spiel + Stand) ersetzt sich selbst, darum keine Doppelten
-    await Promise.all(fresh.map((m) => self.registration.showNotification(m.title, { body: m.body, tag: m.tag, icon: 'fussball/icon-180.png', data: { url: /^fussball\/\?m=[\w%-]+(&tab=lineup)?$/.test(m.url || '') ? m.url : m.id ? `fussball/?m=${encodeURIComponent(m.id)}` : 'fussball/' } })));
+    await Promise.all(fresh.map((m) => self.registration.showNotification(m.title, { body: m.body, tag: m.tag, icon: m.kind === 'el' ? 'icon-180.png' : 'fussball/icon-180.png', data: { url: /^(fussball\/\?m=[\w%-]+(&tab=lineup)?|basketball\/euroleague\/\?game=\d{1,3})$/.test(m.url || '') ? m.url : m.id ? `fussball/?m=${encodeURIComponent(m.id)}` : 'fussball/' } })));
   })());
 });
 self.addEventListener('notificationclick', (e) => {
@@ -83,7 +83,9 @@ self.addEventListener('notificationclick', (e) => {
   const url = new URL(e.notification.data?.url || 'fussball/', self.registration.scope).href;
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const w = wins.find((c) => c.url.includes('/fussball/'));
+    // Fenster des passenden Bereichs weiterverwenden (EuroLeague-Mitteilung → EuroLeague-Seite)
+    const dir = url.includes('/basketball/') ? '/basketball/euroleague/' : '/fussball/';
+    const w = wins.find((c) => c.url.includes(dir));
     if (w) { await w.navigate(url).catch(() => {}); return w.focus(); }
     return self.clients.openWindow(url);
   })());
