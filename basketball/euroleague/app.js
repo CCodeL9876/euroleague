@@ -2,7 +2,7 @@
 // Meldungen aus news.json (täglich von einer Claude-Aufgabe geschrieben) und zeichnet daraus das Dashboard.
 // Während ein Spiel läuft, fragt die Seite jede Minute nach, sonst alle 10 Minuten und beim Zurückkehren zur Seite.
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY, KI_NEWS_URL, RUBRIKEN, VAPID_PUBLIC } from '../../config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, KI_NEWS_URL, VAPID_PUBLIC } from '../../config.js';
 
 const FAV_COLOR = { PAN: '#4CC38A', OLY: '#EE5F68', PAM: '#E8935F', ULK: '#5B7CFA' };
 const FAV_PALETTE = ['#4CC38A', '#EE5F68', '#E8935F', '#5B7CFA', '#C86DD7', '#2EC4C6', '#D4A72C', '#8E8CFF'];
@@ -86,6 +86,7 @@ let dataError = '';
 let sel = FAV.includes(store.get('el-team')) ? store.get('el-team') : FAV[0];
 let tab = ['spiel', 'news', 'teams'].includes(store.get('el-tab')) ? store.get('el-tab') : 'spiel';
 const open = { table: false, next: false, leaders: false };
+let roundSel = null;    // gewählter Spieltag in der Resultatliste (null = letzter mit Resultaten)
 let players = null;     // Saisonwerte aller Spieler (?players=1), erst bei Bedarf geladen
 let videos = {};        // Spielcode → Videos des EuroLeague-Kanals (?videos=1)
 const leaderState = { cat: 'pts', fav: false };
@@ -713,7 +714,6 @@ function renderCenter(m) {
     nextTxt = started ? `Spieltag ${nx.round} läuft, nächstes Spiel ${esc(rel(nx.date))} um ${esc(nx.time)}.`
       : `Spieltag ${nx.round} startet ${esc(rel(nx.date))} um ${esc(nx.time)} mit ${esc(name(m, nx.home))} gegen ${esc(name(m, nx.away))}.`;
   }
-  const avg = finals.length ? Math.round(finals.reduce((s, g) => s + g.hs + g.as, 0) / finals.length) : 0;
   parts.push(`<div class="tiles">
     <button type="button" class="tile t-blue" data-act="toggle-table" aria-expanded="${open.table}" aria-controls="tableBox"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M34 18h52v22c0 18-12 30-26 30S34 58 34 40z" fill="#8FA6FF"/><path d="M34 26H18c0 16 8 24 18 26M86 26h16c0 16-8 24-18 26" fill="none" stroke="#8FA6FF" stroke-width="8" stroke-linecap="round"/><rect x="52" y="68" width="16" height="18" fill="#7D96FF"/><rect x="36" y="86" width="48" height="14" rx="5" fill="#A9BBFF"/></svg><strong>Tabelle</strong><p>${tabTxt}</p></button>
     <button type="button" class="tile t-violet" data-act="toggle-next" aria-expanded="${open.next}" aria-controls="nextBox"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="58" r="44" fill="#9C78FF"/><path d="M16 58h88M60 14v88M30 26c14 16 14 48 0 64M90 26c-14 16-14 48 0 64" fill="none" stroke="#5A2BD6" stroke-width="6" stroke-linecap="round"/></svg><strong>Nächste Spiele</strong><p>${nextTxt}</p></button>
@@ -748,11 +748,16 @@ function renderCenter(m) {
   leadersBox.innerHTML = leadersHtml(m);
   center.appendChild(leadersBox);
 
-  // Resultate des letzten Spieltags
+  // Resultate eines Spieltags: zuerst der letzte mit Resultaten, mit den Pfeilen blättert man durch alle Runden
   if (m.lastPlayed) {
-    const gs = m.rounds[m.lastPlayed];
+    const nrs = Object.keys(m.rounds).map(Number).sort((a, b) => a - b);
+    const shown = nrs.includes(roundSel) ? roundSel : m.lastPlayed, at = nrs.indexOf(shown);
+    const gs = m.rounds[shown];
     const pl = gs.filter((g) => g.status === 'final');
-    center.appendChild(el('div', 'stats-head', `<h2>Spieltag ${m.lastPlayed} · Highlights &amp; Resultate</h2>
+    const avg = pl.length ? Math.round(pl.reduce((s, g) => s + g.hs + g.as, 0) / pl.length) : 0;
+    const big = [...pl].sort((a, b) => Math.abs(b.hs - b.as) - Math.abs(a.hs - a.as) || b.at - a.at)[0];
+    const arrow = (dir, to, label) => `<button type="button" class="round-btn" id="round-${dir}" data-act="round" data-r="${to ?? ''}"${to == null ? ' disabled' : ''} aria-label="${label}">${dir === 'prev' ? '‹' : '›'}</button>`;
+    center.appendChild(el('div', 'stats-head', `<h2 class="round-nav">${arrow('prev', nrs[at - 1], 'Vorheriger Spieltag')}<span>Spieltag ${shown} · ${pl.length ? 'Highlights &amp; Resultate' : 'Spielplan'}</span>${arrow('next', nrs[at + 1], 'Nächster Spieltag')}</h2>
       <div class="facts num"><span title="Gespielte Spiele">${icon('ball')}${pl.length}<span class="sr-only"> Spiele</span></span>
       ${avg ? `<span title="Punkte pro Spiel">${icon('bars')}Ø ${avg}<span class="sr-only"> Punkte pro Spiel</span></span>` : ''}
       ${big ? `<span title="Höchster Sieg">${icon('trend')}+${Math.abs(big.hs - big.as)}<span class="sr-only"> höchster Sieg</span></span>` : ''}</div>`));
@@ -772,9 +777,6 @@ function renderCenter(m) {
     center.appendChild(list);
   }
 
-  // Ganz unten: Links zu den anderen Sport-Seiten
-  center.appendChild(el('section', 'rubriken', `<h2>Weitere Rubriken</h2><nav class="rubrik-nav" aria-label="Weitere Rubriken">${RUBRIKEN.map((r) =>
-    `<a class="rubrik-btn${r.active ? ' active' : ''}${r.disabled ? ' disabled' : ''}" href="${esc(r.url)}"${r.disabled ? ' aria-disabled="true" tabindex="-1"' : ''}>${esc(r.name)}</a>`).join('')}</nav>`));
 }
 
 // ---------- Rechts: News ----------
@@ -1737,7 +1739,8 @@ document.addEventListener('click', (e) => {
   } else if (act === 'open-next') {
     open.next = true; setTab('spiel', false); render();
     $('#nextBox')?.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
-  } else if (act === 'show-news') showNews(Number(t.dataset.i));
+  } else if (act === 'round') { roundSel = Number(t.dataset.r); const id = t.id; render(); const b = document.getElementById(id); (b && !b.disabled ? b : $('.round-btn:not(:disabled)'))?.focus({ preventScroll: true }); }
+  else if (act === 'show-news') showNews(Number(t.dataset.i));
   else if (act === 'news-cat') { feedState.cat = t.dataset.cat; renderFeed(); }
   else if (act === 'more') {
     const i = Number(t.dataset.i);
