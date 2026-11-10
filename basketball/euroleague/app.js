@@ -1908,6 +1908,14 @@ function boot() {
   setTab(tab, false);
   setupPullToRefresh();
   refresh({ withNews: true }).then(openFromLink).then(() => loadPlayers()).then(render);
+  // Kurzer Hinweis aufs Wischen (swipe.js), nur auf Touch-Geräten und einmal pro App-Sitzung –
+  // sonst käme er nach jedem Zurückwischen von der SB League wieder
+  try {
+    if ('ontouchstart' in window && !sessionStorage.getItem('el-swipe-hint')) {
+      sessionStorage.setItem('el-swipe-hint', '1');
+      setTimeout(() => toast('‹ Nach links wischen: SB League und 2. Liga'), 800);
+    }
+  } catch { /* privates Fenster */ }
 }
 
 // Aus «Mein Sport»: direkt in einen Spielbericht, eine Teamseite oder die Teamwahl
