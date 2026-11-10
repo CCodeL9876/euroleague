@@ -1813,7 +1813,14 @@ async function pushProfile(name, pin) {
   if (!key || !/^\d{4,8}$/.test(String(pin || ''))) return null;
   const r = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}&select=key,pin_hash`, { headers: serviceHeaders() });
   const row = r.ok ? (await r.json())[0] : null;
-  return row && sameString(await sha256Hex(`${pin}:${key}`), row.pin_hash) ? key : null;
+  if (!row) return null;
+  // Sperre gegen Durchprobieren, gleicher Zähler wie in der Funktion euroleague (pinGuard): 5 falsche PINs = 15 Min. gesperrt
+  const fk = `pinfail:${key}`, f = (await cacheGet(fk))?.data;
+  if (f?.until > Date.now()) return null;
+  if (sameString(await sha256Hex(`${pin}:${key}`), row.pin_hash)) return key;
+  const n = (f?.n || 0) + 1;
+  await cacheSet(fk, n >= 5 ? { n: 0, until: Date.now() + 15 * 60 * 1000 } : { n, until: 0 });
+  return null;
 }
 async function handlePush(body) {
   const endpoint = String(body?.endpoint || '');

@@ -211,6 +211,8 @@ async function ensureProfile() {
       return 'onboarding';
     }
     if (res.error === 'pin' || res.error === 'unbekannt') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); }
+    // Kein Netz oder Funktion nicht erreichbar: mit den auf dem Gerät gespeicherten Lieblingsteams weiter (Offline-Stand)
+    else if (FAV.length) { profile = { name }; return 'in'; }
   }
   return 'out';
 }
@@ -240,7 +242,7 @@ async function profileLogin(name, pin) {
     }
     return;
   }
-  profileError = res.error === 'pin' ? 'Falsche PIN.' : res.error === 'unbekannt' ? 'Unbekannter Name – «Neu anlegen» verwenden.' : 'Das hat gerade nicht geklappt.';
+  profileError = res.error === 'pin' ? 'Falsche PIN.' : res.error === 'unbekannt' ? 'Unbekannter Name – «Neu anlegen» verwenden.' : res.error === 'gesperrt' ? 'Zu viele falsche PINs – in 15 Minuten nochmals versuchen.' : 'Das hat gerade nicht geklappt.';
   refreshProfileUI();
 }
 
@@ -372,14 +374,33 @@ function model() {
   const games = (data?.games || []).map((g) => ({ ...g, at: new Date(g.utc), date: zDate(new Date(g.utc)), time: zTime(new Date(g.utc)) }));
   const st = {}, hist = {};
   Object.keys(teams).forEach((c) => { st[c] = { c, s: 0, n: 0, d: 0, hs: 0, hn: 0, as: 0, an: 0 }; hist[c] = []; });
-  games.filter((g) => g.status === 'final' && g.hs !== g.as).sort((a, b) => a.at - b.at).forEach((g) => {
+  // Tabelle nur aus der Hauptrunde (ph fehlt bei einer älteren Funktion: alles Hauptrunde); Play-In, Playoffs und Final Four zählen nicht
+  const h2h = {};
+  const duel = (x, y) => (h2h[`${x}|${y}`] ||= { n: 0, w: 0, d: 0 });
+  games.filter((g) => g.status === 'final' && g.hs !== g.as && (g.ph || 'RS') === 'RS').sort((a, b) => a.at - b.at).forEach((g) => {
     const h = st[g.home], a = st[g.away]; if (!h || !a) return;
+    const x = duel(g.home, g.away), y = duel(g.away, g.home);
+    x.n++; y.n++; x.d += g.hs - g.as; y.d += g.as - g.hs; if (g.hs > g.as) x.w++; else y.w++;
     h.d += g.hs - g.as; a.d += g.as - g.hs;
     if (g.hs > g.as) { h.s++; a.n++; h.hs++; a.an++; } else { a.s++; h.n++; a.as++; h.hn++; }
     hist[g.home].push({ r: g.round, d: g.hs - g.as, w: g.hs > g.as }); hist[g.away].push({ r: g.round, d: g.as - g.hs, w: g.as > g.hs });
   });
   const table = Object.values(st).filter((t) => t.s + t.n > 0 || teams[t.c])
     .sort((x, y) => (y.s - x.s) || (x.n - y.n) || (y.d - x.d) || x.c.localeCompare(y.c));
+  // Gleichstand wie bei der EuroLeague: haben die punktgleichen Teams alle Spiele gegeneinander gespielt (je zwei), zählt
+  // der Direktvergleich (Siege, dann Korbdifferenz untereinander); sonst bleibt die gesamte Korbdifferenz
+  for (let i = 0; i < table.length;) {
+    let j = i + 1;
+    while (j < table.length && table[j].s === table[i].s && table[j].n === table[i].n) j++;
+    const grp = table.slice(i, j);
+    if (grp.length > 1 && grp.every((x) => grp.every((y) => x === y || (h2h[`${x.c}|${y.c}`]?.n || 0) >= 2))) {
+      const mini = (x) => grp.reduce((sum, y) => { const e = x === y ? null : h2h[`${x.c}|${y.c}`]; return e ? [sum[0] + e.w, sum[1] + e.d] : sum; }, [0, 0]);
+      const mm = new Map(grp.map((x) => [x.c, mini(x)]));
+      grp.sort((x, y) => (mm.get(y.c)[0] - mm.get(x.c)[0]) || (mm.get(y.c)[1] - mm.get(x.c)[1]) || (y.d - x.d) || x.c.localeCompare(y.c));
+      table.splice(i, grp.length, ...grp);
+    }
+    i = j;
+  }
   table.forEach((t, i) => {
     t.rank = i + 1;
     // Serie: gleiche Ergebnisse am Stück, vom letzten Spiel rückwärts („S3“ = 3 Siege, „N2“ = 2 Niederlagen)
@@ -893,7 +914,10 @@ function openBox(code, view = 'stats') {
   if (g.status === 'pre') { if (!players) loadPlayers().then(() => { if (boxState.code === code) renderBox(); }); return; }
   loadBox(code).then(renderBox);
   if (g.status === 'live') boxState.timer = setInterval(async () => {
+    // Im Hintergrund nichts laden; nach dem Schlusspfiff aufhören
+    if (document.visibilityState === 'hidden') return;
     await loadBox(code); await loadData(); renderBox(); render();
+    if (boxState.code === code && boxState.data && !boxState.data.live && (data?.games || []).find((x) => x.code === code)?.status === 'final') clearInterval(boxState.timer);
   }, 30000);
 }
 

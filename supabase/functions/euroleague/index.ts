@@ -5,7 +5,8 @@
 //   GET (ohne Anmeldung; antwortet nur Seiten von ALLOWED_ORIGINS)
 //   → { updated, season,
 //       teams: { CODE: { name, short, crest } },
-//       games: [{ code, round, utc, home, away, hs, as, status, period, clock }] }
+//       games: [{ code, round, ph, utc, home, away, hs, as, status, period, clock }] }
+//     ph: Phase ('RS' Hauptrunde, 'PI' Play-In, 'PO' Playoffs, 'FF' Final Four) – nur 'RS' zählt für die Tabelle
 //     status: 'pre' (noch nicht begonnen), 'live' (läuft), 'final' (beendet); period: Viertel, clock: Restzeit
 //
 //   GET ?game=83  → Spielbericht eines Spiels (auch während es läuft):
@@ -109,13 +110,13 @@ export async function buildPayload(schedule, now, liveOf) {
   const list = (schedule?.data || [])
     .map((g) => {
       const utc = String(g.utcDate || '');
-      return { code: Number(g.gameCode), round: roundOf(g), at: Date.parse(utc.endsWith('Z') ? utc : `${utc}Z`), played: Boolean(g.played),
+      return { code: Number(g.gameCode), round: roundOf(g), ph: String(g.phaseType?.code || 'RS'), at: Date.parse(utc.endsWith('Z') ? utc : `${utc}Z`), played: Boolean(g.played),
         home: addTeam(g.local), away: addTeam(g.road), hs: Number(g.local?.score) || 0, as: Number(g.road?.score) || 0 };
     })
     .filter((g) => g.code > 0 && Number.isFinite(g.at) && g.home && g.away)
     .sort((a, b) => a.at - b.at || a.code - b.code);
   const games = await Promise.all(list.map(async (g) => {
-    const out = { code: g.code, round: g.round, utc: new Date(g.at).toISOString(), home: g.home, away: g.away, hs: 0, as: 0, status: 'pre', period: '', clock: '' };
+    const out = { code: g.code, round: g.round, ph: g.ph, utc: new Date(g.at).toISOString(), home: g.home, away: g.away, hs: 0, as: 0, status: 'pre', period: '', clock: '' };
     if (g.played) return { ...out, hs: g.hs, as: g.as, status: 'final' };
     if (g.at > t + EARLY_MS || g.at < t - LATE_MS) return out;
     const s = await liveOf(g.code);
@@ -424,7 +425,7 @@ export function parseCareer(wikitext) {
 async function historyOf(id, first, last, birth) {
   const hit = histories.get(id);
   if (hit && Date.now() - hit.at < HISTORY_MS) return hit.data;
-  let data = [];
+  let data = [], ok = true;
   try {
     const title = await wikiArticle(id, first, last, birth);
     if (title) {
@@ -459,8 +460,9 @@ async function historyOf(id, first, last, birth) {
       // Artikelname behalten (Link auf Wikipedia in den Stationen), Weiterleitungen aufgelöst
       for (const h of data) h.article = h.article ? (canon[h.article] || h.article) : '';
     }
-  } catch { /* Wikipedia nicht erreichbar: nur EuroLeague-Stationen */ }
-  histories.set(id, { at: Date.now(), data });
+  } catch { ok = false; /* Wikipedia nicht erreichbar: nur EuroLeague-Stationen */ }
+  // Einen Ausfall nur 5 Min. merken, nicht den ganzen Tag
+  histories.set(id, { at: ok ? Date.now() : Date.now() - HISTORY_MS + 5 * 60 * 1000, data });
   return data;
 }
 
@@ -668,7 +670,8 @@ async function liveOf(season, code) {
     lives.set(code, { at: Date.now(), data });
     return data;
   } catch {
-    return null;
+    // Einmal nicht erreichbar: den letzten Stand (bis 5 Min. alt) behalten, sonst spränge ein laufendes Spiel auf «nicht begonnen»
+    return hit && Date.now() - hit.at < 5 * 60 * 1000 ? hit.data : null;
   }
 }
 
@@ -870,6 +873,20 @@ async function findProfile(key) {
   return rows[0] || null;
 }
 
+// PIN prüfen mit Sperre gegen Durchprobieren: nach 5 falschen PINs ist das Profil 15 Min. gesperrt (Zähler in el_fb_cache,
+// Schlüssel «pinfail:<profil>»; die Funktion fussball zählt für ihre Push-Anmeldung im selben Eintrag mit).
+// → '' (richtig), 'pin' (falsch) oder 'gesperrt'
+const PIN_TRIES = 5, PIN_LOCK_MS = 15 * 60 * 1000;
+async function pinGuard(key, pin, row) {
+  const fk = `pinfail:${key}`;
+  const f = await videoCacheGet(fk);
+  if (f?.until > Date.now()) return 'gesperrt';
+  if (sameString(await sha256Hex(`${pin}:${key}`), row.pin_hash)) { if (f?.n) await videoCacheSet(fk, { n: 0, until: 0 }); return ''; }
+  const n = (f?.n || 0) + 1;
+  await videoCacheSet(fk, n >= PIN_TRIES ? { n: 0, until: Date.now() + PIN_LOCK_MS } : { n, until: 0 });
+  return 'pin';
+}
+
 async function handleProfile(body, cors) {
   const headers = { ...cors, 'Content-Type': 'application/json' };
   if (!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) return new Response(JSON.stringify({ ok: false, error: 'nicht eingerichtet' }), { status: 500, headers });
@@ -890,15 +907,15 @@ async function handleProfile(body, cors) {
     if (body.kind === 'profile-login') {
       const row = await findProfile(key);
       if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
-      const pin_hash = await sha256Hex(`${pin}:${key}`);
-      if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
+      const bad = await pinGuard(key, pin, row);
+      if (bad) return new Response(JSON.stringify({ ok: false, error: bad }), { status: bad === 'gesperrt' ? 429 : 401, headers });
       return new Response(JSON.stringify({ ok: true, name: row.name, favorites: row.favorites || [], fbFavorites: Array.isArray(row.fb_favorites) ? row.fb_favorites : null, msState: row.ms_state || null }), { headers });
     }
     if (body.kind === 'profile-mssave') {
       const row = await findProfile(key);
       if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
-      const pin_hash = await sha256Hex(`${pin}:${key}`);
-      if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
+      const bad = await pinGuard(key, pin, row);
+      if (bad) return new Response(JSON.stringify({ ok: false, error: bad }), { status: bad === 'gesperrt' ? 429 : 401, headers });
       const ms_state = cleanMsState(body.msState);
       const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}`, { method: 'PATCH', headers: { ...serviceHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify({ ms_state, updated_at: new Date().toISOString() }) });
       if (!res.ok) throw new Error(`mssave ${res.status}`);
@@ -907,8 +924,8 @@ async function handleProfile(body, cors) {
     if (body.kind === 'profile-fbsave') {
       const row = await findProfile(key);
       if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
-      const pin_hash = await sha256Hex(`${pin}:${key}`);
-      if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
+      const bad = await pinGuard(key, pin, row);
+      if (bad) return new Response(JSON.stringify({ ok: false, error: bad }), { status: bad === 'gesperrt' ? 429 : 401, headers });
       const fb_favorites = cleanFbFavorites(body.fbFavorites);
       const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}`, { method: 'PATCH', headers: { ...serviceHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify({ fb_favorites, updated_at: new Date().toISOString() }) });
       if (!res.ok) throw new Error(`fbsave ${res.status}`);
@@ -917,8 +934,8 @@ async function handleProfile(body, cors) {
     if (body.kind === 'profile-save') {
       const row = await findProfile(key);
       if (!row) return new Response(JSON.stringify({ ok: false, error: 'unbekannt' }), { status: 404, headers });
-      const pin_hash = await sha256Hex(`${pin}:${key}`);
-      if (!sameString(pin_hash, row.pin_hash)) return new Response(JSON.stringify({ ok: false, error: 'pin' }), { status: 401, headers });
+      const bad = await pinGuard(key, pin, row);
+      if (bad) return new Response(JSON.stringify({ ok: false, error: bad }), { status: bad === 'gesperrt' ? 429 : 401, headers });
       const favorites = cleanFavorites(body.favorites);
       const res = await fetch(`${PROFILES_URL}?key=eq.${encodeURIComponent(key)}`, { method: 'PATCH', headers: { ...serviceHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify({ favorites, updated_at: new Date().toISOString() }) });
       if (!res.ok) throw new Error(`save ${res.status}`);
