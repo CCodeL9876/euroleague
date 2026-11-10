@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-09",
+ "updated": "2026-11-10",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -440,11 +440,11 @@
    "team": "DUB",
    "status": "out",
    "since": "2026-11-06",
-   "note": "Rückenprobleme",
+   "note": "verletzt seit Mitte Oktober; fehlt gegen Olympiacos und reist nicht nach Griechenland",
    "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
-   "reported": "2026-11-07"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2032675/thomas-walkup-will-miss-the-clash-against-olympiacos-due-to-injury/",
+   "reported": "2026-11-10"
   },
   {
    "id": "",
@@ -462,25 +462,37 @@
    "id": "",
    "name": "Kevin Punter",
    "team": "BAR",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-07",
-   "note": "Knöchelprobleme; schied gegen Breogan (ACB) aus",
-   "back": "",
+   "note": "Knöchelverletzung aus dem ACB-Spiel gegen Breogan; fehlt u.a. bei Panathinaikos",
+   "back": "3-6 Wochen",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/acb/2032111/acb-roundup-manresa-secures-its-first-win-baskonia-gets-the-job-done-on-the-road/",
-   "reported": "2026-11-09"
+   "url": "https://www.eurohoops.net/en/euroleague/2032663/kevin-punter-sidelined-for-three-weeks-with-ankle-injury/",
+   "reported": "2026-11-10"
   },
   {
    "id": "",
    "name": "Tosan Evbuomwan",
    "team": "BAR",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-07",
-   "note": "Schlag auf die Brust; konnte gegen Breogan (ACB) nicht weiterspielen",
+   "note": "Muskelriss in der schrägen Bauchmuskulatur",
+   "back": "ca. 3 Wochen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2032663/kevin-punter-sidelined-for-three-weeks-with-ankle-injury/",
+   "reported": "2026-11-10"
+  },
+  {
+   "id": "",
+   "name": "Vasilije Micic",
+   "team": "HTA",
+   "status": "out",
+   "since": "2026-11-09",
+   "note": "Leistenverletzung; fehlte im Winner-Cup-Final gegen Maccabi",
    "back": "",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/acb/2032111/acb-roundup-manresa-secures-its-first-win-baskonia-gets-the-job-done-on-the-road/",
-   "reported": "2026-11-09"
+   "url": "https://www.eurohoops.net/en/others/2032890/maccabi-erase-23-point-deficit-to-win-israeli-winner-cup/",
+   "reported": "2026-11-10"
   }
  ]
 }

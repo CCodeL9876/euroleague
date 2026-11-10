@@ -1,7 +1,115 @@
 {
-  "issue": 39,
-  "updated": "9. November 2026 · 07:20 Uhr (CH)",
+  "issue": 40,
+  "updated": "10. November 2026 · 07:19 Uhr (CH)",
   "items": [
+    {
+      "tag": "Pokal · Maccabi Tel Aviv",
+      "title": "Maccabi dreht 23-Punkte-Rückstand und holt Winner Cup",
+      "text": "Maccabi Tel Aviv hat den israelischen Winner Cup gegen Hapoel Tel Aviv gewonnen, nachdem das Team nach drei Vierteln mit 36:59 zurückgelegen hatte. Jimmy Clark III erzielte 24 Punkte und 7 Assists, bei Hapoel kam Eugene German auf 26 Punkte. Hapoel musste auf Vasilije Micic (Leistenverletzung) verzichten.",
+      "time": "09.11.2026 · 23:29",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/others/2032890/maccabi-erase-23-point-deficit-to-win-israeli-winner-cup/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Transfer · Zalgiris",
+      "title": "Zalgiris verlängert mit Rubstavicius und leiht ihn an Tofas aus",
+      "text": "Zalgiris Kaunas hat den 24-jährigen litauischen Guard Mantas Rubstavicius mit einem 2+1-Vertrag ausgestattet. In der Saison 2026/27 spielt er leihweise bei Tofas Bursa, dem er sich bereits angeschlossen hat. Ein im Sommer vereinbarter Wechsel an die Universität Auburn war nicht zustande gekommen.",
+      "time": "09.11.2026 · 20:53",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/zalgiris-extends-mantas-rubstavicius-on-21-deal-loans-him-to-tofas/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Transfer · Partizan",
+      "title": "Chris Silva vor Wechsel von Fenerbahce zu Partizan",
+      "text": "Fenerbahce-Center Chris Silva (29) steht laut Eurohoops vor einem Wechsel zu Partizan, die Gespräche laufen. Partizan will die von Verletzungen geplagte Frontcourt-Rotation rasch verstärken. Silva kam in dieser EuroLeague-Saison in vier Spielen auf durchschnittlich 1,8 Punkte.",
+      "time": "09.11.2026 · 18:06",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2032730/fenerbahce-center-chris-silva-closing-in-on-partizan-move/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Liga · EuroLeague",
+      "title": "Expansion: Rom vor fester Lizenz, Drei-Jahres-Lizenzen für Partizan und Zvezda",
+      "text": "Laut «La Gazzetta dello Sport» sollen Valencia, Paris, Dubai, Maxima Roma, Hapoel Tel Aviv und PAOK feste Franchise-Plätze erhalten. Partizan, Crvena Zvezda, Virtus Bologna und Napoli wären mit Drei-Jahres-Lizenzen dabei und hätten Vorrang auf künftige feste Plätze. Der Vorschlag soll bis Ende November dem Board der Aktionärsklubs vorgelegt werden.",
+      "time": "09.11.2026 · 17:52",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/euroleague-expansion-maxima-roma-set-for-permanent-license-virtus-bologna-and-napoli-in-line-for-wild-cards/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Disziplin · Olimpia Milano",
+      "title": "Mailand kündigt nach Wright-Verspätung weitere Massnahmen an",
+      "text": "Moses Wright verlor nach einer Verspätung zur Teamsitzung seinen Platz in der Startformation gegen Trento und kam nur von der Bank (11 Punkte in 14 Minuten). Sportdirektor Daniele Baiesi stellte sich hinter den Entscheid: «There will be others.» Der Klub sieht den Vorfall als Zeichen breiterer Disziplinprobleme.",
+      "time": "09.11.2026 · 16:51",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2032698/milano-warn-of-further-action-after-benching-moses-wright-for-arriving-late/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Transfer · Olimpia Milano",
+      "title": "Banchi bestätigt Suche nach Center",
+      "text": "Olimpia Milano sucht nach der Verletzung von Devin Booker einen Big Man, wie der neue Trainer Luca Banchi bei seiner Vorstellung bestätigte. Der Klub verfügt für die italienische Liga noch über einen freien Platz für einen Nicht-EU-Spieler.",
+      "time": "09.11.2026 · 16:10",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/olimpia-milano-on-the-market-for-a-big-man-as-banchi-confirms-search/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Verletzung · Dubai",
+      "title": "Walkup fehlt Dubai gegen Olympiacos",
+      "text": "Dubai muss im Auswärtsspiel am Donnerstag in Piräus auf Point Guard Thomas Walkup verzichten, der verletzt nicht nach Griechenland reist. Walkup spielte zuletzt am 19. Oktober in der ABA-Liga und gewann vor wenigen Monaten mit Olympiacos die EuroLeague.",
+      "time": "09.11.2026 · 15:41",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2032675/thomas-walkup-will-miss-the-clash-against-olympiacos-due-to-injury/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Verletzung · Barcelona",
+      "title": "Punter fällt bis zu sechs Wochen aus, Evbuomwan drei",
+      "text": "Barcelona-Captain Kevin Punter hat sich gegen Breogan am Knöchel verletzt und fehlt laut Klub drei bis sechs Wochen, unter anderem am Freitag bei Panathinaikos. Tosan Evbuomwan erlitt einen Muskelriss in der schrägen Bauchmuskulatur und fällt rund drei Wochen aus. Punter kommt in der EuroLeague auf 15,9 Punkte pro Spiel.",
+      "time": "09.11.2026 · 15:19",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2032663/kevin-punter-sidelined-for-three-weeks-with-ankle-injury/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Transfer · Dubai",
+      "title": "Huertas vor Rückkehr in die EuroLeague mit Dubai",
+      "text": "Marcelinho Huertas (Jahrgang 1983) ist laut Chema de Lucas bereit, La Laguna Tenerife zu verlassen und zu Dubai Basketball zu wechseln. Dort träfe der brasilianische Point Guard wieder auf Trainer Xavi Pascual. Offiziell ist der Wechsel noch nicht.",
+      "time": "09.11.2026 · 14:20",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/marcelinho-huertas-set-for-euroleague-return-with-dubai-basketball/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Stimmen · Hapoel Tel Aviv",
+      "title": "Itoudis schlägt zweite Teams für EuroLeague-Klubs vor",
+      "text": "Hapoel-Trainer Dimitris Itoudis plädiert dafür, dass EuroLeague-Klubs in den nationalen Ligen mit zweiten Mannschaften antreten. Diese sollen vor allem junge Spieler entwickeln, während sich die Hauptteams auf die EuroLeague konzentrieren. Die Rückkehr von Zeljko Obradovic zu Panathinaikos bezeichnete er als richtigen Schritt zum richtigen Zeitpunkt.",
+      "time": "09.11.2026 · 12:42",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2032611/iitoudis-to-eurohoops-euroleague-clubs-should-have-their-second-teams-for-domestic-leagues/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Finanzen · Real Madrid",
+      "title": "Rekordbudget von 67,2 Millionen Euro für Real Madrid",
+      "text": "Die Basketballabteilung von Real Madrid verfügt 2026/27 laut 2Playbook über ein Rekordbudget von 67,2 Millionen Euro. In der Saison 2025/26 verzeichnete die Sektion einen Rekordverlust von 33,2 Millionen Euro. Das Personalbudget der laufenden Saison beträgt 52,7 Millionen Euro.",
+      "time": "09.11.2026 · 10:16",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2032594/record-budget-revealed-for-real-madrid-in-the-2026-2027-season/",
+      "firstShown": "10.11.2026"
+    },
+    {
+      "tag": "Klub · Virtus Bologna",
+      "title": "Investoren aus den Emiraten interessiert an Virtus Bologna",
+      "text": "Laut «Repubblica Bologna» wollen Investoren aus den Vereinigten Arabischen Emiraten bei Virtus Bologna einsteigen, diskutiert werden eine Komplettübernahme oder eine Beteiligung von rund 50 Prozent. Das Geld könnte helfen, einen festen EuroLeague-Platz zu finanzieren. Eine Einigung gibt es noch nicht, die Gespräche sind in einem frühen Stadium.",
+      "time": "09.11.2026 · 08:27",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/virtus-bologna-draws-interest-from-uae-investors-full-takeover-or-major-stake-on-the-table/",
+      "firstShown": "10.11.2026"
+    },
     {
       "tag": "Liga Pro A · Paris",
       "title": "Paris schlägt Bourg mit 107 Punkten",
@@ -37,114 +145,6 @@
       "source": "Eurohoops",
       "url": "https://www.eurohoops.net/en/heba/2032289/brancou-badio-hits-six-threes-as-panathinaikos-beat-aek/",
       "firstShown": "09.11.2026"
-    },
-    {
-      "tag": "Trainer · Olimpia Milano",
-      "title": "Banchi offiziell zurück in Mailand",
-      "text": "Olimpia Milano hat Luca Banchi mit einem mehrjährigen Vertrag als Nachfolger von Peppe Poeta verpflichtet, elf Jahre nach seiner ersten Amtszeit. Banchi bleibt zugleich italienischer Nationaltrainer; sein Verbandsvertrag wird laut La Stampa auf Teilzeit umgestellt, das Salär von rund 600'000 Euro brutto sinkt. Während des Länderfenster-Zusammenzugs ab 23. November leitet Assistent Marco Ramondino das Team interimistisch.",
-      "time": "08.11.2026 · 11:10",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/olimpia-milano-luca-banchi-is-back/",
-      "firstShown": "09.11.2026"
-    },
-    {
-      "tag": "Liga · Hapoel Tel Aviv",
-      "title": "Hapoel Tel Aviv vor Franchise-Lizenz",
-      "text": "Hapoel Tel Aviv steht laut einem Bericht von Arale Weisberg kurz vor dem Erhalt einer EuroLeague-Franchise-Lizenz. Der Entscheid soll an der Sitzung des Liga-Boards Ende November fallen; als weitere Kandidaten gelten Dubai, Valencia und PAOK. Hapoel Jerusalem dürfte nicht berücksichtigt werden.",
-      "time": "08.11.2026 · 10:11",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/euroleague-hapoel-tel-aviv-set-to-receive-a-franchise-license/",
-      "firstShown": "09.11.2026"
-    },
-    {
-      "tag": "Liga ACB · Barcelona",
-      "title": "Barcelona siegt, Punter und Evbuomwan angeschlagen",
-      "text": "Barcelona schlug in der ACB Rio Breogan 99:91 und feierte den siebten Sieg in Folge. Kevin Punter schied mit Knöchelproblemen aus, Tosan Evbuomwan konnte nach einem Schlag auf die Brust nicht weiterspielen. Real Madrid (90:71 gegen Murcia), Valencia (100:93 gegen Burgos) und Baskonia (98:93 in Lleida) gewannen ebenfalls.",
-      "time": "07.11.2026 · 23:15",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/acb/2032111/acb-roundup-manresa-secures-its-first-win-baskonia-gets-the-job-done-on-the-road/",
-      "firstShown": "09.11.2026"
-    },
-    {
-      "tag": "Liga BSL · Anadolu Efes",
-      "title": "Efes verliert bei Tofas, Payne ausgeschlossen",
-      "text": "Anadolu Efes unterlag in der türkischen Liga Tofas auswärts 87:93. Cameron Payne wurde im dritten Viertel nach einem absichtlichen Foul ausgeschlossen. Fenerbahce gewann bei Bursaspor 78:59, Onuralp Bitim erzielte 19 Punkte.",
-      "time": "07.11.2026 · 21:43",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/tbl/2032101/fenerbahce-wins-comfortably-on-the-road/",
-      "firstShown": "09.11.2026"
-    },
-    {
-      "tag": "Spieler · Panathinaikos",
-      "title": "Nunn reist für Einbürgerung nach Katar",
-      "text": "Kendrick Nunn fehlt Panathinaikos am Sonntag im griechischen Ligaspiel gegen AEK, weil er in Katar die Formalitäten für einen katarischen Pass und medizinische Untersuchungen abschliesst. Damit soll er für den Gastgeber der WM 2027 spielberechtigt werden. Nunn kehrt am Dienstag nach Athen zurück und steht für das EuroLeague-Spiel gegen Barcelona am 13. November zur Verfügung.",
-      "time": "07.11.2026 · 18:14",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/fibawc/2031989/kendrick-nunn-travels-to-qatar-to-resolve-passport-issue/",
-      "firstShown": "08.11.2026"
-    },
-    {
-      "tag": "Transfer · Maccabi Tel Aviv",
-      "title": "Pierria Henry im Probetraining bei Maccabi",
-      "text": "Maccabi Tel Aviv nimmt Pierria Henry für eine Probezeit ins Training. Der 33-jährige Aufbauspieler, früher bei Baskonia und Fenerbahce, ist nach einer vierjährigen Sperre der FIBA ab Januar 2027 wieder spielberechtigt; über eine feste Verpflichtung wird während der Trainingsphase entschieden. Unabhängig davon will Maccabi in den kommenden Tagen einen weiteren Spieler verpflichten.",
-      "time": "07.11.2026 · 13:31",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031845/pierria-henry-close-to-returning-to-the-euroleague-and-signing-with-maccabi/",
-      "firstShown": "08.11.2026"
-    },
-    {
-      "tag": "Auszeichnung · Paris",
-      "title": "Hifi ist MVP der 10. Runde",
-      "text": "Nadir Hifi von Paris Basketball ist zum MVP der 10. Runde gewählt worden. Beim 95:90-Auswärtssieg bei Anadolu Efes erzielte er 28 Punkte, sechs Rebounds und neun Assists und kam auf einen PIR-Wert von 39, den höchsten der Runde. Hifi erhält die Auszeichnung erstmals und führt die Skorerliste mit 22,1 Punkten pro Spiel an.",
-      "time": "07.11.2026 · 12:04",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031828/nadir-hifi-named-mvp-of-euroleague-round-10/",
-      "firstShown": "08.11.2026"
-    },
-    {
-      "tag": "Stimmen · Partizan",
-      "title": "Penarroya lobt Teamleistung, Sorge um Vildoza",
-      "text": "Partizan-Trainer Joan Penarroya zeigte sich nach dem 88:67 gegen Maccabi Tel Aviv zufrieden: «Wir haben gezeigt, dass wir als echte Mannschaft spielen», trotz Verletzungsproblemen vor allem bei den grossen Spielern. Luca Vildoza erlitt einen Schlag an einer bereits früher lädierten Stelle und konnte nicht weiterspielen. Lob gab es auch für Carlik Jones und Vanja Marinkovic.",
-      "time": "07.11.2026 · 11:18",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/partizan-penarroya-we-played-as-a-team-despite-the-injuries/",
-      "firstShown": "08.11.2026"
-    },
-    {
-      "tag": "Analyse · Virtus Bologna",
-      "title": "Virtus verliert viertes Heimspiel in Folge",
-      "text": "Virtus Bologna hat gegen Dubai die vierte Niederlage in Serie in der PalaDozza kassiert. Entscheidend war ein schwaches drittes Viertel, in dem Dubai auf 23 Punkte davonzog. Laut «Il Resto del Carlino» bereiten die Form von Marcus Carr und die Dreierquote Sorgen, eine mögliche Rückkehr von Tommaso Baldasso könnte helfen.",
-      "time": "07.11.2026 · 10:35",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/virtus-bologna-suffer-fourth-consecutive-defeat-at-the-paladozza-as-dubai-sound-the-alarm/",
-      "firstShown": "08.11.2026"
-    },
-    {
-      "tag": "Stimmen · Olympiacos",
-      "title": "Fournier: Ausweichhalle «nicht das Beste»",
-      "text": "Olympiacos spielt wegen Renovationsarbeiten im SEF in der Sunel Arena und verlor dort 57:62 gegen Crvena Zvezda. Evan Fournier räumte gegenüber Eurohoops ein, die Situation sei «nicht das Beste», wollte sie aber nicht als Ausrede gelten lassen: «Ich muss besser sein, Punkt.» Trotz der Ausfälle von Jean Montero und dem suspendierten Tyler Dorsey sieht er im Kader alles Nötige.",
-      "time": "07.11.2026 · 10:28",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031790/evan-fournier-on-playing-in-sunel-arena-and-not-sef-its-like-having-your-wife-away-for-a-little-while/",
-      "firstShown": "08.11.2026"
-    },
-    {
-      "tag": "Spielerstimme · Olympiacos",
-      "title": "Konchar debütiert in der EuroLeague",
-      "text": "Der langjährige NBA-Spieler John Konchar gab bei der Niederlage gegen Crvena Zvezda sein EuroLeague-Debüt für Olympiacos. In rund 20 Minuten blieb er ohne Punkte, verbuchte aber 3 Rebounds, 2 Assists und 2 Blocks. «Es gibt mehr Physis als in der NBA, und hier zählt jeder Ballbesitz», sagte er.",
-      "time": "07.11.2026 · 00:01",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031711/konchar-debuts-in-the-euroleague-there-is-more-physicality-than-in-the-nba/",
-      "firstShown": "07.11.2026"
-    },
-    {
-      "tag": "Resultat · Crvena Zvezda",
-      "title": "Zvezda gewinnt bei Olympiacos",
-      "text": "Crvena Zvezda hat in Runde 10 auswärts bei Olympiacos 62:57 gewonnen, Jordan Nwora kam auf 18 Punkte und 13 Rebounds. Bei Olympiacos erzielte Sasha Vezenkov 27 Punkte. Trainer Georgios Bartzokas: «Es gibt keine Ausrede. So wie wir gespielt haben, haben wir den Sieg nicht verdient.»",
-      "time": "06.11.2026 · 23:22",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2031679/bartzokas-after-the-defeat-by-zvezda-there-is-no-excuse-we-did-not-deserve-to-win/",
-      "firstShown": "07.11.2026"
     }
   ]
 }
