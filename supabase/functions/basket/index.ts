@@ -24,8 +24,8 @@ function serviceHeaders() {
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
 }
-async function getJson(url) {
-  const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+async function getJson(url, ua) {
+  const res = await fetch(url, { headers: { accept: 'application/json', ...(ua ? { 'user-agent': ua } : {}) }, signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -277,11 +277,20 @@ async function sblGame(id) {
 // ---------- BVN (Basketball Verband Nordwestschweiz) ----------
 async function bvn(league) {
   return memo(`bvn:${league}`, 5 * 60 * 1000, async () => {
-    const [ms, rk] = await Promise.all([
-      getJson(`https://api.bvn.ch/v1/matches.php?format=json&realm=liga&id=${encodeURIComponent(league)}`),
-      getJson(`https://api.bvn.ch/v1/ranking.php?format=json&league_id=${encodeURIComponent(league)}`).catch(() => []),
-    ]);
-    if (!Array.isArray(ms)) throw new Error('BVN: keine Spiele');
+    const ck = `bvn:${league}`;
+    let ms, rk;
+    try {
+      [ms, rk] = await Promise.all([
+        getJson(`https://api.bvn.ch/v1/matches.php?format=json&realm=liga&id=${encodeURIComponent(league)}`, SB_UA),
+        getJson(`https://api.bvn.ch/v1/ranking.php?format=json&league_id=${encodeURIComponent(league)}`, SB_UA).catch(() => []),
+      ]);
+    } catch (e) {
+      // Quelle blockt die Serveranfrage (z. B. 403 gegen Rechenzentren) oder ist weg: letzten guten Stand zeigen
+      const last = await cacheGet(ck);
+      if (last) return last;
+      throw e;
+    }
+    if (!Array.isArray(ms)) { const last = await cacheGet(ck); if (last) return last; throw new Error('BVN: keine Spiele'); }
     const pad = (v) => String(v ?? '').padStart(2, '0');
     const now = Date.now();
     const games = ms.map((g) => {
@@ -295,7 +304,9 @@ async function bvn(league) {
     }).filter((g) => g.id).sort((x, y) => (x.utc || '9').localeCompare(y.utc || '9') || x.id - y.id);
     const table = (Array.isArray(rk) ? rk : []).map((r) => ({ rank: num(r.rank), t: { n: str(r.teamName, 50), c: `${str(r.canonical_league, 10)}-${str(r.canonical_team, 50)}`, k: str(r.team5lc, 8) },
       gp: num(r.games) ?? 0, w: num(r.win) ?? 0, l: num(r.lost) ?? 0, pf: num(r.scored) ?? 0, pa: num(r.received) ?? 0, pts: num(r.points) ?? 0 }));
-    return { updated: new Date().toISOString(), league: { id: league, name: str(ms[0]?.leagueName, 40) }, games, table };
+    const out = { updated: new Date().toISOString(), league: { id: league, name: str(ms[0]?.leagueName, 40) }, games, table };
+    await cacheSet(ck, out);
+    return out;
   });
 }
 
