@@ -914,8 +914,9 @@ async function share(i) {
 }
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, variant = '') {
   const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  t.classList.toggle('toast-accent', variant === 'accent');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
 
@@ -1913,7 +1914,7 @@ function boot() {
   try {
     if ('ontouchstart' in window && !sessionStorage.getItem('el-swipe-hint')) {
       sessionStorage.setItem('el-swipe-hint', '1');
-      setTimeout(() => toast('‹ Nach links wischen: SB League und 2. Liga'), 800);
+      setTimeout(() => toast('‹ Nach links wischen: SB League und 2. Liga', 'accent'), 800);
     }
   } catch { /* privates Fenster */ }
 }
