@@ -220,7 +220,8 @@
   .game{background:var(--card);border-radius:22px;padding:12px 18px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:14px;}
   .side{display:flex;align-items:center;gap:12px;min-width:0;}
   .side.away{flex-direction:row-reverse;text-align:right;}
-  .side .nm{font-weight:600;font-size:0.95rem;line-height:1.2;}
+  /* min-width:0 + Umbruch: lange Namen (Panathinaikos) brechen um, statt ins Resultatfeld zu laufen */
+  .side .nm{font-weight:600;font-size:0.95rem;line-height:1.2;min-width:0;overflow-wrap:anywhere;hyphens:auto;}
   .side .nm small{display:block;font-weight:400;font-size:0.78rem;color:var(--dim);font-family:var(--mono);}
   .side.lose .nm{color:var(--dim);}
   .side.fav .nm small::before{content:"★ ";color:var(--gold);font-family:var(--font);}
