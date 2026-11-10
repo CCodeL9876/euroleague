@@ -82,6 +82,11 @@ button.rg-row:disabled{opacity:1;}
 .logo.club{background:#fff;}
 .logo.club img{width:92%;height:92%;}
 
+/* Kacheln auf der Hauptseite (Stil .tiles/.tile aus style.css): SB League zwei nebeneinander, 2. Liga eine breite */
+.rg-tiles{grid-template-columns:repeat(2, minmax(0,1fr));}
+.rg-tilebox{display:flex;flex-direction:column;gap:12px;}
+.rg-tilebox .rg-sec h2{margin-top:0;}
+
 /* Spieler-Bestenlisten (SB League) */
 .rg-cats{overflow-x:auto;scrollbar-width:none;align-self:stretch;}
 .rg-cats button{flex:none;overflow:visible;}

@@ -111,6 +111,7 @@ function gamesView() {
   if (onlyMine && favTeam) games = games.filter((g) => isFav(g.h) || isFav(g.a));
   const lives = games.filter((g) => g.st === 'live');
   if (lives.length) parts.push(`<div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" aria-label="Live-Spiele">${lives.map(liveCard).join('')}</div>`);
+  parts.push(tilesHtml());
   const today = dayKey(new Date());
   const upcoming = games.filter((g) => g.st !== 'ft' && g.st !== 'open' && (!g.utc || dayKey(new Date(g.utc)) >= today));
   const past = games.filter((g) => !upcoming.includes(g) && g.st !== 'live').reverse();
@@ -149,7 +150,7 @@ async function loadLeaders() {
   leadersBusy = true;
   try { leaders = { ...(await api('sblleaders=1')), at: Date.now() }; leadersErr = ''; } catch (e) { leadersErr = `Bestenlisten nicht erreichbar (${e.message}).`; }
   leadersBusy = false;
-  if (view === 'spieler') render();
+  render();
 }
 function leadersView() {
   if (!leaders) { loadLeaders(); return `<p class="notice">${esc(leadersErr || 'Lade Bestenlisten …')}</p>`; }
@@ -163,6 +164,28 @@ function leadersView() {
         <span class="val num">${esc(r.avg)}</span><i style="--w:${Math.max(4, Math.round((v / top) * 100))}%"></i></li>`;
     }).join('')}</ol></section>
     <p class="rg-src">Quelle: swiss.basketball${leaders.phase ? ` · ${esc(/preliminary/i.test(leaders.phase) ? 'Qualifikation' : /play.?off/i.test(leaders.phase) ? 'Playoffs' : leaders.phase)}` : ''}. Eigene Teams hervorgehoben.</p>`;
+}
+
+// ---------- Kacheln auf der Hauptseite (wie auf der EuroLeague-Seite): klappen Tabelle bzw. Bestenlisten darunter auf ----------
+const openTile = { table: false, leaders: false };
+const TILE_SVG = {
+  table: '<svg viewBox="0 0 120 120" aria-hidden="true"><path d="M34 18h52v22c0 18-12 30-26 30S34 58 34 40z" fill="#8FA6FF"/><path d="M34 26H18c0 16 8 24 18 26M86 26h16c0 16-8 24-18 26" fill="none" stroke="#8FA6FF" stroke-width="8" stroke-linecap="round"/><rect x="52" y="68" width="16" height="18" fill="#7D96FF"/><rect x="36" y="86" width="48" height="14" rx="5" fill="#A9BBFF"/></svg>',
+  leaders: '<svg viewBox="0 0 120 120" aria-hidden="true"><rect x="18" y="62" width="20" height="38" rx="6" fill="#FF9AA0"/><rect x="50" y="40" width="20" height="60" rx="6" fill="#FFB4B8"/><rect x="82" y="18" width="20" height="82" rx="6" fill="#FF9AA0"/></svg>',
+};
+function tilesHtml() {
+  const rec = (r) => `${r.w}–${r.l}`;
+  const [first, second] = data.table;
+  const mine = data.table.find((r) => isFav(r.t));
+  let tabTxt = IS_SBL ? 'Rangliste der SB League.' : 'Rangliste der 2. Liga.';
+  if (first && first.gp) {
+    tabTxt = mine && mine !== first ? `${teamName(mine.t)} auf Platz ${mine.rank} (${rec(mine)}), ${teamName(first.t)} führt mit ${rec(first)}.`
+      : `${teamName(first.t)} führt mit ${rec(first)}${second ? `, dahinter ${teamName(second.t)} mit ${rec(second)}` : ''}.`;
+  }
+  const top = leaders?.cats?.find((c) => c.id === 'POINTS')?.rows?.[0];
+  const leadTxt = top ? `${top.n} (${teamName(top.t)}) führt mit ${top.avg} Punkten pro Spiel.` : 'Punkte, Rebounds, Assists: die besten Spieler der Liga.';
+  const tile = (k, cls, title, txt) => `<button type="button" class="tile ${cls}" data-tile="${k}" aria-expanded="${openTile[k]}" aria-controls="rgTile-${k}">${TILE_SVG[k]}<strong>${title}</strong><p>${esc(txt)}</p></button>`;
+  return `<div class="tiles rg-tiles">${tile('table', `t-blue${IS_SBL ? '' : ' tile-wide'}`, 'Tabelle', tabTxt)}${IS_SBL ? tile('leaders', 't-coral', 'Bestenlisten', leadTxt) : ''}</div>
+    ${openTile.table ? `<div class="rg-tilebox" id="rgTile-table">${tableView()}</div>` : ''}${openTile.leaders && IS_SBL ? `<div class="rg-tilebox" id="rgTile-leaders">${leadersView()}</div>` : ''}`;
 }
 
 function render() {
@@ -181,6 +204,8 @@ async function load() {
     error = `Daten nicht erreichbar (${e.message}).`;
   }
   render();
+  // Für den Text der Bestenlisten-Kachel (einmal, die Funktion merkt sich die Listen eine Stunde)
+  if (IS_SBL && data && !leaders && !leadersErr) loadLeaders();
   clearTimeout(timer);
   const live = data?.games?.some((g) => g.st === 'live');
   const soon = data?.games?.some((g) => g.st === 'pre' && g.utc && Math.abs(Date.parse(g.utc) - Date.now()) < 20 * 60 * 1000);
@@ -234,12 +259,13 @@ function gameHtml(g) {
 
 // ---------- Ereignisse ----------
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-game],[data-view],[data-mine],[data-fav],[data-close],[data-boxtab],[data-cat]');
+  const t = e.target.closest('[data-game],[data-view],[data-mine],[data-fav],[data-close],[data-boxtab],[data-cat],[data-tile]');
   if (!t) { if (e.target === dlg) dlg.close(); return; }
   if (t.dataset.close !== undefined) { dlg.close(); return; }
   if (t.dataset.boxtab) { boxTab = t.dataset.boxtab; refreshGame(); return; }
   if (t.dataset.game) { if (IS_SBL) openGame(Number(t.dataset.game)); return; }
   if (t.dataset.view) { view = t.dataset.view; render(); window.scrollTo({ top: 0 }); return; }
+  if (t.dataset.tile) { const k = t.dataset.tile; openTile[k] = !openTile[k]; render(); if (openTile[k]) $(`#rgTile-${k}`)?.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); return; }
   if (t.dataset.cat) { cat = t.dataset.cat; render(); return; }
   if (t.dataset.mine) { onlyMine = t.dataset.mine === '1'; render(); return; }
   if (t.dataset.fav !== undefined) {
