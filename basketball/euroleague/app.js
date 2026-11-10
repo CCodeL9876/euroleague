@@ -754,13 +754,9 @@ function renderCenter(m) {
     const shown = nrs.includes(roundSel) ? roundSel : m.lastPlayed, at = nrs.indexOf(shown);
     const gs = m.rounds[shown];
     const pl = gs.filter((g) => g.status === 'final');
-    const avg = pl.length ? Math.round(pl.reduce((s, g) => s + g.hs + g.as, 0) / pl.length) : 0;
     const big = [...pl].sort((a, b) => Math.abs(b.hs - b.as) - Math.abs(a.hs - a.as) || b.at - a.at)[0];
     const arrow = (dir, to, label) => `<button type="button" class="round-btn" id="round-${dir}" data-act="round" data-r="${to ?? ''}"${to == null ? ' disabled' : ''} aria-label="${label}">${dir === 'prev' ? '‹' : '›'}</button>`;
-    center.appendChild(el('div', 'stats-head', `<h2 class="round-nav">${arrow('prev', nrs[at - 1], 'Vorheriger Spieltag')}<span>Spieltag ${shown} · ${pl.length ? 'Highlights &amp; Resultate' : 'Spielplan'}</span>${arrow('next', nrs[at + 1], 'Nächster Spieltag')}</h2>
-      <div class="facts num"><span title="Gespielte Spiele">${icon('ball')}${pl.length}<span class="sr-only"> Spiele</span></span>
-      ${avg ? `<span title="Punkte pro Spiel">${icon('bars')}Ø ${avg}<span class="sr-only"> Punkte pro Spiel</span></span>` : ''}
-      ${big ? `<span title="Höchster Sieg">${icon('trend')}+${Math.abs(big.hs - big.as)}<span class="sr-only"> höchster Sieg</span></span>` : ''}</div>`));
+    center.appendChild(el('div', 'stats-head', `<h2 class="round-nav">${arrow('prev', nrs[at - 1], 'Vorheriger Spieltag')}<span>Spieltag ${shown} · ${pl.length ? 'Highlights &amp; Resultate' : 'Spielplan'}</span>${arrow('next', nrs[at + 1], 'Nächster Spieltag')}</h2>`));
     const withVideo = gs.filter((g) => g.status === 'final' && mainVideo(g.code));
     if (withVideo.length) {
       const strip = el('section', 'vstrip', `<div class="vstrip-list" data-keep-scroll="videos">${withVideo.map((g) => {
