@@ -11,26 +11,20 @@
 //     Super League, Challenge League:
 //     Sportradar Soccer v4 (Secrets SPORTRADAR_KEY, SPORTRADAR_LEVEL = trial|production, SPORTRADAR_DAILY = Tagesgrenze, sonst 60):
 //     Saison-Spielplan pro Liga täglich, während Spielen alle 7 Min. die Live-Timelines (eine Abfrage, mit Torschützen),
-//     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, Neuaufsteiger dort ergänzen). Reserve im Code: live-football-api.com (Secret LIVEFOOTBALL_KEY, 1 Credit pro Abfrage; Tagesgrenze Secret LIVEFOOTBALL_DAILY, sonst 150):
-//     Spielplan pro Liga alle 6 Std. (/league_fixtures), während Spielen jede Minute die Tagesliste (/matches, eine Abfrage für alle
-//     Ligen), alles in der Tabelle el_fb_cache. API-Football (Secret APIFOOTBALL_KEY) bleibt als Ersatz im Code (src: 'af').
+//     nach Spielende einmal die Timeline des Spiels; alles in el_fb_cache. Wappen aus Wikipedia (SR_LOGO, EN_CREST; Neuaufsteiger dort ergänzen).
 //   GET ?fbleague=ucl|pl|efl|bl1|laliga|seriea|ligue1&kind=table|scorers → Tabelle bzw. Torschützenliste; nach letztem Spiel am Tag vorgewärmt, sonst Cache bis zu 24 Std.
 //   GET ?fbdetail=bb-<uuid>&kind=lineup|stats → Aufstellung (Startelf, Ersatzbank mit Rückennummern benchNo, Trainer) bzw. Teamstatistik eines Spiels;
-//     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst Big Balls; Statistik nach Spielende von Big Balls, Sportradar (PL/CL) als Ersatz; ESPN ist abgeschaltet (sperrt Server-Abfragen)
+//     Aufstellung PL/CL von Sportradar (solange verfügbar), sonst Big Balls; Statistik nach Spielende von Big Balls, Sportradar (PL/CL/Championship) während des Spiels und als Ersatz
 //   GET ?fbplayer=bb:<uuid> → Spielerprofil aus Big Balls (Steckbrief, Transfers, Saisonwerte) + Wikipedia
 //   GET ?fbplayer=<Sportradar-Spieler-Nr.> → Spielerprofil: Steckbrief und Saisonwerte (Sportradar, 7 Tage gespeichert), letzte Spiele (6 Std.),
 //     Karriere und Foto aus Wikipedia/Wikidata
 //   POST { kind: 'push-sub'|'push-unsub', endpoint, name, pin } → Gerät für Tor-Mitteilungen an-/abmelden (Tabelle el_fb_push)
 //   GET ?usage=1 → Verbrauch der letzten 7 Tage pro Quelle, Datenelement und Liga (gezählt in el_fb_cache «use:<Tag>»)
 //   GET ?fbpushtick=1 → (Zeitplan, jede Minute) Tore der Lieblingsteams erkennen und Push senden; ?fbpushmsg=<endpoint> → Meldungen fürs Gerät
-//   GET ?bbtest=1 → Test: Aufstellungen und Spielerdaten von Big Balls für Fussball (≈8 Abfragen), höchstens alle 30 Min.
 //   GET ?bbusage=1 → Big-Balls-Konto: Plan, Tageslimit, GitHub verknüpft, heute verbraucht (/v1/user/me, /v1/usage), höchstens alle 10 Min.
-//   GET ?bbprobe=1 → Test von bigballsdata.com (Secret BIGBALLS_KEY): Rohform von Spielen, Live-Feed, Toren, Tabelle, Statistik (≈7 Abfragen), höchstens alle 30 Min.
-//   GET ?srprobe=1 → Test von Sportradar: Saisons der drei Wettbewerbe (3 Abfragen), höchstens alle 30 Min. neu
-//   GET ?lfprobe=1 → Test von live-football-api.com (Secret LIVEFOOTBALL_KEY): Rohform von Spielplan/Spieldetails, höchstens alle 30 Min. neu
-//   GET ?fbgame=bb-<uuid> | sr-123 | lf-123 | af-123456 → Torschützen eines live-football-api- bzw. API-Football-Spiels → { goals: [{ m, s, n }] } (nach Spielende dauerhaft gespeichert)
+//   GET ?fbgame=bb-<uuid> | sr-123 → Torschützen eines Spiels → { goals: [{ m, s, n }], final } (nach Spielende dauerhaft gespeichert)
 //
-// Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): BIGBALLS_KEY, SPORTRADAR_KEY, SPORTRADAR_LEVEL, SPORTRADAR_DAILY, LIVEFOOTBALL_KEY, LIVEFOOTBALL_DAILY, APIFOOTBALL_KEY;
+// Secrets (Supabase → Edge Functions → Secrets, gelten für alle Funktionen des Projekts): BIGBALLS_KEY, SPORTRADAR_KEY, SPORTRADAR_LEVEL, SPORTRADAR_DAILY, VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT;
 // SUPABASE_SERVICE_ROLE_KEY stellt Supabase selbst bereit (für die Tabelle el_fb_cache).
 
 const ALLOWED_ORIGINS = ['https://ccodel9876.github.io'];
@@ -54,7 +48,7 @@ async function getJson(url) {
 
 const FB_LEAGUES = [
   { id: 'ucl', name: 'Champions League', country: 'Europa', short: 'UCL', color: '#0E1E5B', src: 'bb', key: 'ucl', sr: 'sr:competition:7' },
-  { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'bb', key: 'epl', sr: 'sr:competition:17', lf: 1008 },
+  { id: 'pl', name: 'Premier League', country: 'England', short: 'PL', color: '#3D195B', src: 'bb', key: 'epl', sr: 'sr:competition:17' },
   // Championship (2. Liga England): Big Balls führt sie nicht, darum Sportradar wie die Schweizer Ligen (Spielplan, Live, Tabelle)
   { id: 'efl', name: 'Championship', country: 'England', short: 'EFL', color: '#1C2D5A', src: 'sr', key: 'sr:competition:18' },
   { id: 'bl1', name: 'Bundesliga', country: 'Deutschland', short: 'BL', color: '#D20515', src: 'bb', key: 'bundesliga', oldb: 'bl1' },
@@ -62,8 +56,8 @@ const FB_LEAGUES = [
   { id: 'seriea', name: 'Serie A', country: 'Italien', short: 'SA', color: '#0A5DB8', src: 'bb', key: 'seriea' },
   { id: 'ligue1', name: 'Ligue 1', country: 'Frankreich', short: 'L1', color: '#1B2A4A', src: 'bb', key: 'ligue1' },
   { id: 'bl2', name: '2. Bundesliga', country: 'Deutschland', short: '2B', color: '#5B6170', src: 'oldb', key: 'bl2' },
-  { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'sr', key: 'sr:competition:215', lf: 8571 },
-  { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'sr', key: 'sr:competition:216', lf: 8565 },
+  { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'sr', key: 'sr:competition:215' },
+  { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'sr', key: 'sr:competition:216' },
   { id: 'unl', name: 'Nations League', country: 'Nationalteams', short: 'NL', color: '#00A0E4', src: 'bb', key: 'UEFA Nations League', season: 'cal' },
   { id: 'wcq', name: 'WM-Qualifikation', country: 'Nationalteams', short: 'WMQ', color: '#8A1538', src: 'bb', key: 'World Cup - Qualification Europe', season: 'cal' },
   { id: 'emq', name: 'EM-Qualifikation', country: 'Nationalteams', short: 'EMQ', color: '#143CDB', src: 'bb', key: 'Euro Championship - Qualification', season: 'cal' },
@@ -82,7 +76,6 @@ const OLDB_NAME = { "Man'City": 'Man City', ManU: 'Man United', LA: 'LASK', Madr
 // Wappen, die OpenLigaDB nur von einem nicht erlaubten Server liefert
 const OLDB_LOGO = { Liverpool: 'https://media.api-sports.io/football/teams/40.png' };
 const oldbName = (t) => { const n = String(t?.shortName || '').trim() || String(t?.teamName || '').trim(); return OLDB_NAME[n] || n; };
-const AF_DAILY_MAX = 90;
 const fbSeason = (d) => (d.getUTCMonth() >= 6 ? d.getUTCFullYear() : d.getUTCFullYear() - 1);
 // Läuft gerade (oder gleich) ein Spiel dieser Liga? Dann öfter nachfragen
 const liveWindow = (list, now) => list.some((m) => m.st === 'live' || m.st === 'ht' || (m.st === 'pre' && Math.abs(Date.parse(m.utc) - now) < 20 * 60 * 1000)
@@ -126,47 +119,6 @@ async function dailyAllowed(prefix, max) {
   await cacheSet(k, n + 1);
   return true;
 }
-const afAllowed = () => dailyAllowed('afcount', AF_DAILY_MAX);
-async function afGet(path) {
-  const key = Deno.env.get('APIFOOTBALL_KEY') || '';
-  const res = await fetch(`https://v3.football.api-sports.io/${path}`, { headers: { 'x-apisports-key': key }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
-  const d = await res.json().catch(() => null);
-  const errs = d?.errors && (Array.isArray(d.errors) ? d.errors : Object.values(d.errors));
-  if (!res.ok || (errs && errs.length)) throw new Error(String((errs && errs[0]) || `HTTP ${res.status}`));
-  return d;
-}
-const AF_LIVE = new Set(['1H', '2H', 'ET', 'P', 'LIVE', 'BT']);
-const AF_DONE = new Set(['FT', 'AET', 'PEN']);
-export function mapAf(lg, f) {
-  const s = f?.fixture?.status?.short || 'NS';
-  const st = AF_DONE.has(s) ? 'ft' : s === 'HT' ? 'ht' : AF_LIVE.has(s) ? 'live' : ['NS', 'TBD'].includes(s) ? 'pre' : 'off';
-  const img = fbImg;
-  const ht = f?.score?.halftime;
-  return { id: `af-${f.fixture.id}`, l: lg.id, utc: new Date(f.fixture.date).toISOString(), round: String(f.league?.round || '').replace(/^Regular Season - /, '') ,
-    h: String(f.teams?.home?.name || ''), a: String(f.teams?.away?.name || ''), hl: img(f.teams?.home?.logo), al: img(f.teams?.away?.logo),
-    hs: f.goals?.home ?? null, as: f.goals?.away ?? null, st, min: st === 'live' ? Number(f.fixture.status.elapsed) || null : null,
-    ht: ht && ht.home != null ? `${ht.home}:${ht.away}` : '', note: st === 'off' ? String(f.fixture.status.long || '') : '' };
-}
-async function afLeague(lg, season, now) {
-  if (!Deno.env.get('APIFOOTBALL_KEY')) return { status: 'nokey', message: 'API-Football-Schlüssel fehlt', matches: [] };
-  const ck = `af:${lg.key}:${season}`;
-  const hit = await cacheGet(ck);
-  // Fehler (z. B. Saison nicht im Plan) nur kurz merken, damit ein Plan-Wechsel schnell greift
-  const ttl = hit && (hit.data.status !== 'ok' || liveWindow(hit.data.matches || [], now)) ? 15 * 60 * 1000 : 6 * 3600 * 1000;
-  if (hit && now - hit.at < ttl) return hit.data;
-  if (!(await afAllowed())) return hit?.data || { status: 'error', message: 'Tageslimit von API-Football erreicht', matches: [] };
-  try {
-    const d = await afGet(`fixtures?league=${lg.key}&season=${season}`);
-    const data = { status: 'ok', message: '', matches: (d.response || []).map((f) => mapAf(lg, f)) };
-    if (!data.matches.length) { data.status = 'error'; data.message = 'Keine Spiele für diese Saison (Gratis-Plan?)'; }
-    await cacheSet(ck, data);
-    return data;
-  } catch (err) {
-    const data = { status: 'error', message: String(err?.message || err).slice(0, 160), matches: hit?.data?.matches || [] };
-    await cacheSet(ck, data);
-    return data;
-  }
-}
 // ---------- bigballsdata.com (grosse Ligen, Champions League, Nationalteams) ----------
 const BB_BASE = 'https://api.bigballsdata.com/v1';
 const bbDailyMax = () => Number(Deno.env.get('BIGBALLS_DAILY')) || 230;
@@ -201,37 +153,6 @@ async function bbUsageRun(now) {
   const data = { me: me?.data ?? me, usage: usage?.data ?? usage, headers: bbLimits, appCounterToday: (await cacheGet(k))?.data ?? null, appDailyMax: bbDailyMax() };
   bbUsage = { data, at: now };
   return data;
-}
-// Test: Was liefert Big Balls für Fussball an Aufstellungen und Spielerdaten? (≈8 Abfragen, gekürzte Rohdaten, höchstens alle 30 Min.)
-let bbTest = null;
-async function bbTestRun(now) {
-  if (!Deno.env.get('BIGBALLS_KEY')) return { error: 'Secret BIGBALLS_KEY fehlt' };
-  if (bbTest && now - bbTest.at < 30 * 60 * 1000) return bbTest.data;
-  const cut = (v, n = 1600) => { const t = JSON.stringify(v); return t && t.length > n ? `${t.slice(0, n)}…` : v; };
-  const get = async (path, params) => { if (!(await bbAllowed())) return { error: 'Tagesgrenze' }; try { return await bbGet(path, params); } catch (e) { return { error: String(e?.message || e) }; } };
-  const out = {};
-  // Letztes beendetes Spiel der Premier League und der Bundesliga aus dem gespeicherten Spielplan
-  const last = async (key) => ((await cacheGet(`bb2:${key}`))?.data?.matches || []).filter((m) => m.st === 'ft').sort((a, b) => b.utc.localeCompare(a.utc))[0];
-  const pl = await last('epl'), bl = await last('bundesliga');
-  out.plMatch = pl && `${pl.h} – ${pl.a} ${pl.utc}`;
-  const luPl = pl ? await get(`stored/matches/${pl.id.replace(/^bb-/, '')}/lineups`) : null;
-  out.plLineups = cut(luPl, 2500);
-  out.plStats = pl ? cut(await get(`stored/matches/${pl.id.replace(/^bb-/, '')}/stats`), 1500) : null;
-  out.blMatch = bl && `${bl.h} – ${bl.a} ${bl.utc}`;
-  out.blLineups = bl ? cut(await get(`stored/matches/${bl.id.replace(/^bb-/, '')}/lineups`), 1500) : null;
-  // Spieler: Bester Torschütze der Premier League
-  const ts = await get('leagues/epl/top-scorers', { limit: '1' });
-  const pid = ts?.data?.[0]?.id;
-  out.player = ts?.data?.[0] ? `${ts.data[0].player_name} (${pid})` : cut(ts, 400);
-  if (pid) {
-    out.profile = cut(await get(`players/${pid}`), 2000);
-    out.stats = cut(await get(`players/${pid}/stats`, { league: 'epl', season: '2026' }), 1500);
-    out.transfers = cut(await get(`players/${pid}/transfers`), 800);
-    out.clubForm = cut(await get(`players/${pid}/club-form`), 800);
-  }
-  out.limits = bbLimits;
-  bbTest = { data: out, at: now };
-  return out;
 }
 // Nur Männer-Nationalteams (Länderspiele enthalten auch Frauen- und Juniorenspiele)
 const BB_NOT_MEN = /\b(Women|Femenino|Féminine|Frauen)\b|\bU-?\d\d\b| W$/i;
@@ -342,92 +263,10 @@ async function bbLive(now) {
     return data;
   } catch { return hit?.data || null; }
 }
-// ---------- ESPN (inoffizielle Schnittstelle, nur als Ersatzquelle für Live-Stände) ----------
-// Die Nutzungsbedingungen von ESPN/Disney untersagen automatisierte Abrufe; bewusst nur für laufende/gerade beendete
-// Spiele ohne Stand aus Big Balls/Sportradar, höchstens alle 2 Min. pro Liga und Tag.
-const ESPN_LG = { ucl: 'uefa.champions', pl: 'eng.1', bl1: 'ger.1', laliga: 'esp.1', seriea: 'ita.1', ligue1: 'fra.1', bl2: 'ger.2', chsl: 'sui.1', chcl: 'sui.2',
-  unl: 'uefa.nations', wcq: 'fifa.worldq.uefa', emq: 'uefa.euroq', fr: 'fifa.friendly' };
-const ESPN_MS = 2 * 60 * 1000;
-// ESPN sperrt Abfragen von Servern (Antwort 403 an die Supabase-Funktion); abgeschaltet statt mit getarnten Abfragen umgangen.
-// Torschützen kommen stattdessen von OpenLigaDB (Bundesliga) und aus den Tor-Abfragen bei Big Balls (siehe bbLeagues).
-const ESPN_ON = false;
-async function espnDay(code, day, now, kickoffRefresh = false) {
-  if (!ESPN_ON) return null;
-  const ck = `espn:${code}:${day}`;
-  const hit = fbMem.get(ck) || (await cacheGet(ck));
-  if (hit && now - hit.at < ESPN_MS && !kickoffRefresh) return hit.data;
-  if (kickoffRefresh) {
-    const mk = `espnkick:${code}:${day}:${Math.floor(now / 60000)}`;
-    if ((await cacheGet(mk))?.data) return hit?.data || null;
-    await cacheSet(mk, true);
-  }
-  try {
-    const d = await getJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/scoreboard?dates=${day.replace(/-/g, '')}`);
-    const list = (d?.events || []).map((e) => {
-      const c = e.competitions?.[0] || {}, st = c.status || e.status || {}, ty = st.type || {};
-      const home = (c.competitors || []).find((x) => x.homeAway === 'home') || {}, away = (c.competitors || []).find((x) => x.homeAway === 'away') || {};
-      const clock = String(st.displayClock || '').replace(/'/g, '').replace(/\s+/g, '');
-      const state = ty.state === 'post' ? (ty.completed === false ? 'off' : 'ft') : ty.state === 'in' ? (/^HT$|half/i.test(String(ty.shortDetail || ty.name || '')) ? 'ht' : 'live') : /postpon|cancel|abandon/i.test(String(ty.name || '')) ? 'off' : 'pre';
-      const goals = (c.details || []).filter((x) => x.scoringPlay).map((x) => ({
-        m: String(x.clock?.displayValue || '').replace(/'/g, ''), s: x.team?.id === home.team?.id ? 1 : 2,
-        n: `${String(x.athletesInvolved?.[0]?.displayName || '')}${x.penaltyKick ? ' (Pen.)' : x.ownGoal ? ' (Eigentor)' : ''}` }));
-      return { id: String(e.id || ''), utc: String(e.date || ''), h: String(home.team?.displayName || ''), a: String(away.team?.displayName || ''), hs: home.score != null ? Number(home.score) : null,
-        as: away.score != null ? Number(away.score) : null, st: state, min: state === 'live' && /^\d/.test(clock) ? clock : null, goals };
-    });
-    const data = { list };
-    fbMem.set(ck, { data, at: now });
-    await cacheSet(ck, data);
-    return data;
-  } catch { return hit?.data || null; }
-}
-// Teamstatistik eines Spiels während des Spiels (ESPN-Spielzusammenfassung), höchstens alle 3 Min. pro Spiel
-async function espnStats(m, now) {
-  if (!ESPN_ON) return null;
-  const code = ESPN_LG[m.l];
-  if (!code) return null;
-  const t = Date.parse(m.utc);
-  const e = (await espnDay(code, m.utc.slice(0, 10), now))?.list?.find((x) => Math.abs(Date.parse(x.utc) - t) < 40 * 60 * 1000 && (espnSame(m.h, x.h) || espnSame(m.a, x.a)));
-  if (!e?.id) return null;
-  const ck = `espnst:${e.id}`;
-  const hit = await cacheGet(ck);
-  if (hit && now - hit.at < 3 * 60 * 1000) return hit.data;
-  const d = await getJson(`https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/summary?event=${encodeURIComponent(e.id)}`);
-  const teams = d?.boxscore?.teams || [];
-  const homeId = (d?.header?.competitions?.[0]?.competitors || []).find((c) => c.homeAway === 'home')?.team?.id ?? (d?.header?.competitions?.[0]?.competitors || []).find((c) => c.homeAway === 'home')?.id;
-  const home = teams.find((x) => x.homeAway === 'home') || teams.find((x) => x.team?.id === homeId) || teams[0], away = teams.find((x) => x !== home);
-  const side = (x) => { const s = Object.fromEntries((x?.statistics || []).map((v) => [v.name, v.displayValue]));
-    return { poss: num(s.possessionPct), shots: num(s.totalShots), on: num(s.shotsOnTarget), corners: num(s.wonCorners), fouls: num(s.foulsCommitted), yellow: num(s.yellowCards), red: num(s.redCards),
-      passes: num(s.totalPasses), acc: num(s.accuratePasses), saves: num(s.saves), offsides: num(s.offsides) }; };
-  const h = side(home), a = side(away);
-  const data = { available: h.shots != null || h.poss != null, home: h, away: a, final: false, ended: m.st === 'ft', src: 'ESPN' };
-  await cacheSet(ck, data);
-  return data;
-}
 // Namen über Wortanfänge vergleichen («Internazionale» ~ «Inter Milan», «Bodo/Glimt» ~ «FK Bodø/Glimt»)
-const espnTok = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ø/gi, 'o').toLowerCase().split(/[^a-z0-9]+/)
+const nameTok = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ø/gi, 'o').toLowerCase().split(/[^a-z0-9]+/)
   .filter((w) => w.length >= 4 || /^(psg|lask|roma|ac|as|psv)$/.test(w)).map((w) => w.slice(0, 4));
-const espnSame = (a, b) => { const x = espnTok(a), y = new Set(espnTok(b)); return x.some((w) => y.has(w)); };
-// Offene Spiele (angepfiffen, ohne Endstand) mit ESPN nachführen; onlyPre: nur Spiele, die noch ohne Stand sind
-async function espnApply(list, res, now, open, onlyPre) {
-  const changed = new Set();
-  for (let i = 0; i < list.length; i++) {
-    const code = ESPN_LG[list[i].id];
-    if (!code) continue;
-    const todo = res[i].matches.map((m, j) => [m, j]).filter(([m]) => open(m) && (!onlyPre || m.st === 'pre' || m.hs == null));
-    if (!todo.length) continue;
-    const days = [...new Set(todo.map(([m]) => m.utc.slice(0, 10)))];
-    const lists = (await Promise.all(days.map((d) => espnDay(code, d, now, todo.some(([m]) => m.utc.slice(0, 10) === d && kickoffJustStarted(m, now)))))).flatMap((x) => x?.list || []);
-    for (const [m, j] of todo) {
-      const t = Date.parse(m.utc);
-      const e = lists.find((x) => Math.abs(Date.parse(x.utc) - t) < 40 * 60 * 1000 && (espnSame(m.h, x.h) || espnSame(m.a, x.a)));
-      if (!e || e.st === 'pre') continue;
-      res[i].matches[j] = { ...m, st: e.st, hs: e.hs, as: e.as, min: e.min, goals: e.goals.length ? e.goals : m.goals };
-      if (e.st === 'ft') changed.add(i);
-    }
-  }
-  return changed;
-}
-
+const sameTeam = (a, b) => { const x = nameTok(a), y = new Set(nameTok(b)); return x.some((w) => y.has(w)); };
 // ---------- Fantasy Premier League (inoffizielle, öffentliche Schnittstelle der Premier League; gratis, ohne Schlüssel) ----------
 // Live-Stand, Minute und Torschützen der Premier League: eine Abfrage pro Spielrunde für alle Spiele (während Live alle 60 Sek.).
 // Die Torminute liefert FPL nicht: sie wird beim ersten Erkennen des Tors gemerkt (auf etwa 1–2 Min. genau).
@@ -458,7 +297,7 @@ async function fplFixtures(ev, now, live) {
   catch { return hit && now - hit.at < 3 * 60 * 1000 ? hit.data : []; }
 }
 const FPL_ALIAS = { manutd: 'manchesterunited', mancity: 'manchestercity', spurs: 'tottenhamhotspur', nottmforest: 'nottinghamforest', wolves: 'wolverhamptonwanderers', sheffieldutd: 'sheffieldunited' };
-const fplSame = (fplName, ours) => {
+export const fplSame = (fplName, ours) => {
   const a0 = teamKey(fplName), a = FPL_ALIAS[a0] || a0, b = teamKey(ours);
   return a.length >= 4 && b.length >= 4 && (a === b || a.startsWith(b.slice(0, 6)) || b.startsWith(a.slice(0, 6)));
 };
@@ -554,8 +393,6 @@ async function bbLeagues(list, now) {
     if (fresh.st === 'ft') changed.add(i);
     r.matches[j] = { ...m, st: fresh.st, hs: fresh.hs, as: fresh.as, min: fresh.min, ht: fresh.ht || m.ht, note: fresh.note };
   }));
-  // Ersatz: ESPN für alle offenen Spiele (Big Balls hat für Fussball keinen Live-Feed); Endstände gleich speichern
-  for (const i of await espnApply(list, res, now, open, false).catch(() => new Set())) { changed.add(i); await cacheSet(`bb2:${list[i].key}`, res[i]); }
   await addScorers(list, res, now).catch(() => {});
   // Big Balls hat für Fussball keinen Live-Feed (nur nachgeladene Datenbank): Ligen mit Sportradar-Wettbewerb (Champions
   // League, Premier League) über die Sportradar-Live-Liste (eine Abfrage für alle Spiele weltweit) nachführen
@@ -608,7 +445,7 @@ async function addScorers(list, res, now) {
       let goals = null;
       if (oldb) {
         const t = Date.parse(m.utc);
-        const o = oldb.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 2 * 3600e3 && (espnSame(m.h, x.h) || espnSame(m.a, x.a)));
+        const o = oldb.matches.find((x) => Math.abs(Date.parse(x.utc) - t) < 2 * 3600e3 && (sameTeam(m.h, x.h) || sameTeam(m.a, x.a)));
         // OpenLigaDB ist während des Spiels meist schneller als Big Balls: mit mindestens so vielen Toren gilt auch ihr Stand
         if (o?.goals?.length && o.goals.length >= (m.hs || 0) + (m.as || 0)) {
           goals = o.goals;
@@ -709,7 +546,9 @@ async function fbLeague(id, kind, now = Date.now(), force = false) {
     const hit = await cacheGet(ck);
     if (hit && !force && now - hit.at < 24 * 3600 * 1000) return hit.data;
     if (!(await bbAllowed())) return hit?.data || { available: false };
-    const d = await bbGet(`leagues/${cfg.scorers}/top-scorers`, { limit: '20' });
+    const d = await bbGet(`leagues/${cfg.scorers}/top-scorers`, { limit: '20' }).catch(() => null);
+    // Fehler oder leere Antwort: den alten Stand behalten statt ihn zu überschreiben
+    if (!d?.data?.length) return hit?.data || { available: false };
     const data = { available: true, source: 'Big Balls', rows: (d?.data || []).map((r) => ({ rank: r.rank, n: String(r.player_name || ''), team: String(r.team || ''), g: r.goals ?? 0, a: r.assists ?? 0, mp: r.matches ?? null })) };
     await cacheSet(ck, data);
     return data;
@@ -722,7 +561,7 @@ async function fbLeague(id, kind, now = Date.now(), force = false) {
   const params = id === 'ucl'
     ? { sport: 'football', league: cfg.key, season: String(fbSeason(new Date(now))) }
     : { league: cfg.key };
-  const d = await bbGet('standings', params);
+  const d = await bbGet('standings', params).catch(() => null);
   const t = d?.data?.standings?.[0];
   const rows = (t?.rows || []).map((r) => {
     const w = r.wins ?? 0, draws = r.draws ?? r.ties ?? 0;
@@ -730,7 +569,9 @@ async function fbLeague(id, kind, now = Date.now(), force = false) {
       gf: r.goals_for ?? r.goals_scored ?? r.points_for ?? 0, ga: r.goals_against ?? r.goals_conceded ?? r.points_against ?? 0,
       pts: r.points ?? r.pts ?? (w * 3 + draws) };
   }).sort((a, b) => a.rank - b.rank);
-  const data = { available: rows.length > 0, season: String(t?.season || ''), zones: cfg.zones, rows, asOf: new Date(now).toISOString() };
+  // Fehler oder leere Antwort: die gespeicherte Tabelle behalten statt sie für einen Tag mit «nicht verfügbar» zu überschreiben
+  if (!rows.length) return hit?.data || { available: false };
+  const data = { available: true, season: String(t?.season || ''), zones: cfg.zones, rows, asOf: new Date(now).toISOString() };
   await cacheSet(ck, data);
   return data;
 }
@@ -785,8 +626,7 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const m = ov.matches.find((x) => x.id === id);
   if (!m || !DETAIL_LEAGUES.has(m.l)) return { error: 'nicht verfügbar' };
   if (kind === 'stats') {
-    // Während des Spiels ESPN (alle grossen Ligen, kein Kontingent), nach Spielende Big Balls (dauerhaft gespeichert);
-    // ESPN überbrückt die rund 30 Min., bis Big Balls die Statistik hat. Sportradar nur, wenn beide nichts liefern.
+    // Nach Spielende Big Balls (dauerhaft gespeichert); während des Spiels und als Ersatz Sportradar (UCL, PL, Championship)
     if (m.st === 'pre') return { available: false };
     const bbStats = async () => {
       if (!id.startsWith('bb-')) return { available: false };
@@ -810,8 +650,6 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
     };
     const done = m.st === 'ft' ? await bbStats().catch(() => null) : null;
     if (done?.available) return done;
-    const espn = await espnStats(m, now).catch(() => null);
-    if (espn?.available) return espn;
     const sr = await srStats();
     if (sr?.available) return sr;
     return done || (await bbStats().catch(() => ({ available: false })));
@@ -967,12 +805,15 @@ async function wikiByName(name, club) {
 }
 // Spielerprofil aus Big Balls (Spieler aus Big-Balls-Aufstellungen): Steckbrief, Transfers (7 Tage), Saisonwerte pro Wettbewerb (6 Std.)
 const pick = (o, ...keys) => { for (const k of keys) { const v = k.split('.').reduce((x, y) => x?.[y], o); if (v != null && v !== '') return v; } return null; };
+// Neue Spielerprofile haben einen eigenen kleinen Tageszähler: die Adresse ist öffentlich, und wer Spieler-Nummern
+// durchzählt, soll nicht das Kontingent für die Live-Stände aufbrauchen
+const playerAllowed = () => dailyAllowed('plcount', 100);
 async function fbPlayerBb(uuid, now) {
   if (!Deno.env.get('BIGBALLS_KEY')) return { available: false };
   const ckP = `bbpl:${uuid}`, ckF = `bbpf:${uuid}`;
   let prof = await cacheGet(ckP);
   if (!prof || prof.data?.wv !== 2 || now - prof.at > 7 * 864e5) { // wv 2: Wikipedia-Suche über Name + Verein
-    if (!(await bbAllowed())) { if (!prof) return { available: false, message: 'Tagesgrenze erreicht' }; }
+    if (!(await playerAllowed()) || !(await bbAllowed())) { if (!prof) return { available: false, message: 'Tagesgrenze erreicht' }; }
     else {
       const [pr, tr] = await Promise.all([bbGet(`players/${uuid}/profile`).catch(() => null), (async () => ((await bbAllowed()) ? bbGet(`players/${uuid}/transfers`).catch(() => null) : null))()]);
       const P = pr?.data?.player || pr?.data?.players?.value?.[0] || pr?.data || {};
@@ -987,8 +828,7 @@ async function fbPlayerBb(uuid, now) {
       const data = { available: Boolean(name), id: `bb:${uuid}`, name: wiki.name && /^\w\.\s/.test(name) ? wiki.name : name, birth: hasBirth ? birth : wiki.birth || '',
         nation: String(pick(P, 'nationality', 'country', 'nationality.name', 'country.name') || wiki.nation || ''),
         height: cm(pick(P, 'height', 'height_cm')) ?? wiki.height ?? null, weight: cm(pick(P, 'weight', 'weight_kg')), no: pick(P, 'jersey_number', 'number') ?? '', foot: '', pos: ({ g: 'Torhüter', goalkeeper: 'Torhüter', d: 'Verteidigung', defender: 'Verteidigung', m: 'Mittelfeld', midfielder: 'Mittelfeld', f: 'Sturm', attacker: 'Sturm', forward: 'Sturm' })[String(pick(P, 'position', 'position_name') || '').toLowerCase()] || String(pick(P, 'position', 'position_name') || ''),
-        club: club0, transfers, wv: 2, career: wiki.career, img: wiki.img || (/^https:\/\/api\.bigballsdata\.com\//.test(String(P.headshot_url || '')) ? P.headshot_url : ''),
-        _k: Object.keys(P).slice(0, 30) };
+        club: club0, transfers, wv: 2, career: wiki.career, img: wiki.img || (/^https:\/\/api\.bigballsdata\.com\//.test(String(P.headshot_url || '')) ? P.headshot_url : ''), };
       await cacheSet(ckP, data);
       prof = { data, at: now };
     }
@@ -1020,7 +860,7 @@ async function fbPlayer(pid, now = Date.now()) {
   const ckP = `srpl:${pid}`, ckS = `srps2:${pid}`; // srps2: letzte Spiele mit Saison- und Team-ID
   let prof = await cacheGet(ckP);
   if (!prof || prof.data?.wv !== 2 || now - prof.at > 7 * 864e5) { // wv 2: korrigierte Wikipedia-Zuordnung
-    if (!(await srAllowed())) { if (!prof) return { available: false, message: 'Tagesgrenze erreicht' }; }
+    if (!(await playerAllowed()) || !(await srAllowed())) { if (!prof) return { available: false, message: 'Tagesgrenze erreicht' }; }
     else {
       const d = await srGet(`players/${urn}/profile`);
       const p = d?.player || {};
@@ -1098,9 +938,9 @@ const srAllowed = () => dailyAllowed('srcount', srDailyMax());
 let srLast = 0;
 async function srGet(path, params = {}, el = '') {
   countUse('sr', path, params, el);
-  const wait = srLast + 1100 - Date.now();
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  srLast = Date.now();
+  const at = Math.max(Date.now(), srLast + 1100);
+  srLast = at;
+  if (at > Date.now()) await new Promise((r) => setTimeout(r, at - Date.now()));
   const q = new URLSearchParams({ ...params, api_key: Deno.env.get('SPORTRADAR_KEY') || '' });
   const res = await fetch(`${srBase()}/${path}.json?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
   const d = await res.json().catch(() => null);
@@ -1178,18 +1018,11 @@ function srGoals(timeline) {
       n: `${String(sc?.name || '').replace(/^(.+), (.+)$/, '$2 $1')}${e.method === 'penalty' ? ' (Pen.)' : e.method === 'own_goal' ? ' (Eigentor)' : ''}` };
   });
 }
-// Wappen der Sportradar-Teams (Sportradar liefert in der Soccer API keine Bilder): Wikipedia-Vorschaubilder, 120 px
+// Wappen der Sportradar-Teams (Sportradar liefert in der Soccer API keine Bilder): Wikipedia-Vorschaubilder, 120 px.
+// Englische Klubs stehen in EN_CREST weiter unten; hier nur Schweizer Klubs und englische, deren Kurzname dort nicht passt
 const SR_LOGO = {
   'AFC Bournemouth': 'en/thumb/e/e5/AFC_Bournemouth_%282013%29.svg/120px-AFC_Bournemouth_%282013%29.svg.png',
-  'Arsenal FC': 'en/thumb/5/53/Arsenal_FC.svg/120px-Arsenal_FC.svg.png',
-  'Aston Villa': 'en/thumb/9/9a/Aston_Villa_FC_new_crest.svg/120px-Aston_Villa_FC_new_crest.svg.png',
-  'Brentford FC': 'en/thumb/2/2a/Brentford_FC_crest.svg/120px-Brentford_FC_crest.svg.png',
-  'Brighton & Hove Albion': 'en/thumb/d/d0/Brighton_and_Hove_Albion_FC_crest.svg/120px-Brighton_and_Hove_Albion_FC_crest.svg.png',
-  'Chelsea FC': 'en/thumb/c/cc/Chelsea_FC.svg/120px-Chelsea_FC.svg.png',
-  'Coventry City': 'en/thumb/7/7b/Coventry_City_FC_crest.svg/120px-Coventry_City_FC_crest.svg.png',
-  'Crystal Palace': 'en/thumb/a/a2/Crystal_Palace_FC_logo_%282022%29.svg/120px-Crystal_Palace_FC_logo_%282022%29.svg.png',
   'Etoile Carouge FC': 'commons/thumb/5/55/%C3%89toile_Carouge_FC_2023_Logo.svg/120px-%C3%89toile_Carouge_FC_2023_Logo.svg.png',
-  'Everton FC': 'en/thumb/7/7c/Everton_FC_logo.svg/120px-Everton_FC_logo.svg.png',
   'FC Aarau': 'en/thumb/3/3b/Wappen_FCAg.svg/120px-Wappen_FCAg.svg.png',
   'FC Basel 1893': 'commons/thumb/c/c1/FC_Basel_crest.svg/120px-FC_Basel_crest.svg.png',
   'FC Lugano': 'commons/thumb/1/1c/Logo_FC_Lugano_2025.svg/120px-Logo_FC_Lugano_2025.svg.png',
@@ -1203,22 +1036,12 @@ const SR_LOGO = {
   'FC Wil 1900': 'en/thumb/5/5a/FC_Wil_logo.svg/120px-FC_Wil_logo.svg.png',
   'FC Winterthur': 'en/thumb/a/a9/FC_Winterthur_logo.svg/120px-FC_Winterthur_logo.svg.png',
   'FC Zurich': 'commons/thumb/6/68/FC_Zurich_Logo_2022.svg/120px-FC_Zurich_Logo_2022.svg.png',
-  'Fulham FC': 'en/thumb/e/eb/Fulham_FC_%28shield%29.svg/120px-Fulham_FC_%28shield%29.svg.png',
   'Grasshopper Club Zurich': 'commons/thumb/f/ff/GC_Z%C3%BCrich_Logo.svg/120px-GC_Z%C3%BCrich_Logo.svg.png',
-  'Hull City': 'en/thumb/5/54/Hull_City_A.F.C._logo.svg/120px-Hull_City_A.F.C._logo.svg.png',
-  'Ipswich Town': 'en/thumb/4/43/Ipswich_Town.svg/120px-Ipswich_Town.svg.png',
   'Lausanne-Sport': 'commons/thumb/0/0d/FC_Lausanne-Sport_logo.svg/120px-FC_Lausanne-Sport_logo.svg.png',
-  'Leeds United': 'en/thumb/5/54/Leeds_United_F.C._logo.svg/120px-Leeds_United_F.C._logo.svg.png',
-  'Liverpool FC': 'en/thumb/0/0c/Liverpool_FC.svg/120px-Liverpool_FC.svg.png',
-  'Manchester City': 'en/thumb/e/eb/Manchester_City_FC_badge.svg/120px-Manchester_City_FC_badge.svg.png',
-  'Manchester United': 'en/thumb/7/7a/Manchester_United_FC_crest.svg/120px-Manchester_United_FC_crest.svg.png',
   'Neuchatel Xamax': 'en/thumb/6/6f/Neuch%C3%A2tel_Xamax_FCS_logo.svg/120px-Neuch%C3%A2tel_Xamax_FCS_logo.svg.png',
-  'Newcastle United': 'en/thumb/8/87/Newcastle_United_FC_2026_crest.svg/120px-Newcastle_United_FC_2026_crest.svg.png',
-  'Nottingham Forest': 'en/thumb/e/e5/Nottingham_Forest_F.C._logo.svg/120px-Nottingham_Forest_F.C._logo.svg.png',
   'SC Kriens': 'en/thumb/d/d6/SC_Kriens_logo.svg/120px-SC_Kriens_logo.svg.png',
   'Servette Geneva': 'en/thumb/f/f4/Servette_FC_crest.svg/120px-Servette_FC_crest.svg.png',
   'Stade Lausanne Ouchy': 'en/thumb/0/0e/FC_Stade_Lausanne_Ouchy_logo.svg/120px-FC_Stade_Lausanne_Ouchy_logo.svg.png',
-  'Sunderland AFC': 'en/thumb/7/77/Logo_Sunderland.svg/120px-Logo_Sunderland.svg.png',
   'Tottenham Hotspur': 'en/thumb/b/b4/Tottenham_Hotspur.svg/120px-Tottenham_Hotspur.svg.png',
   'Young Boys Bern': 'commons/thumb/c/c2/BSC_Young_Boys.svg/120px-BSC_Young_Boys.svg.png',
   'Yverdon-Sport': 'commons/thumb/8/83/Logo_Yverdon_Sport_FC.png/120px-Logo_Yverdon_Sport_FC.png',
@@ -1425,179 +1248,9 @@ async function srLeagues(list, now) {
       if (st === 'ft' || st === 'off') changed.add(i);
     }
   }
-  // Sportradar ohne Stand (z. B. Tagesgrenze erreicht): ESPN als Ersatz
-  for (const i of await espnApply(list, res, now, open, true).catch(() => new Set())) changed.add(i);
   // Schlussresultate samt Torschützen (und Verschiebungen) in den Spielplan übernehmen
   for (const i of changed) await cacheSet(`sr:${list[i].key}`, res[i]);
   return res;
-}
-// Test von bigballsdata.com: Rohform der wichtigsten Antworten, gekürzt (≈7 Abfragen); dazu eine Sportradar-Aufstellung (1 Abfrage)
-let bbProbe = null;
-async function bbProbeRun(now) {
-  const key = Deno.env.get('BIGBALLS_KEY') || '';
-  if (!key) return { error: 'Secret BIGBALLS_KEY fehlt' };
-  if (bbProbe && now - bbProbe.at < 30 * 60 * 1000) return bbProbe.data;
-  const get = async (path) => {
-    const res = await fetch(`https://api.bigballsdata.com/v1/${path}`, { headers: { 'x-api-key': key }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
-    const text = await res.text();
-    let body; try { body = JSON.parse(text); } catch { body = text.slice(0, 400); }
-    return { status: res.status, body };
-  };
-  const cut = (r, n = 3) => ({ status: r.status, meta: r.body?.meta, pagination: r.body?.pagination, count: Array.isArray(r.body?.data) ? r.body.data.length : undefined,
-    data: Array.isArray(r.body?.data) ? r.body.data.slice(0, n) : r.body?.data ?? r.body });
-  const day = (d) => new Date(now - d * 864e5).toISOString().slice(0, 10);
-  const out = {};
-  const past = await get(`matches?league=epl&date=${day(2)}&limit=20`);
-  out.eplPast = cut(past);
-  out.eplSeason = cut(await get('matches?league=epl&season=2026&limit=200'), 2);
-  out.scores = cut(await get('scores?sport=football&date=today&limit=200'), 4);
-  const fin = (past.body?.data || []).find((m) => m.status === 'finished');
-  if (fin) {
-    out.events = cut(await get(`matches/${fin.id}/events?type=goals`), 6);
-    out.stats = cut(await get(`matches/${fin.id}/statistics`), 2);
-  }
-  const st = await get('standings?league=epl');
-  out.standings = { status: st.status, first: st.body?.data?.standings?.[0] && { ...st.body.data.standings[0], rows: st.body.data.standings[0].rows?.slice(0, 3) } };
-  out.topScorers = cut(await get('leagues/epl/top-scorers?limit=5'), 5);
-  out.leagues = cut(await get('leagues?sport=football'), 80);
-  // Sportradar: Aufstellung des letzten beendeten Premier-League-Spiels
-  try {
-    const sr = (await cacheGet('sr:sr:competition:17'))?.data?.matches || [];
-    const last = sr.filter((m) => m.st === 'ft').sort((a, b) => b.utc.localeCompare(a.utc))[0];
-    if (last && Deno.env.get('SPORTRADAR_KEY')) {
-      const lu = await srGet(`sport_events/${srUrn(last.id)}/lineups`);
-      out.srLineups = { match: `${last.h} – ${last.a}`, keys: Object.keys(lu || {}), home: (lu?.lineups?.competitors || lu?.competitors || [])[0] };
-    }
-  } catch (err) { out.srLineups = { error: String(err?.message || err) }; }
-  bbProbe = { data: out, at: now };
-  return out;
-}
-// Test: Saisons der drei Wettbewerbe (prüft Schlüssel und Wettbewerbs-IDs)
-let srProbe = null;
-async function srProbeRun(now) {
-  if (!Deno.env.get('SPORTRADAR_KEY')) return { error: 'Secret SPORTRADAR_KEY fehlt' };
-  if (srProbe && now - srProbe.at < 30 * 60 * 1000) return srProbe.data;
-  const out = {};
-  for (const lg of FB_LEAGUES.filter((l) => l.src === 'sr')) {
-    try { const d = await srGet(`competitions/${lg.key}/seasons`); out[lg.id] = (d?.seasons || []).slice(-3); }
-    catch (err) { out[lg.id] = { error: String(err?.message || err) }; }
-  }
-  srProbe = { data: out, at: now };
-  return out;
-}
-
-// ---------- live-football-api.com (Reserve) ----------
-const LF_BASE = 'https://live-football-api.com/api/v1';
-const lfDailyMax = () => Number(Deno.env.get('LIVEFOOTBALL_DAILY')) || 150;
-const lfAllowed = () => dailyAllowed('lfcount', lfDailyMax());
-async function lfGet(path, params = {}) {
-  const q = new URLSearchParams({ ...params, api_key: Deno.env.get('LIVEFOOTBALL_KEY') || '' });
-  const res = await fetch(`${LF_BASE}/${path}?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
-  const d = await res.json().catch(() => null);
-  if (!res.ok || d?.success === false) throw new Error(String(d?.message || `HTTP ${res.status}`));
-  return d?.data ?? d;
-}
-const lfNum = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
-// Anstoss: volles Datum im Spiel, sonst Tagesdatum + „HH:MM“ (Antworten in UTC)
-function lfUtc(m, day) {
-  for (const v of [m.utc, m.datetime, m.date_time, m.start_time, m.starting_at, m.date]) {
-    if (typeof v === 'number') return new Date(v > 1e12 ? v : v * 1000).toISOString();
-    if (typeof v === 'string' && /^\d{4}-\d\d-\d\d[T ]\d\d:\d\d/.test(v)) return new Date(/[Zz]|[+-]\d\d:?\d\d$/.test(v) ? v.replace(' ', 'T') : `${v.replace(' ', 'T')}Z`).toISOString();
-  }
-  const d = (typeof m.date === 'string' && /^\d{4}-\d\d-\d\d$/.test(m.date) ? m.date : day) || '';
-  const t = /^\d\d:\d\d$/.test(m.kickoff || '') ? m.kickoff : '00:00';
-  return d ? new Date(`${d}T${t}:00Z`).toISOString() : '';
-}
-export function mapLf(lg, m, day) {
-  const s = m.status || {};
-  const raw = String(s.status || s || '').toLowerCase(), disp = String(s.display || ''), state = String(s.state || '');
-  const live = s.is_live === true || state === 'inPlay' || raw === 'live';
-  const st = raw === 'finished' || state === 'postGame' || /^(FT|AET|PEN|MS)$/i.test(disp) ? 'ft'
-    : live ? (/^(HT|HZ|Pause|Halftime)/i.test(disp) || raw === 'halftime' ? 'ht' : 'live')
-    : /cancel|postpon|abandon|suspend|interrupt/.test(raw) ? 'off' : 'pre';
-  const ht = m.halftime && m.halftime.home != null ? `${m.halftime.home}:${m.halftime.away}` : '';
-  return { id: `lf-${m.id}`, l: lg.id, utc: lfUtc(m, day), round: String(m.week || m.round || '').replace(/^Regular Season( - )?/i, ''),
-    h: String(m.home?.name || ''), a: String(m.away?.name || ''), hl: fbImg(m.home?.logo), al: fbImg(m.away?.logo),
-    hs: st === 'pre' ? null : lfNum(m.home?.score), as: st === 'pre' ? null : lfNum(m.away?.score),
-    st, min: st === 'live' ? lfNum(String(disp).replace(/\D.*$/, '')) : null, ht, note: st === 'off' ? raw : '' };
-}
-// Spielplan einer Liga (ganze laufende Saison), alle 6 Std.; Fehler nur 15 Min. merken
-async function lfFixtures(lg, now) {
-  const ck = `lf:${lg.key}`;
-  const hit = await cacheGet(ck);
-  if (hit && now - hit.at < (hit.data.status === 'ok' ? 6 * 3600 * 1000 : 15 * 60 * 1000)) return hit.data;
-  if (!(await lfAllowed())) return hit?.data || { status: 'error', message: 'Tagesgrenze für live-football-api erreicht', matches: [] };
-  try {
-    const d = await lfGet('league_fixtures', { league_id: String(lg.lf ?? lg.key) });
-    const weeks = Array.isArray(d?.weeks) ? d.weeks : [];
-    const matches = weeks.flatMap((w) => (w.matches || []).map((m) => mapLf(lg, { week: w.week ?? w.name, ...m }, w.date))).filter((m) => m.utc);
-    const data = { status: matches.length ? 'ok' : 'error', message: matches.length ? '' : 'Kein Spielplan erhalten', matches };
-    await cacheSet(ck, data);
-    return data;
-  } catch (err) {
-    const data = { status: 'error', message: String(err?.message || err).slice(0, 160), matches: hit?.data?.matches || [] };
-    await cacheSet(ck, data);
-    return data;
-  }
-}
-// Tagesliste (alle Ligen weltweit, eine Abfrage) für Live-Stände: während Spielen jede Minute, danach alle 10 Min.
-async function lfToday(now, ttl) {
-  const day = new Date(now).toISOString().slice(0, 10);
-  const ck = `lfday:${day}`;
-  const hit = await cacheGet(ck);
-  if (hit && now - hit.at < ttl) return hit.data;
-  if (!(await lfAllowed())) return hit?.data || null;
-  try {
-    const d = await lfGet('matches', { date: day });
-    const ids = new Set(FB_LEAGUES.filter((lg) => lg.src === 'lf').map((lg) => Number(lg.lf ?? lg.key)));
-    const data = { day, matches: (d?.matches || []).filter((m) => ids.has(Number(m.league?.id))) };
-    await cacheSet(ck, data);
-    return data;
-  } catch { return hit?.data || null; }
-}
-async function lfLeagues(list, now) {
-  if (!Deno.env.get('LIVEFOOTBALL_KEY')) return list.map(() => ({ status: 'nokey', message: 'live-football-api-Schlüssel fehlt', matches: [] }));
-  const res = await Promise.all(list.map((lg) => lfFixtures(lg, now)));
-  // Angepfiffene, im Spielplan noch nicht beendete Spiele (letzte 12 Std.): Stand aus der Tagesliste holen
-  const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) < now && now - Date.parse(m.utc) < 12 * 3600e3;
-  if (res.some((r) => r.matches.some(open))) {
-    const today = await lfToday(now, res.some((r) => liveWindow(r.matches, now)) ? 60 * 1000 : 10 * 60 * 1000);
-    const changed = new Set();
-    for (const m of today?.matches || []) {
-      const i = list.findIndex((lg) => Number(lg.lf ?? lg.key) === Number(m.league?.id));
-      if (i < 0) continue;
-      const fresh = mapLf(list[i], m, today.day);
-      const arr = res[i].matches;
-      const j = arr.findIndex((x) => x.id === fresh.id || (x.h === fresh.h && x.a === fresh.a && Math.abs(Date.parse(x.utc) - Date.parse(fresh.utc)) < 36 * 3600e3));
-      if (j < 0) continue;
-      if (fresh.st === 'ft' && arr[j].st !== 'ft') changed.add(i);
-      arr[j] = { ...arr[j], hs: fresh.hs, as: fresh.as, st: fresh.st, min: fresh.min, ht: fresh.ht || arr[j].ht, note: fresh.note };
-    }
-    // Schlussresultate in den Spielplan übernehmen, damit danach keine Tagesabfragen mehr nötig sind
-    for (const i of changed) await cacheSet(`lf:${list[i].key}`, res[i]);
-  }
-  return res;
-}
-// Torschützen eines Spiels (/live_match_details); nach Spielende dauerhaft, sonst 2 Min. gespeichert
-async function lfGame(id) {
-  const ck = `lfev:${id}`;
-  const hit = await cacheGet(ck);
-  if (hit && (hit.data.final || Date.now() - hit.at < 2 * 60 * 1000)) return hit.data;
-  if (!Deno.env.get('LIVEFOOTBALL_KEY') || !(await lfAllowed())) return hit?.data || { goals: [] };
-  const d = await lfGet('live_match_details', { match_id: id });
-  const prev = [0, 0];
-  const goals = (d?.events || []).filter((e) => e.type === 'goal' || e.type === 'own_goal').map((e) => {
-    const sc = /^(\d+)\s*[-:]\s*(\d+)$/.exec(String(e.detail?.score || ''));
-    let side = e.side === 'away' ? 2 : 1;
-    if (sc) { side = Number(sc[1]) > prev[0] ? 1 : 2; prev[0] = Number(sc[1]); prev[1] = Number(sc[2]); }
-    else if (e.type === 'own_goal') side = side === 1 ? 2 : 1;
-    const n = String(e.detail?.player?.name || '');
-    return { m: String(e.time ?? ''), s: side, n: `${n}${e.detail?.is_penalty ? ' (Pen.)' : e.type === 'own_goal' ? ' (Eigentor)' : ''}` };
-  });
-  const hs = d?.header?.status || {};
-  const data = { goals, final: hs.state === 'postGame' || String(hs.status || '').toLowerCase() === 'finished' };
-  await cacheSet(ck, data);
-  return data;
 }
 // OpenLigaDB (Bundesligen): ganze Saison mit Torschützen
 export function mapOldb(lg, m, now) {
@@ -1622,7 +1275,10 @@ export function mapOldb(lg, m, now) {
 async function oldbLeague(lg, season, now) {
   const ck = `oldb:${lg.key}:${season}`;
   const hit = await cacheGet(ck);
-  if (hit && now - hit.at < (liveWindow(hit.data.matches, now) ? 60 * 1000 : 24 * 3600 * 1000)) return hit.data;
+  // Angepfiffen, aber noch ohne Schlussresultat (OpenLigaDB trägt das Ende teils spät ein): alle 15 Min. nachfragen,
+  // sonst bliebe das Spiel bis zum nächsten Tag ohne Resultat stehen
+  const pending = (hit?.data?.matches || []).some((m) => m.st !== 'ft' && Date.parse(m.utc) < now && now - Date.parse(m.utc) < 12 * 3600e3);
+  if (hit && now - hit.at < (liveWindow(hit.data.matches, now) ? 60 * 1000 : pending ? 15 * 60 * 1000 : 24 * 3600 * 1000)) return hit.data;
   try {
     const raw = await getJson(`https://api.openligadb.de/getmatchdata/${lg.key}/${season}`);
     const data = { status: 'ok', message: '', matches: (Array.isArray(raw) ? raw : []).map((m) => mapOldb(lg, m, now)) };
@@ -1635,14 +1291,13 @@ async function oldbLeague(lg, season, now) {
 async function fbOverview(now) {
   const season = fbSeason(new Date(now));
   const fail = () => ({ status: 'error', message: 'Fehler', matches: [] });
-  const lfList = FB_LEAGUES.filter((lg) => lg.src === 'lf'), srList = FB_LEAGUES.filter((lg) => lg.src === 'sr'), bbList = FB_LEAGUES.filter((lg) => lg.src === 'bb');
-  const [other, lfRes, srRes, bbRes] = await Promise.all([
-    Promise.all(FB_LEAGUES.map((lg) => (lg.src === 'af' ? afLeague(lg, season, now) : lg.src === 'oldb' ? oldbLeague(lg, season, now) : null)).map((p) => p && p.catch(fail))),
-    lfList.length ? lfLeagues(lfList, now).catch(() => lfList.map(fail)) : [],
+  const srList = FB_LEAGUES.filter((lg) => lg.src === 'sr'), bbList = FB_LEAGUES.filter((lg) => lg.src === 'bb');
+  const [other, srRes, bbRes] = await Promise.all([
+    Promise.all(FB_LEAGUES.map((lg) => (lg.src === 'oldb' ? oldbLeague(lg, season, now) : null)).map((p) => p && p.catch(fail))),
     srList.length ? srLeagues(srList, now).catch(() => srList.map(fail)) : [],
     bbList.length ? bbLeagues(bbList, now).catch(() => bbList.map(fail)) : [],
   ]);
-  const res = FB_LEAGUES.map((lg, i) => (lg.src === 'lf' ? lfRes[lfList.indexOf(lg)] : lg.src === 'sr' ? srRes[srList.indexOf(lg)] : lg.src === 'bb' ? bbRes[bbList.indexOf(lg)] : other[i]));
+  const res = FB_LEAGUES.map((lg, i) => (lg.src === 'sr' ? srRes[srList.indexOf(lg)] : lg.src === 'bb' ? bbRes[bbList.indexOf(lg)] : other[i]));
   const from = now - 14 * 864e5, to = now + 15 * 864e5;
   // Ein Wappen pro Klub über alle Ligen (z. B. Liverpool in Premier League und Champions League):
   // zuerst Sportradar-Ligen (Wikipedia, scharf), dann Bundesligen, zuletzt Champions League
@@ -1731,46 +1386,7 @@ async function refreshAroundMatches(now, ov, favs = new Set()) {
 async function fbGame(id) {
   if (/^bb-[\w-]+$/.test(String(id))) return bbGame(id);
   if (/^sr-\d+$/.test(String(id))) { const t = await srTimeline(String(id)); return { goals: t?.goals || [], final: !!t?.final }; }
-  if (/^lf-[\w-]+$/.test(String(id))) return lfGame(String(id).slice(3));
-  const fx = Number(String(id).replace(/^af-/, ''));
-  if (!Number.isInteger(fx) || fx <= 0) throw new Error('ungültig');
-  const ck = `afev:${fx}`;
-  const hit = await cacheGet(ck);
-  if (hit && (hit.data.final || Date.now() - hit.at < 10 * 60 * 1000)) return hit.data;
-  if (!Deno.env.get('APIFOOTBALL_KEY') || !(await afAllowed())) return hit?.data || { goals: [] };
-  const [ev, fixt] = await Promise.all([afGet(`fixtures/events?fixture=${fx}`), afGet(`fixtures?id=${fx}`)]);
-  const f = fixt.response?.[0];
-  const homeId = f?.teams?.home?.id;
-  const goals = (ev.response || []).filter((e) => e.type === 'Goal' && e.detail !== 'Missed Penalty').map((e) => ({
-    m: `${e.time?.elapsed ?? ''}${e.time?.extra ? `+${e.time.extra}` : ''}`,
-    s: (e.team?.id === homeId) !== (e.detail === 'Own Goal') ? 1 : 2,
-    n: `${String(e.player?.name || '')}${e.detail === 'Penalty' ? ' (Pen.)' : e.detail === 'Own Goal' ? ' (Eigentor)' : ''}` }));
-  const data = { goals, final: AF_DONE.has(f?.fixture?.status?.short || '') };
-  await cacheSet(ck, data);
-  return data;
-}
-
-// Test von live-football-api.com: Rohform von Spielplan und Spieldetails (2 Abfragen)
-let lfProbe = null;
-async function lfProbeRun(now) {
-  const key = Deno.env.get('LIVEFOOTBALL_KEY') || '';
-  if (!key) return { error: 'Secret LIVEFOOTBALL_KEY fehlt' };
-  if (lfProbe && now - lfProbe.at < 30 * 60 * 1000) return lfProbe.data;
-  const get = async (path) => {
-    const res = await fetch(`https://live-football-api.com/api/v1/${path}${path.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
-    const text = await res.text();
-    try { return { status: res.status, body: JSON.parse(text) }; } catch { return { status: res.status, body: text.slice(0, 500) }; }
-  };
-  // Rohform des Spielplans (Super League) und der Spieldetails eines beendeten Spiels, gekürzt
-  const fx = await get('league_fixtures?league_id=8571');
-  const weeks = fx.body?.data?.weeks || [];
-  const done = weeks.flatMap((w) => w.matches || []).filter((m) => String(m.status?.status || m.status || '').toLowerCase() === 'finished' || /FT/.test(String(m.status?.display || m.status || '')));
-  const det = done.length ? await get(`live_match_details?match_id=${encodeURIComponent(done.at(-1).id)}`) : null;
-  const data = { fixturesStatus: fx.status, top: fx.body?.data ? Object.keys(fx.body.data) : fx.body, weeksCount: weeks.length,
-    weekKeys: weeks[0] ? Object.keys(weeks[0]) : null, firstWeek: weeks[0] ? { ...weeks[0], matches: (weeks[0].matches || []).slice(0, 2) } : null,
-    details: det && { status: det.status, keys: det.body?.data ? Object.keys(det.body.data) : null, header: det.body?.data?.header, events: (det.body?.data?.events || []).slice(0, 6) } };
-  lfProbe = { data, at: now };
-  return data;
+  throw new Error('ungültig');
 }
 
 // ---------- Push-Mitteilungen bei Toren der Lieblingsteams (Web Push, ohne Inhalt: das Gerät holt die Meldung danach ab) ----------
@@ -1822,9 +1438,11 @@ async function pushProfile(name, pin) {
   await cacheSet(fk, n >= 5 ? { n: 0, until: Date.now() + 15 * 60 * 1000 } : { n, until: 0 });
   return null;
 }
+// Nur die Push-Dienste der Browser (Apple, Google, Mozilla, Microsoft): sonst liesse sich die Funktion als Absender an fremde Adressen missbrauchen
+const PUSH_HOST = /^https:\/\/(fcm\.googleapis\.com|[\w-]+\.push\.apple\.com|[\w.-]+\.push\.services\.mozilla\.com|[\w.-]+\.notify\.windows\.com)\//;
 async function handlePush(body) {
   const endpoint = String(body?.endpoint || '');
-  if (body.kind !== 'push-test' && (!/^https:\/\/[\w.-]+\//.test(endpoint) || endpoint.length > 1000)) return { ok: false, error: 'ungültig' };
+  if (body.kind !== 'push-test' && (!PUSH_HOST.test(endpoint) || endpoint.length > 1000)) return { ok: false, error: 'ungültig' };
   if (body.kind === 'push-test') {
     // Testmeldung an alle Geräte des Profils (Name + PIN nötig)
     const key = await pushProfile(body.name, body.pin);
@@ -1991,13 +1609,13 @@ async function pushTick(now) {
     if (!p) {
       if (m.hs + m.as > 0 && m.st !== 'ft' && now - Date.parse(m.utc) < 10 * 60 * 1000) {
         events.push({ m, side: m.hs > 0 ? 1 : 2 });
-        if (!m.goals?.length && /^(bb-|sr-|lf-|af-)/.test(m.id)) scoreChanges.push(m);
+        if (!m.goals?.length && /^(bb-|sr-)/.test(m.id)) scoreChanges.push(m);
       }
       continue;
     }
     if (m.hs > p[0]) events.push({ m, side: 1 });
     if (m.as > p[1]) events.push({ m, side: 2 });
-    if ((m.hs !== p[0] || m.as !== p[1]) && !m.goals?.length && /^(bb-|sr-|lf-|af-)/.test(m.id)) scoreChanges.push(m);
+    if ((m.hs !== p[0] || m.as !== p[1]) && !m.goals?.length && /^(bb-|sr-)/.test(m.id)) scoreChanges.push(m);
   }
   // Beendete Spiele nach einem Tag aus dem Vergleich nehmen
   for (const [id, v] of Object.entries(prev)) if (!cur[id] && ov.matches.some((m) => m.id === id && now - Date.parse(m.utc) < 864e5)) cur[id] = v;
@@ -2088,10 +1706,6 @@ async function handle(req) {
     try { return new Response(JSON.stringify(await fbDetail(String(params.get('fbdetail')), params.get('kind') === 'stats' ? 'stats' : 'lineup')), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
   }
-  if (params.has('bbtest')) {
-    try { return new Response(JSON.stringify(await bbTestRun(Date.now())), { headers }); }
-    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
-  }
   if (params.has('livedebug')) {
     // Diagnose Live-Stände: Zähler, Sportradar-Spielplan der Champions League, Live-Liste, Zuordnung der heutigen CL-Spiele
     try {
@@ -2110,14 +1724,6 @@ async function handle(req) {
       });
       return new Response(JSON.stringify(out), { headers });
     } catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err), stack: String(err?.stack || '').slice(0, 400) }), { status: 502, headers }); }
-  }
-  if (params.has('bblive')) {
-    // Prüfen: Rohform des Live-Feeds (eine Abfrage, höchstens alle 5 Min. neu wie im Betrieb)
-    try {
-      const d = await bbGet('scores', { sport: 'football', limit: '200' });
-      const arr = Array.isArray(d?.data) ? d.data : d?.data?.scores?.value || d?.data?.value || d?.scores?.value || [];
-      return new Response(JSON.stringify({ meta: d?.meta, keys: Object.keys(d?.data || {}), count: arr.length, sample: arr.slice(0, 6), normalized: arr.slice(0, 6).map(bbNorm) }), { headers });
-    } catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
   }
   // Liste der Fussball-Ligaschlüssel von Big Balls (eine Abfrage, 24 Std. gespeichert), um Schlüssel wie den der Championship zu prüfen
   if (params.has('bbleagues')) {
@@ -2139,18 +1745,6 @@ async function handle(req) {
   if (params.has('fbplayer')) {
     try { return new Response(JSON.stringify(await fbPlayer(String(params.get('fbplayer')))), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
-  }
-  if (params.has('bbprobe')) {
-    try { return new Response(JSON.stringify(await bbProbeRun(Date.now())), { headers }); }
-    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
-  }
-  if (params.has('srprobe')) {
-    try { return new Response(JSON.stringify(await srProbeRun(Date.now())), { headers }); }
-    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
-  }
-  if (params.has('lfprobe')) {
-    try { return new Response(JSON.stringify(await lfProbeRun(Date.now())), { headers }); }
-    catch (err) { return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 502, headers }); }
   }
   if (params.has('fbgame')) {
     try {

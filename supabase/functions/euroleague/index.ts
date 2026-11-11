@@ -594,7 +594,7 @@ async function boxOf(season, code) {
 // Aus dem Play-by-Play jedes Spiels (eine Abfrage, danach dauerhaft in el_fb_cache): Führungswechsel, Gleichstände,
 // Comeback (grösster aufgeholter Rückstand des Siegers), später Krimi (Führungswechsel in den letzten 2 Min.),
 // Verlängerung und knapper Endstand ergeben eine Punktzahl (höher = spannender) und einen kurzen Grund.
-function gameExcitement(pbp) {
+export function gameExcitement(pbp) {
   const flow = buildFlow(pbp, false);
   if (!flow || !flow.ev.length) return null;
   const end = flow.end, final = flow.ev.at(-1);

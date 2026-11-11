@@ -124,14 +124,16 @@ nach Liga gruppiert, eigene Teams oben); das Fussball-Symbol führt zurück. Zug
 
 | Liga | Quelle |
 |---|---|
-| Champions League, Premier League, Bundesliga, La Liga, Serie A, Ligue 1, Nationalteam-Wettbewerbe | Big Balls; Sportradar ergänzt Live-Stände und Aufstellungen für UCL/PL; ESPN ist Live-Ersatz und liefert die Live-Statistik |
-| Super League, Challenge League | Sportradar |
+| Champions League, Bundesliga, La Liga, Serie A, Ligue 1, Nationalteam-Wettbewerbe | Big Balls; Sportradar ergänzt Live-Stände, Aufstellungen und Live-Statistik für UCL/PL |
+| Premier League | Big Balls (Spielplan, Tabelle); live über Fantasy Premier League (gratis), Sportradar als Ersatz |
+| Championship, Super League, Challenge League | Sportradar |
 | 2. Bundesliga | OpenLigaDB |
 
 Daten über die **eigene** Supabase-Funktion `fussball` (`supabase/functions/fussball/index.ts`), getrennt von `euroleague`.
 
 Einrichtung (einmalig):
-1. Supabase → Edge Functions → Secrets: `APIFOOTBALL_KEY` = Schlüssel aus dashboard.api-football.com (Account → My Access).
+1. Supabase → Edge Functions → Secrets: `BIGBALLS_KEY`, `BIGBALLS_DAILY` (Tagesgrenze), `SPORTRADAR_KEY`, `SPORTRADAR_LEVEL`, `SPORTRADAR_DAILY`;
+   für Mitteilungen `VAPID_PUBLIC`, `VAPID_PRIVATE` und `VAPID_SUBJECT` (`mailto:…` – ohne dieses Secret steht die Adresse der Seite als Absender).
 2. Supabase → SQL Editor, damit der Zwischenspeicher Neustarts der Funktion übersteht (spart API-Abfragen):
    ```sql
    create table if not exists el_fb_cache (key text primary key, data jsonb, at timestamptz default now());
@@ -143,7 +145,9 @@ Einrichtung (einmalig):
 Der vorhandene `pg_cron`-Zeitplan muss mindestens jede Minute `?fbpushtick=1` auf der Funktion `fussball` aufrufen.
 Dieser Tick prüft nun auch fällige Vor-/Nach-Spiel-Aktualisierungen: Aufstellungen bis 90 Minuten vor Anpfiff,
 Statistiken nach Spielende sowie Tabellen und Torschützenlisten nach dem letzten beendeten Spiel der Liga am lokalen Tag.
-Live-Teamstatistiken der grossen Ligen und der Champions League kommen bei geöffnetem Statistik-Reiter von ESPN (drei Minuten zwischengespeichert), nach Spielende von Big Balls (dauerhaft im Cache); Sportradar ist für UCL/PL der Ersatz.
+Teamstatistiken kommen nach Spielende von Big Balls (dauerhaft im Cache); während des Spiels liefert Sportradar sie für UCL, Premier League und Championship.
+
+Tests der reinen Funktionen (ohne Netz): `/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc -m supabase/functions/tests.mjs`
 Spielpläne werden täglich zwischengespeichert; Live-Spielstände behalten ihre eigenen kürzeren Intervalle.
 
 Lieblingsteams (vorerst lokal, Stichwörter im Teamnamen): Liverpool, Chelsea, Basel, Mainz.
