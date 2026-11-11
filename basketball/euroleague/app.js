@@ -690,8 +690,9 @@ function renderCenter(m) {
     parts.push(`<div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="live" aria-label="Live-Spiele">${cards}</div>`);
   }
 
-  // Spiel des Tages: höchster Sieg im letzten Spieltag mit Resultaten
-  const big = lives.length ? null : [...finals].sort((a, b) => Math.abs(b.hs - b.as) - Math.abs(a.hs - a.as) || b.at - a.at)[0];
+  // Spiel des Tages: spannendstes Spiel im letzten Spieltag mit Resultaten – das knappste, bei gleichem Abstand das punktreichere
+  const thrill = (a, b) => Math.abs(a.hs - a.as) - Math.abs(b.hs - b.as) || (b.hs + b.as) - (a.hs + a.as) || b.at - a.at;
+  const big = lives.length ? null : [...finals].sort(thrill)[0];
   if (big) {
     const ci = cardFor(big);
     parts.push(`<section class="hero" aria-label="Spiel des Tages">
@@ -700,7 +701,7 @@ function renderCenter(m) {
         <div class="team"><span class="pts num">${big.hs}</span><span class="tn">${logo(m, big.home, 'xs')}${esc(name(m, big.home))}</span></div>
         <span class="arrow" aria-hidden="true">»</span>
         <div class="team"><span class="pts num">${big.as}</span><span class="tn">${logo(m, big.away, 'xs')}${esc(name(m, big.away))}</span></div></div>
-        <div class="hero-actions"><span class="pill-dark num">+${Math.abs(big.hs - big.as)} <span class="dim">für ${esc(short(big.hs > big.as ? big.home : big.away))} · Spieltag ${big.round}</span></span>
+        <div class="hero-actions"><span class="pill-dark num">${Math.min(big.hs, big.as)}:${Math.max(big.hs, big.as)} <span class="dim">· nur ${Math.abs(big.hs - big.as)} ${Math.abs(big.hs - big.as) === 1 ? 'Punkt' : 'Punkte'} Unterschied · Spieltag ${big.round}</span></span>
         ${ci >= 0 ? `<button type="button" class="btn-accent" data-act="show-news" data-i="${ci}">Zur Meldung <span aria-hidden="true">↓</span></button>` : ''}</div></div></section>`);
   }
 
@@ -754,7 +755,7 @@ function renderCenter(m) {
     const shown = nrs.includes(roundSel) ? roundSel : m.lastPlayed, at = nrs.indexOf(shown);
     const gs = m.rounds[shown];
     const pl = gs.filter((g) => g.status === 'final');
-    const big = [...pl].sort((a, b) => Math.abs(b.hs - b.as) - Math.abs(a.hs - a.as) || b.at - a.at)[0];
+    const big = [...pl].sort(thrill)[0];
     const total = nrs.length, pos = at + 1;
     const arrow = (dir, to, label) => `<button type="button" class="round-btn" id="round-${dir}" data-act="round" data-r="${to ?? ''}"${to == null ? ' disabled' : ''} aria-label="${label}">${dir === 'prev' ? '‹' : '›'}</button>`;
     center.appendChild(el('div', 'stats-head', `<div class="round-nav">${arrow('prev', nrs[at - 1], 'Vorheriger Spieltag')}<div class="rn-mid"><h2 class="rn-top">Spieltag ${shown}<span class="rn-of">von ${total}</span></h2><div class="rn-bar" role="img" aria-label="Spieltag ${pos} von ${total}"><i style="width:${Math.round(pos / total * 100)}%"></i></div></div>${arrow('next', nrs[at + 1], 'Nächster Spieltag')}</div>`));
