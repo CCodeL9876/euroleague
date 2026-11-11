@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-10",
+ "updated": "2026-11-11",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -90,13 +90,13 @@
    "id": "",
    "name": "Derek Willis",
    "team": "PAR",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-10-31",
-   "note": "Knöchelverletzung; Einsatz gegen Maccabi kurzfristig entschieden",
-   "back": "zweite Novemberwoche",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
-   "reported": "2026-11-07"
+   "note": "Knöchelverletzung aus Runde 1; fehlt gegen Baskonia",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
+   "reported": "2026-11-11"
   },
   {
    "id": "",
@@ -104,11 +104,11 @@
    "team": "PAR",
    "status": "doubtful",
    "since": "2026-10-31",
-   "note": "Adduktorenverletzung; Einsatz gegen Maccabi kurzfristig entschieden",
+   "note": "Adduktorenverletzung; trainiert wieder mit dem Team, Einsatz gegen Baskonia kurzfristig entschieden",
    "back": "ca. 2 Wochen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
-   "reported": "2026-11-07"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
+   "reported": "2026-11-11"
   },
   {
    "id": "",
@@ -116,11 +116,11 @@
    "team": "TEL",
    "status": "out",
    "since": "2026-10-20",
-   "note": "Teilriss der Quadrizepssehne im Training",
+   "note": "Teilriss der Quadrizepssehne; fällt bis Dezember aus",
    "back": "6-8 Wochen, Rückkehr zu Runde 15",
-   "source": "BasketNews",
-   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
-   "reported": "2026-11-08"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
+   "reported": "2026-11-11"
   },
   {
    "id": "",
@@ -176,11 +176,11 @@
    "team": "IST",
    "status": "out",
    "since": "2026-11-05",
-   "note": "Achillessehnenverletzung",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
+   "note": "Achillessehnenverletzung in Runde 3; Ausfall von 7-9 Monaten erwartet",
+   "back": "7-9 Monate",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
+   "reported": "2026-11-11"
   },
   {
    "id": "",
@@ -292,18 +292,6 @@
   },
   {
    "id": "",
-   "name": "Daulton Hommes",
-   "team": "PRS",
-   "status": "doubtful",
-   "since": "2026-11-05",
-   "note": "Gehirnerschütterung; wird untersucht",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
-  },
-  {
-   "id": "",
    "name": "Mathis Dossou-Yovo",
    "team": "ASV",
    "status": "doubtful",
@@ -342,13 +330,13 @@
    "id": "",
    "name": "Kevarrius Hayes",
    "team": "PAR",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-06",
-   "note": "leichte Schulterverletzung; verpasste das Spiel gegen Maccabi",
+   "note": "Schulterverletzung; fehlt gegen Baskonia",
    "back": "",
-   "source": "BasketNews",
-   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
-   "reported": "2026-11-08"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
+   "reported": "2026-11-11"
   },
   {
    "id": "",
@@ -380,11 +368,11 @@
    "team": "RED",
    "status": "out",
    "since": "2026-11-06",
-   "note": "Knöchelprobleme",
+   "note": "arthroskopische Knöcheloperation; Rehabilitation begonnen",
    "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
-   "reported": "2026-11-07"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2033013/stefan-miljenovic-injury-update-crvena-zvezda-euroleague/",
+   "reported": "2026-11-11"
   },
   {
    "id": "",
@@ -393,18 +381,6 @@
    "status": "out",
    "since": "2026-11-06",
    "note": "Beinprobleme",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
-   "reported": "2026-11-07"
-  },
-  {
-   "id": "",
-   "name": "Justin Anderson",
-   "team": "DUB",
-   "status": "out",
-   "since": "2026-11-06",
-   "note": "Oberschenkelverletzung (Hamstring)",
    "back": "",
    "source": "Sportando",
    "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
@@ -452,11 +428,11 @@
    "team": "PAR",
    "status": "doubtful",
    "since": "2026-11-06",
-   "note": "Handverletzung in Runde 10 gegen Maccabi; konnte nicht weiterspielen, fehlt im Ligaspiel am Sonntag",
+   "note": "Unterarmverletzung aus Runde 10; Einsatz gegen Baskonia kurzfristig entschieden",
    "back": "",
-   "source": "BasketNews",
-   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
-   "reported": "2026-11-08"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
+   "reported": "2026-11-11"
   },
   {
    "id": "",
@@ -493,6 +469,30 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/others/2032890/maccabi-erase-23-point-deficit-to-win-israeli-winner-cup/",
    "reported": "2026-11-10"
+  },
+  {
+   "id": "",
+   "name": "Jaylen Nowell",
+   "team": "BES",
+   "status": "out",
+   "since": "2026-11-10",
+   "note": "Nasenbruch, im Acibadem-Maslak-Spital operiert; Rehabilitation begonnen",
+   "back": "offen",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/besiktass-jaylen-nowell-undergoes-nose-surgery/",
+   "reported": "2026-11-11"
+  },
+  {
+   "id": "",
+   "name": "Nikos Rogkavopoulos",
+   "team": "PAN",
+   "status": "out",
+   "since": "2026-11-10",
+   "note": "verletzt, letzter Einsatz in Runde 5",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
+   "reported": "2026-11-11"
   }
  ]
 }
