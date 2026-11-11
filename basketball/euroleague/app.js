@@ -691,7 +691,10 @@ function renderCenter(m) {
   }
 
   // Spiel des Tages: spannendstes Spiel im letzten Spieltag mit Resultaten – das knappste, bei gleichem Abstand das punktreichere
-  const thrill = (a, b) => Math.abs(a.hs - a.as) - Math.abs(b.hs - b.as) || (b.hs + b.as) - (a.hs + a.as) || b.at - a.at;
+  // Spannung: Server-Bewertung (exc – Führungswechsel, Comeback, Verlängerung …); ohne Bewertung das knappste, dann punktreichere Spiel
+  const thrill = (a, b) => (typeof a.exc === 'number' && typeof b.exc === 'number'
+    ? b.exc - a.exc || Math.abs(a.hs - a.as) - Math.abs(b.hs - b.as) || (b.hs + b.as) - (a.hs + a.as) || b.at - a.at
+    : Math.abs(a.hs - a.as) - Math.abs(b.hs - b.as) || (b.hs + b.as) - (a.hs + a.as) || b.at - a.at);
   const big = lives.length ? null : [...finals].sort(thrill)[0];
   if (big) {
     const ci = cardFor(big);
@@ -701,7 +704,7 @@ function renderCenter(m) {
         <div class="team"><span class="pts num">${big.hs}</span><span class="tn">${logo(m, big.home, 'xs')}${esc(name(m, big.home))}</span></div>
         <span class="arrow" aria-hidden="true">»</span>
         <div class="team"><span class="pts num">${big.as}</span><span class="tn">${logo(m, big.away, 'xs')}${esc(name(m, big.away))}</span></div></div>
-        <div class="hero-actions"><span class="pill-dark num">${Math.min(big.hs, big.as)}:${Math.max(big.hs, big.as)} <span class="dim">· nur ${Math.abs(big.hs - big.as)} ${Math.abs(big.hs - big.as) === 1 ? 'Punkt' : 'Punkte'} Unterschied · Spieltag ${big.round}</span></span>
+        <div class="hero-actions"><span class="pill-dark num">${big.hs}:${big.as} <span class="dim">· ${esc(big.excWhy || `nur ${Math.abs(big.hs - big.as)} ${Math.abs(big.hs - big.as) === 1 ? 'Punkt' : 'Punkte'} Unterschied`)} · Spieltag ${big.round}</span></span>
         ${ci >= 0 ? `<button type="button" class="btn-accent" data-act="show-news" data-i="${ci}">Zur Meldung <span aria-hidden="true">↓</span></button>` : ''}</div></div></section>`);
   }
 

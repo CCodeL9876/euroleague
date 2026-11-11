@@ -590,6 +590,65 @@ async function boxOf(season, code) {
   return data;
 }
 
+// ---------- Spannungs-Bewertung der beendeten Spiele („Spiel des Tages") ----------
+// Aus dem Play-by-Play jedes Spiels (eine Abfrage, danach dauerhaft in el_fb_cache): Führungswechsel, Gleichstände,
+// Comeback (grösster aufgeholter Rückstand des Siegers), später Krimi (Führungswechsel in den letzten 2 Min.),
+// Verlängerung und knapper Endstand ergeben eine Punktzahl (höher = spannender) und einen kurzen Grund.
+function gameExcitement(pbp) {
+  const flow = buildFlow(pbp, false);
+  if (!flow || !flow.ev.length) return null;
+  const end = flow.end, final = flow.ev.at(-1);
+  const fa = final[1], fb = final[2], margin = Math.abs(fa - fb);
+  const ot = Math.max(0, Math.round((end - 2400) / 300));
+  const winSign = fa === fb ? 0 : fa > fb ? 1 : -1;
+  let lc = 0, ties = 0, lateLc = 0, prevSign = 0, maxDeficit = 0;
+  for (const [t, a, b] of flow.ev) {
+    const d = a - b, sign = d > 0 ? 1 : d < 0 ? -1 : 0;
+    if (sign !== 0 && prevSign !== 0 && sign !== prevSign) { lc++; if (t >= end - 120) lateLc++; }
+    if (sign !== 0) prevSign = sign;
+    if (d === 0 && a + b > 0) ties++;
+    if (winSign !== 0) { const behind = -d * winSign; if (behind > maxDeficit) maxDeficit = behind; }
+  }
+  const score = Math.round(lc * 3 + ties * 1.5 + Math.max(0, 20 - margin) * 1.2 + ot * 25 + maxDeficit * 0.8 + lateLc * 6);
+  let why = '';
+  if (ot > 0) why = ot > 1 ? `${ot}× Verlängerung` : 'Verlängerung';
+  else if (maxDeficit >= 12) why = `Comeback aus ${maxDeficit} Punkten Rückstand`;
+  else if (lateLc > 0 && margin <= 4) why = 'Krimi bis zur Schlusssirene';
+  else if (lc >= 8) why = `${lc} Führungswechsel`;
+  else if (margin <= 3) why = 'Bis zum Schluss offen';
+  return { score, why };
+}
+const EXC_BUDGET_MS = 10000, EXC_BATCH = 6;
+let excMem = { season: '', at: 0, store: null };
+async function exciteStore(season) {
+  if (excMem.season === season && excMem.store && Date.now() - excMem.at < 30 * 1000) return excMem.store;
+  const store = (await videoCacheGet(`el-excite:${season}`)) || { done: {}, score: {}, why: {} };
+  excMem = { season, at: Date.now(), store };
+  return store;
+}
+// Im Hintergrund die neuesten noch nicht bewerteten Spiele nachrechnen (begrenzt pro Aufruf), dauerhaft speichern
+async function exciteBackfill(season) {
+  const store = await exciteStore(season);
+  const schedule = await loadSchedule(season);
+  const todo = (schedule?.data || []).filter((g) => g.played && !store.done[g.gameCode])
+    .sort((a, b) => String(b.utcDate || '').localeCompare(String(a.utcDate || '')));
+  if (!todo.length) return;
+  const stop = Date.now() + EXC_BUDGET_MS, before = Object.keys(store.done).length;
+  for (let i = 0; i < todo.length && Date.now() < stop; i += EXC_BATCH) {
+    const read = await Promise.all(todo.slice(i, i + EXC_BATCH).map(async (g) => {
+      const old = Date.now() - Date.parse(`${String(g.utcDate || '').replace(' ', 'T')}Z`) > 3 * 3600 * 1000;
+      try { return { code: g.gameCode, r: gameExcitement(await getJson(`https://live.euroleague.net/api/PlaybyPlay?gamecode=${g.gameCode}&seasoncode=${season}`)), old }; }
+      catch { return { code: g.gameCode, r: null, old }; }
+    }));
+    for (const x of read) {
+      if (x.r) { store.done[x.code] = 1; store.score[x.code] = x.r.score; if (x.r.why) store.why[x.code] = x.r.why; }
+      else if (x.old) store.done[x.code] = 1; // altes Spiel ohne Play-by-Play: nicht erneut versuchen
+    }
+  }
+  if (Object.keys(store.done).length !== before) { await videoCacheSet(`el-excite:${season}`, store); excMem = { season, at: Date.now(), store }; }
+}
+
+
 // Bankpunkte und Liga-Quoten: beendete Spiele ändern sich nicht mehr, darum wird jedes nur einmal gelesen und
 // das Ergebnis in el_fb_cache gesammelt. Pro Abruf höchstens rund 12 Sekunden Arbeit, den Rest holt der nächste Abruf.
 const EXTRAS_BUDGET_MS = 12000, EXTRAS_BATCH = 8;
@@ -1024,6 +1083,13 @@ async function handle(req) {
   }
   const payload = await buildPayload(data, now, (code) => liveOf(season, code));
   payload.season = season;
+  // Spannungs-Bewertung fürs „Spiel des Tages": nur aus dem Speicher (schnell), Nachrechnen läuft im Hintergrund
+  try {
+    const store = await exciteStore(season);
+    payload.games = payload.games.map((g) => (store.score[g.code] != null ? { ...g, exc: store.score[g.code], excWhy: store.why[g.code] || '' } : g));
+    const bf = exciteBackfill(season).catch(() => {});
+    if (globalThis.EdgeRuntime?.waitUntil) globalThis.EdgeRuntime.waitUntil(bf);
+  } catch { /* ohne Bewertung weiter */ }
   // Kurz zwischenspeichern lassen: mehrere Geräte holen in derselben halben Minute dieselbe Antwort
   return new Response(JSON.stringify(payload), { headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=20' } });
 }
