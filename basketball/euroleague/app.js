@@ -782,30 +782,34 @@ function renderCenter(m) {
 
 // ---------- Rechts: News ----------
 function dkey(s) { const p = String(s || '').split('.'); return p.length === 3 ? p[2] + p[1] + p[0] : ''; }
-// News als Titelseite: Aufmacher, Zitat, zwei Top-Kacheln, Rest als „Kurz gemeldet“.
+// News als Zeitstrahl: pro Tag (an dem die Meldung in der App erschien) nach Uhrzeit, farbiger Punkt pro Thema; Antippen klappt den Text auf.
 // Thema (Farbe + Symbol) und Team (Logo) kommen aus dem Tag der Meldung, z. B. „Verletzung · Real Madrid“.
 const NEWS_ICON = {
   inj: '<path d="M12 5v14M5 12h14"/>', tr: '<path d="M7 7h11l-3-3M17 17H6l3 3"/>', q: '<path d="M7 11h4v6H5v-4a6 6 0 0 1 2-4M15 11h4v6h-6v-4a6 6 0 0 1 2-4"/>',
   res: '<path d="M4 6h16v12H4zM12 6v12"/>', ser: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>', cal: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
-  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  cup: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 3M16 6h3a3 3 0 0 1-3 3M12 13v4M9 20h6"/>',
+  money: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.3 0-2.4-.5-3-1.5M12 6.5v11"/>', globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
 };
 const NEWS_CAT = { Verletzung: ['coral', 'inj'], Transfer: ['blue-hi', 'tr'], Zitat: ['violet-hi', 'q'], Resultat: ['green', 'res'], Spielbericht: ['green', 'res'],
-  Serie: ['gold', 'ser'], Rekord: ['gold', 'ser'], Spielplan: ['orange', 'cal'], Vorschau: ['blue-hi', 'eye'] };
-const NEWS_FILTERS = [['', 'Alle'], ['fav', '★ Meine Teams'], ['Verletzung', 'Verletzungen'], ['Transfer', 'Transfers'], ['Zitat', 'Stimmen']];
-const LEAD_ORDER = ['Serie', 'Rekord', 'Resultat', 'Spielbericht', 'Transfer'];
+  Serie: ['gold', 'ser'], Rekord: ['gold', 'ser'], Spielplan: ['orange', 'cal'], Vorschau: ['blue-hi', 'eye'],
+  // Themen, die die News-Aufgabe tatsächlich schreibt
+  Liga: ['violet-hi', 'globe'], Stimmen: ['gold', 'q'], Trainer: ['gold', 'q'], Finanzen: ['green', 'money'], Pokal: ['orange', 'cup'] };
+// Filter: Schlüssel → Themen, die dazugehören («Stimmen» schreibt die News-Aufgabe als «Stimmen» oder «Trainer», älter als «Zitat»)
+const NEWS_FILTERS = [['', 'Alle', []], ['fav', '★ Meine Teams', []], ['Verletzung', 'Verletzungen', ['Verletzung']], ['Transfer', 'Transfers', ['Transfer']], ['Stimmen', 'Stimmen', ['Stimmen', 'Trainer', 'Zitat']]];
+const filterCats = (k) => NEWS_FILTERS.find((f) => f[0] === k)?.[2] || [];
 
 function newsInfo(it) {
   const [cat = '', teamTxt = ''] = String(it.tag || '').split(' · ');
   const hay = teamTxt.toLowerCase();
   const team = Object.keys(KEYS).find((c) => KEYS[c].some((k) => hay.includes(k.trim()))) || '';
   const [color, ic] = NEWS_CAT[cat] || ['faint', 'globe'];
+  if (!NEWS_CAT[cat] && cat && cat === teamTxt) return { cat: 'Klub', teamTxt, team, color, ic, quote: '', who: '' };
   const quote = /«([^»]+)»/.exec(it.title || '');
   return { cat, teamTxt, team, color, ic, quote: quote ? quote[1] : '', who: quote ? String(it.title).split(/\s(?:nach|vor|über)\s|:/)[0] : '' };
 }
 const newsCat = (n) => `<span class="nf-cat" style="--c:var(--${n.color})"><svg viewBox="0 0 24 24" aria-hidden="true">${NEWS_ICON[n.ic]}</svg>${esc(n.cat)}${n.teamTxt ? ` · ${esc(n.teamTxt)}` : ''}</span>`;
-const newsLogo = (n) => (n.team && crestImg(data?.teams?.[n.team]?.crest) ? `<span class="logo nf-logo">${crestImg(data?.teams?.[n.team]?.crest)}</span>` : '<span class="logo nf-logo none" aria-hidden="true"></span>');
 const newsWhen = (it, todayCH) => { const [d, t] = String(it.time || '').split(' · '); return d === todayCH ? `Heute ${t || ''}` : d ? `${d.slice(0, 6)} ${t || ''}` : ''; };
-const newsMeta = (it, todayCH) => `<span class="nf-meta"><b>${esc(it.source)}</b><i aria-hidden="true"></i><span class="num">${esc(newsWhen(it, todayCH))}</span></span>`;
 const newsActs = (it, i) => `<span class="nf-acts"><button type="button" class="share-btn" data-act="share" data-i="${i}" aria-label="Meldung teilen: ${esc(it.title)}">${icon('share', '')}Teilen</button>
   <a href="${esc(/^https:\/\//.test(it.url) ? it.url : '#')}" target="_blank" rel="noopener">${esc(it.source)} ↗</a></span>`;
 
@@ -820,57 +824,30 @@ function renderFeed() {
   const q = feedState.q.trim().toLowerCase();
   const all = items.map((it, i) => ({ it, i, n: newsInfo(it) }));
   const counts = { fav: all.filter((x) => FAV.includes(x.n.team)).length };
-  for (const [k] of NEWS_FILTERS) if (k && k !== 'fav') counts[k] = all.filter((x) => x.n.cat === k).length;
-  const chips = `<div class="nf-chips" role="group" aria-label="Thema">${NEWS_FILTERS.map(([k, l]) => `<button type="button" data-act="news-cat" data-cat="${k}" aria-pressed="${feedState.cat === k}">${l}${k ? ` <i class="num">${counts[k]}</i>` : ` <i class="num">${items.length}</i>`}</button>`).join('')}</div>`;
+  for (const [k, , cats] of NEWS_FILTERS) if (cats.length) counts[k] = all.filter((x) => cats.includes(x.n.cat)).length;
+  const chips = `<div class="nf-chips" role="group" aria-label="Thema">${NEWS_FILTERS.map(([k, l]) => `<button type="button" data-act="news-cat" data-cat="${k}" aria-pressed="${feedState.cat === k}">${l} <i class="num">${k ? counts[k] : items.length}</i></button>`).join('')}</div>`;
   const list = all.filter(({ it, n }) => (!feedState.src || it.source === feedState.src)
-    && (!feedState.cat || (feedState.cat === 'fav' ? FAV.includes(n.team) : n.cat === feedState.cat))
+    && (!feedState.cat || (feedState.cat === 'fav' ? FAV.includes(n.team) : filterCats(feedState.cat).includes(n.cat)))
     && (!q || `${it.tag} ${it.title} ${it.text}`.toLowerCase().includes(q)));
 
-  const row = ({ it, i, n }) => {
-    const openTxt = feedState.expanded.has(i);
-    return `<article class="nf-row${openTxt ? ' is-open' : ''}" id="news-${i}">${newsLogo(n)}
-      <div class="nf-row-main">${newsCat(n)}<h3>${esc(it.title)}</h3>${openTxt ? `<p>${esc(it.text)}</p>` : ''}
-        <div class="nf-row-foot">${newsMeta(it, todayCH)}<button type="button" class="more" data-act="more" data-i="${i}" aria-expanded="${openTxt}">${openTxt ? 'Weniger' : 'Lesen'}</button></div>
-        ${openTxt ? newsActs(it, i) : ''}</div></article>`;
+  // Gruppen = Tag, an dem die Meldung in der App erschien; darin nach Veröffentlichung, neuste zuoberst.
+  // Erschien die Meldung schon früher, steht ihr Datum klein unter der Uhrzeit.
+  const yestCH = zDate(new Date(Date.now() - 864e5)).split('-').reverse().join('.');
+  const dayLabel = (d) => (d === todayCH ? 'Heute' : d === yestCH ? 'Gestern' : d ? d.replace(/^0?(\d+)\.0?(\d+)\..*$/, '$1.$2.') : 'Älter');
+  const pub = (it) => { const [d = '', t = ''] = String(it.time || '').split(' · '); return { d, t, k: dkey(d) + t }; };
+  const groups = new Map();
+  for (const x of list) { const g = x.it.firstShown || ''; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(x); }
+  const item = ({ it, i, n }, shown) => {
+    const open = feedState.expanded.has(i), p = pub(it);
+    const early = p.d && p.d !== shown ? `<small>${esc(p.d.replace(/^0?(\d+)\.0?(\d+)\..*$/, '$1.$2.'))}</small>` : '';
+    return `<li class="nf-tl-i${open ? ' is-open' : ''}${FAV.includes(n.team) ? ' fav' : ''}" id="news-${i}" style="--c:var(--${n.color})">
+      <time class="num">${esc(p.t)}${early}</time><span class="nf-dot" aria-hidden="true"></span>
+      <div class="nf-tl-main">${newsCat(n)}<button type="button" class="nf-tl-t" data-act="more" data-i="${i}" aria-expanded="${open}">${esc(it.title)}</button>
+        ${open ? `<p>${esc(it.text)}</p><span class="nf-meta"><b>${esc(it.source)}</b><i aria-hidden="true"></i><span class="num">${esc(newsWhen(it, todayCH))}</span></span>${newsActs(it, i)}` : ''}</div></li>`;
   };
-
-  let html = '';
-  if (!list.length) html = '<p class="feed-empty">Keine Meldung passt zur Suche.</p>';
-  else if (q || feedState.src || feedState.cat) html = `<div class="nf-list">${list.map(row).join('')}</div>`;
-  else {
-    // Titelseite aus den neuesten Meldungen; bevorzugt Meldungen zu den eigenen Teams als Aufmacher
-    const fresh = list.filter(({ it }) => it.firstShown === newest);
-    // Eigene Teams zuerst, dann Reihenfolge der Themen, dann die neueste
-    const pick = (cats, not = []) => fresh.filter((x) => cats.includes(x.n.cat) && !x.n.quote && !not.includes(x))
-      .sort((a, b) => (FAV.includes(b.n.team) - FAV.includes(a.n.team)) || cats.indexOf(a.n.cat) - cats.indexOf(b.n.cat))[0];
-    const lead = pick(LEAD_ORDER) || fresh.find((x) => !x.n.quote) || fresh[0];
-    const quote = fresh.find((x) => x.n.quote && x !== lead);
-    const tops = [];
-    for (const cats of [['Resultat', 'Spielbericht'], ['Transfer'], ['Serie', 'Rekord', 'Spielplan', 'Vorschau']]) {
-      if (tops.length === 2) break;
-      const x = pick(cats, [lead, ...tops]); if (x) tops.push(x);
-    }
-    const used = new Set([lead, quote, ...tops].filter(Boolean));
-    const rest = list.filter((x) => !used.has(x));
-    const crest = lead && lead.n.team ? data?.teams?.[lead.n.team]?.crest : '';
-    const leadOpen = lead && feedState.expanded.has(lead.i);
-    html += lead ? `<article class="nf-lead" id="news-${lead.i}" style="--c:var(--${lead.n.color})">
-      ${/^https:\/\/media-cdn\./.test(crest || '') ? `<span class="nf-lead-crest" aria-hidden="true"><img src="${esc(crest)}" alt=""></span>` : ''}
-      ${newsCat(lead.n)}<h2>${esc(lead.it.title)}</h2><p>${esc(lead.it.text)}</p>
-      <div class="nf-row-foot">${newsMeta(lead.it, todayCH)}</div>${newsActs(lead.it, lead.i)}</article>` : '';
-    html += quote ? `<article class="nf-quote" id="news-${quote.i}">${newsCat(quote.n)}<blockquote>${esc(quote.n.quote)}</blockquote>
-      <div class="nf-row-foot"><span class="nf-meta">${quote.n.team ? newsLogo(quote.n) : ''}<b>${esc(quote.n.who)}</b><i aria-hidden="true"></i><span>${esc(quote.it.source)}</span></span>
-        <button type="button" class="more" data-act="more" data-i="${quote.i}" aria-expanded="${feedState.expanded.has(quote.i)}">${feedState.expanded.has(quote.i) ? 'Weniger' : 'Lesen'}</button></div>
-      ${feedState.expanded.has(quote.i) ? `<p>${esc(quote.it.text)}</p>${newsActs(quote.it, quote.i)}` : ''}</article>` : '';
-    html += tops.length ? `<div class="nf-duo">${tops.map(({ it, i, n }) => `<article class="nf-tile" id="news-${i}" style="--c:var(--${n.color})">${newsCat(n)}<h3>${esc(it.title)}</h3>
-      ${feedState.expanded.has(i) ? `<p>${esc(it.text)}</p>${newsActs(it, i)}` : ''}
-      <div class="nf-row-foot">${newsMeta(it, todayCH)}<button type="button" class="more" data-act="more" data-i="${i}" aria-expanded="${feedState.expanded.has(i)}">${feedState.expanded.has(i) ? 'Weniger' : 'Lesen'}</button></div></article>`).join('')}</div>` : '';
-    let divided = false;
-    html += rest.length ? `<h3 class="feed-divider">Kurz gemeldet</h3><div class="nf-list">${rest.map((x) => {
-      const div = !divided && x.it.firstShown !== newest ? (divided = true, '</div><h3 class="feed-divider">Frühere Meldungen</h3><div class="nf-list">') : '';
-      return div + row(x);
-    }).join('')}</div>` : '';
-  }
+  const html = !list.length ? '<p class="feed-empty">Keine Meldung passt zur Suche.</p>'
+    : [...groups].sort((a, b) => dkey(b[0]).localeCompare(dkey(a[0]))).map(([d, xs]) => `<h3 class="feed-divider">${dayLabel(d)} · ${xs.length}</h3>
+      <ol class="nf-tl">${xs.sort((a, b) => pub(b.it).k.localeCompare(pub(a.it).k)).map((x) => item(x, d)).join('')}</ol>`).join('');
   $('#feed').innerHTML = chips + html;
   const badge = $('#newsBadge');
   if (badge) { badge.textContent = nNew; badge.hidden = !nNew; badge.setAttribute('aria-label', `${nNew} neue Meldungen`); }
