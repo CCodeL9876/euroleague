@@ -545,7 +545,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .team-link:hover{color:var(--blue-hi);}
 .standings-table tr.zone-po td.pos{box-shadow:inset 3px 0 0 var(--green);}
 .standings-table tr.zone-pi td.pos{box-shadow:inset 3px 0 0 var(--gold);}
-.standings-table tr.zone-end td{border-bottom:2px solid var(--dim);}
+/* Playoff- und Play-in-Linie: farbig gestrichelt unter Platz 6 bzw. 10 */
+.standings-table tr.line-po td{border-bottom:2px dashed var(--green);}
+.standings-table tr.line-pi td{border-bottom:2px dashed var(--gold);}
+/* Form: letzte 5 Spiele als Punkte, das neuste rechts */
+.standings-table td.form-c .form{justify-content:center;gap:4px;}
+.standings-table td.form-c .form i{width:8px;height:8px;}
 .standings-table td.streak{font-family:var(--mono);}
 .standings-table td.streak.win{color:var(--green);}
 .standings-table td.streak.loss{color:var(--coral);}
@@ -555,7 +560,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .zones span::before{content:"";width:10px;height:10px;border-radius:3px;}
 .zones .z-po::before{background:var(--green);}
 .zones .z-pi::before{background:var(--gold);}
-@media (max-width:600px){ .standings-table th.ha, .standings-table td.ha{display:none;} }
+@media (max-width:600px){ .standings-table th.ha, .standings-table td.ha{display:none;} .standings-table th.streak-h, .standings-table td.streak{display:none;} }
 
 /* Bestenlisten */
 .leaders-box{display:flex;flex-direction:column;gap:12px;background:var(--card);border-radius:22px;padding:18px 20px;}
