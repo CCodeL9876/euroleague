@@ -58,6 +58,8 @@ const ICON = {
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
   bell: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+  swipe: '<path d="M15 6l-6 6 6 6M21 12H9"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
 };
 const icon = (name, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
@@ -313,6 +315,49 @@ function favCount() {
   const el = document.querySelector('.fb-fav-n');
   if (el) el.textContent = FAV.length ? `${FAV.length} gewählt` : '';
 }
+// ---------- Willkommens-Hinweis (Bottom-Sheet) ----------
+// Bei jedem Öffnen der App einmal, bis «Nicht mehr anzeigen» eingeschaltet ist. Über das Profilmenü jederzeit wieder.
+const WELCOME_OFF = 'el-welcome-off';
+let welcomeOpen = false;
+function maybeWelcome() {
+  try {
+    if (localStorage.getItem(WELCOME_OFF) === '1' || sessionStorage.getItem('el-welcome-seen')) return;
+    if (params.has('game') || params.has('team') || params.has('fav')) return; // aus «Mein Sport» direkt zu etwas: nicht dazwischenfunken
+    sessionStorage.setItem('el-welcome-seen', '1');
+  } catch { return; }
+  setTimeout(() => { if (!favEdit && !document.querySelector('.fb-sheet-wrap')) openWelcome(); }, 700);
+}
+function openWelcome() {
+  welcomeOpen = true;
+  const off = store.get(WELCOME_OFF, '') === '1';
+  const wrap = el('div', 'fb-sheet-wrap');
+  wrap.id = 'welcomeSheet';
+  const row = (ic, cls, title, body) => `<div class="wl-row"><span class="wl-ic ${cls}">${icon(ic, '')}</span><div><b>${title}</b>${body}</div></div>`;
+  wrap.innerHTML = `<div class="fb-sheet-dim" data-act="welcome-close"></div>
+    <section class="fb-sheet wl-sheet" role="dialog" aria-modal="true" aria-labelledby="wlTitle"><span class="fb-grab" aria-hidden="true"></span>
+      <div class="wl-body">
+        <h2 id="wlTitle">Willkommen beim Basketball</h2>
+        <p class="wl-lead">Das kannst du hier alles machen.</p>
+        ${row('star', 'wl-star', 'Lieblingsteams wählen', `<p>Über dein Profil oben rechts. Deine Teams sind dann:</p><ul><li>in «Mein Sport» mit nächstem Spiel und Form</li><li>in Spieltag und Tabelle hervorgehoben</li></ul>`)}
+        ${row('bell', 'wl-bell', 'Mitteilungen bei Spielen', `<p>Für deine Lieblingsteams: jeder Viertelstand und das Endresultat, bei Sieg und Niederlage mit anderem Text. Im Profil einschalten (auf dem iPhone nur in der App vom Home-Bildschirm).</p>`)}
+        ${row('swipe', 'wl-swipe', 'Drei Ligen', `<p>Nach links wischen: SB League, nochmals: 2. Liga. Dort Tabelle und Bestenlisten, zum Aktualisieren herunterziehen.</p>`)}
+        ${row('bars', 'wl-spark', 'Einblicke', `<ul><li>Pfeile beim Spieltag für frühere Resultate</li><li>Spiel des Tages und <span class="wl-krimi">Krimi</span>-Badge für spannende Spiele</li><li>Tabelle mit Playoff-Linie und Form</li><li>Spiel antippen für den Spielbericht</li></ul>`)}
+      </div>
+      <div class="wl-foot">
+        <label class="wl-off"><input type="checkbox" id="wlOff"${off ? ' checked' : ''}>Nicht mehr anzeigen</label>
+        <button type="button" class="wl-go" data-act="welcome-close">Los geht's</button>
+      </div></section>`;
+  document.body.appendChild(wrap);
+  document.body.classList.add('fb-sheet-open');
+  wrap.querySelector('#wlOff').addEventListener('change', (e) => store.set(WELCOME_OFF, e.target.checked ? '1' : ''));
+  wrap.querySelector('.wl-go').focus();
+}
+function closeWelcome() {
+  welcomeOpen = false;
+  document.getElementById('welcomeSheet')?.remove();
+  if (!document.querySelector('.fb-sheet-wrap')) document.body.classList.remove('fb-sheet-open');
+}
+
 function renderFavSheet() {
   let el = document.getElementById('favSheet');
   if (!favEdit) { if (el) { el.remove(); document.body.classList.remove('fb-sheet-open'); } return; }
@@ -375,7 +420,7 @@ function renderProfileMenu() {
   if (!profileMenuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
   menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profile?.name))}</span><span><b>${esc(profile?.name || '')}</b><small>${FAV.length} ${FAV.length === 1 ? 'Lieblingsteam' : 'Lieblingsteams'}</small></span></div>
-    ${item('fav-edit', 'star', 'Lieblingsteams bearbeiten')}${item('copy-link', 'share', 'Link für Home-App kopieren')}${item('push-toggle', 'bell', `Mitteilungen (Viertel, Endstand): ${pushOn ? 'Ein' : 'Aus'}`)}
+    ${item('fav-edit', 'star', 'Lieblingsteams bearbeiten')}${item('copy-link', 'share', 'Link für Home-App kopieren')}${item('push-toggle', 'bell', `Mitteilungen (Viertel, Endstand): ${pushOn ? 'Ein' : 'Aus'}`)}${item('welcome-open', 'info', 'Einführung anzeigen')}
     <hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
 }
 
@@ -1770,10 +1815,12 @@ document.addEventListener('click', (e) => {
   else if (act === 'fav-close') closeFavSheet();
   else if (act === 'profile-logout') { profileMenuOpen = false; renderProfileMenu(); profileLogout(); }
   else if (act === 'push-toggle') { profileMenuOpen = false; renderProfileMenu(); togglePush(); }
+  else if (act === 'welcome-open') { profileMenuOpen = false; renderProfileMenu(); openWelcome(); }
+  else if (act === 'welcome-close') closeWelcome();
   else if (act === 'copy-link') { profileMenuOpen = false; renderProfileMenu(); copyAccessLink(); }
   else if (act === 'fav-toggle') toggleFav(t.dataset.c);
   else if (act === 'onboarding-done') { if (!FAV.length) return; onboarding = false; introStage = true; refreshProfileUI(); }
-  else if (act === 'intro-done') { introStage = false; enterApp(); }
+  else if (act === 'intro-done') { introStage = false; try { sessionStorage.setItem('el-welcome-seen', '1'); } catch { /* privates Fenster */ } enterApp(); }
   else if (act === 'profile-login-go' || act === 'profile-create-go') {
     const name = profileDraft.name.trim();
     const pin = profileDraft.pin.trim();
@@ -1802,7 +1849,7 @@ document.addEventListener('keydown', (e) => {
   const t = e.target.closest?.('[data-act="box"], article[data-act="team"], g[data-act="team"]');
   if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (t.dataset.act === 'box') openBox(Number(t.dataset.code)); else openTeam(t.dataset.c); }
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && favEdit && document.getElementById('favSheet')) { closeFavSheet(); return; } if (e.key === 'Escape' && profileMenuOpen) { profileMenuOpen = false; renderProfileMenu(); $('#profileBtn')?.focus(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && welcomeOpen) { closeWelcome(); return; } if (e.key === 'Escape' && favEdit && document.getElementById('favSheet')) { closeFavSheet(); return; } if (e.key === 'Escape' && profileMenuOpen) { profileMenuOpen = false; renderProfileMenu(); $('#profileBtn')?.focus(); } });
 $('#newsSearch').addEventListener('input', (e) => { feedState.q = e.target.value; renderFeed(); });
 $('#box').addEventListener('close', () => { clearInterval(boxState.timer); boxState.code = 0; boxState.playing = false; $('#box iframe')?.remove(); });
 $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
@@ -1895,14 +1942,8 @@ function boot() {
   setTab(tab, false);
   setupPullToRefresh();
   refresh({ withNews: true }).then(openFromLink).then(() => loadPlayers()).then(render);
-  // Kurzer Hinweis aufs Wischen (swipe.js), nur auf Touch-Geräten und einmal pro App-Sitzung –
-  // sonst käme er nach jedem Zurückwischen von der SB League wieder
-  try {
-    if ('ontouchstart' in window && !sessionStorage.getItem('el-swipe-hint')) {
-      sessionStorage.setItem('el-swipe-hint', '1');
-      setTimeout(() => toast('‹ Nach links wischen: SB League und 2. Liga', 'accent'), 800);
-    }
-  } catch { /* privates Fenster */ }
+  // Willkommens-Hinweis (ersetzt den früheren Wisch-Toast)
+  maybeWelcome();
 }
 
 // Aus «Mein Sport»: direkt in einen Spielbericht, eine Teamseite oder die Teamwahl
