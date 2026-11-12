@@ -293,20 +293,23 @@ const endsAt = (g) => g.at + (g.sport === 'f' ? 115 : 125) * 60e3;
 const quarterTag = (t) => (t >= 2400 ? 'V' : `Q${Math.floor(t / 600) + 1}`);
 
 // Karte pro Lieblingsteam: laufendes oder nächstes Spiel, sonst das letzte
-function teamCards(list, skip) {
+function teamCards(list) {
   const cards = [];
   const add = (sport, key, name, logo, mine, ab = '') => {
     const done = mine.filter((g) => g.st === 'ft' && g.hs != null), live = mine.find((g) => g.st === 'live'), next = mine.find((g) => g.st === 'pre' && g.at > Date.now());
     const home = (g) => g.hk === key || g.h === key, us = (g) => (home(g) ? g.hs : g.as), them = (g) => (home(g) ? g.as : g.hs), opp = (g) => (home(g) ? g.a : g.h);
-    const form = done.filter((g) => !hidden(g)).slice(-5).map((g) => (us(g) > them(g) ? 'w' : us(g) < them(g) ? 'l' : 'd'));
-    // Steht das nächste Spiel schon oben unter «Als Nächstes», zeigt die Karte das letzte Resultat (ergänzt statt doppelt)
+    // Wappen-Leiste: Ring in der Sportfarbe (live rot), darunter Live-Stand, letztes Resultat oder – ohne Resultat – das nächste Spiel
     const last = done.filter((g) => !hidden(g)).at(-1);
-    const shown = live || (next && skip.has(next) ? last || next : next || last);
-    const href = sport === 'b' ? `basketball/euroleague/?team=${encodeURIComponent(key)}` : sport === 'c' ? (key.startsWith('sbl:') ? 'basketball/sbl/' : 'basketball/2liga/') : shown?.href || 'fussball/';
-    const sub = shown ? `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}` : 'im Moment kein Spiel geplant';
+    const href = sport === 'b' ? `basketball/euroleague/?team=${encodeURIComponent(key)}` : sport === 'c' ? (key.startsWith('sbl:') ? 'basketball/sbl/' : 'basketball/2liga/') : (live || next || last)?.href || 'fussball/';
+    const wl = (g) => (us(g) > them(g) ? ['w', 'S', 'Sieg'] : us(g) < them(g) ? ['l', 'N', 'Niederlage'] : ['d', 'U', 'Unentschieden']);
+    let tag, cls, say;
+    if (live) { tag = `Live ${us(live) ?? 0}:${them(live) ?? 0}`; cls = 'on'; say = `spielt gerade, ${us(live) ?? 0}:${them(live) ?? 0} ${home(live) ? 'gegen' : 'bei'} ${opp(live)}`; }
+    else if (last) { const [c, k, w] = wl(last); tag = `${k} ${us(last)}:${them(last)}`; cls = c; say = `zuletzt ${w} ${us(last)}:${them(last)} ${home(last) ? 'gegen' : 'bei'} ${opp(last)}`; }
+    else if (next) { tag = whenText(next.at); cls = ''; say = `nächstes Spiel ${whenText(next.at)} ${home(next) ? 'gegen' : 'bei'} ${opp(next)}`; }
+    else { tag = '–'; cls = ''; say = 'im Moment kein Spiel geplant'; }
     const x = editTeams ? `<button type="button" class="ms-x" data-act="team-x" data-s="${sport}" data-k="${esc(key)}" aria-label="${esc(name)} entfernen">×</button>` : '';
-    cards.push({ rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg', ab)}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
-      <span class="k">${live ? '<i class="ms-dot"></i>Live' : shown && shown === next ? 'Nächstes' : shown ? 'Zuletzt' : 'Spielplan'}</span><span class="v num">${live ? `${us(live) ?? 0}:${them(live) ?? 0}` : shown && shown === next ? esc(whenText(next.at)) : shown ? `${us(shown)}:${them(shown)}` : '–'}</span><span class="s">${esc(sub)}</span></a>${x}</div>` });
+    cards.push({ rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-av ${sport}${live ? ' live' : ''}"><a href="${esc(href)}" aria-label="${esc(`${name}: ${say}`)}" title="${esc(`${name}: ${say}`)}">
+      <span class="ms-ring">${crest(logo, 'lg', ab)}</span><b>${esc(name)}</b><em class="num ${cls}">${esc(tag)}</em></a>${x}</div>` });
   };
   for (const c of elFav) add('b', c, el?.teams?.[c]?.short || c, el?.teams?.[c]?.crest, list.filter((g) => g.sport === 'b' && (g.hk === c || g.ak === c)));
   for (const n of fbFav) {
@@ -341,9 +344,9 @@ function render() {
       ${feed.length > FEED_MAX ? `<button type="button" class="ms-more" data-act="more-feed">${show.feed ? 'Weniger zeigen' : `Alle ${feed.length} Ereignisse`}</button>` : ''}</div>` : ''}</section>` : '';
 
   const topHtml = `${nextHtml(list)}${missedHtml(list)}`;
-  const cards = teamCards(list, new Set(nextGames(list)));
+  const cards = teamCards(list);
   const teamsHtml = `<div class="ms-hrow"><h2 class="ms-h">Deine Teams</h2>${cards ? `<button type="button" class="ms-edit" data-act="edit-teams" aria-pressed="${editTeams}">${editTeams ? 'Fertig' : 'Bearbeiten'}</button>` : ''}</div>
-    <div class="ms-teams" data-keep="teams">${cards}<button type="button" class="ms-add" data-act="add-team" aria-haspopup="dialog"><b aria-hidden="true">+</b>Team hinzufügen</button></div>`;
+    <div class="ms-teams" data-keep="teams">${cards}<button type="button" class="ms-add" data-act="add-team" aria-haspopup="dialog" aria-label="Team hinzufügen"><span aria-hidden="true">+</span>Team</button></div>`;
 
   // Heute, oder der nächste Tag mit Spielen
   const open = list.filter((g) => g.st !== 'live');
