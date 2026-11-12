@@ -1239,7 +1239,8 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .wl-ic svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 .wl-star{background:color-mix(in srgb, var(--gold) 20%, transparent);color:var(--gold);}
 .wl-bell{background:color-mix(in srgb, var(--green) 20%, transparent);color:var(--green);}
-.wl-swipe{background:color-mix(in srgb, #E30613 20%, transparent);color:var(--coral);}
+.wl-live{background:color-mix(in srgb, #E30613 20%, transparent);color:var(--coral);}
+.wl-swipe{background:color-mix(in srgb, var(--violet) 24%, transparent);color:var(--violet-hi);}
 .wl-spark{background:color-mix(in srgb, var(--blue) 22%, transparent);color:var(--blue-hi);}
 .wl-krimi{color:var(--orange);font-weight:600;}
 .wl-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px 16px;border-top:1px solid var(--line);}

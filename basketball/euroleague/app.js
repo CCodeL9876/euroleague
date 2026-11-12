@@ -338,6 +338,7 @@ function openWelcome() {
       <div class="wl-body">
         <h2 id="wlTitle">Willkommen beim Basketball</h2>
         <p class="wl-lead">Das kannst du hier alles machen.</p>
+        ${row('ball', 'wl-live', 'Live-Spiele verfolgen', `<p>Laufende Spiele stehen zuoberst mit Spielstand, Viertel und Spieluhr, jede Minute aktualisiert. Antippen öffnet den Live-Spielbericht mit Viertelständen, Statistik und Wurfkarte.</p>`)}
         ${row('star', 'wl-star', 'Lieblingsteams wählen', `<p>Über dein Profil oben rechts. Deine Teams sind dann:</p><ul><li>in «Mein Sport» mit nächstem Spiel und Form</li><li>in Spieltag und Tabelle hervorgehoben</li></ul>`)}
         ${row('bell', 'wl-bell', 'Mitteilungen bei Spielen', `<p>Für deine Lieblingsteams: jeder Viertelstand und das Endresultat, bei Sieg und Niederlage mit anderem Text. Im Profil einschalten (auf dem iPhone nur in der App vom Home-Bildschirm).</p>`)}
         ${row('swipe', 'wl-swipe', 'Drei Ligen', `<p>Nach links wischen: SB League, nochmals: 2. Liga. Dort Tabelle und Bestenlisten, zum Aktualisieren herunterziehen.</p>`)}
