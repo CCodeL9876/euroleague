@@ -481,6 +481,12 @@ function boxTarget(node, m, g) {
 }
 const boxAttrs = (m, g) => `data-act="box" data-code="${g.code}" role="button" tabindex="0" aria-label="Spielbericht ${esc(name(m, g.home))} gegen ${esc(name(m, g.away))}"`;
 
+// Krimi: beendetes Spiel mit hoher Spannung (exc aus der Funktion, aus Führungswechseln, Comeback, Verlängerung …).
+// Schwelle 70 ≈ das spannendste Viertel aller Spiele der Saison 2026/27.
+const KRIMI_MIN = 70;
+const isKrimi = (g) => g.status === 'final' && typeof g.exc === 'number' && g.exc >= KRIMI_MIN;
+const krimiWhy = (g) => g.excWhy || 'Spannend bis zum Schluss';
+const FLAME_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z"/></svg>';
 // Eine Spielzeile: Heim | Resultat, Live-Stand oder Anspielzeit | Gast
 function gameRow(m, g, hl) {
   const done = g.status === 'final';
@@ -488,7 +494,8 @@ function gameRow(m, g, hl) {
     const cls = `side${away ? ' away' : ''}${done ? (win ? ' win' : ' lose') : ''}${FAV.includes(c) ? ' fav' : ''}`;
     return `<div class="${cls}">${logo(m, c)}<span class="nm"><span class="full">${esc(name(m, c))}</span><span class="short">${esc(shortName(m, c))}</span><small>${esc(rec(m, c))}</small></span></div>`;
   };
-  const mid = g.status === 'final' ? `<span class="result num${hl ? ' hl' : ''}">${g.hs} : ${g.as}</span>`
+  const kr = isKrimi(g);
+  const mid = g.status === 'final' ? `<span class="result num${hl ? ' hl' : ''}${kr ? ' krimi' : ''}"${kr ? ` title="${esc(krimiWhy(g))}"` : ''}><span>${g.hs} : ${g.as}</span>${kr ? `<small class="krimi-b">${FLAME_SVG}Krimi</small>` : ''}</span>`
     : g.status === 'live' ? `<span class="result live num"><small><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')}</small>${g.hs} : ${g.as}</span>`
     : `<span class="result open num"><small>${esc(rel(g.date))}</small>${esc(g.time)}</span>`;
   const v = done ? mainVideo(g.code) : null;
@@ -949,7 +956,7 @@ function renderBox() {
   const head = `<div class="box-top"><h2 id="boxTitle">Spielbericht · Spieltag ${g.round}</h2><button type="button" class="box-close" data-act="box-close" aria-label="Schliessen">×</button></div>
     <div class="box-score">
       <button type="button" class="box-team" data-act="team" data-c="${g.home}">${logo(m, g.home)}<b>${esc(name(m, g.home))}</b><small>${esc(rec(m, g.home))}</small></button>
-      <div class="box-mid"><span class="num">${g.status === 'pre' ? '–:–' : `${g.hs} : ${g.as}`}</span><small>${status}</small></div>
+      <div class="box-mid"><span class="num">${g.status === 'pre' ? '–:–' : `${g.hs} : ${g.as}`}</span><small>${status}</small>${isKrimi(g) ? `<small class="krimi-why">${FLAME_SVG}${esc(krimiWhy(g))}</small>` : ''}</div>
       <button type="button" class="box-team" data-act="team" data-c="${g.away}">${logo(m, g.away)}<b>${esc(name(m, g.away))}</b><small>${esc(rec(m, g.away))}</small></button>
     </div>`;
   if (g.status === 'pre') {

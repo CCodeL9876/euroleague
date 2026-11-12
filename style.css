@@ -398,6 +398,11 @@
 @keyframes live-pulse{50%{opacity:0.3;}}
 .live-text{color:var(--green);}
 .result.live{flex-direction:column;justify-content:center;gap:1px;padding:4px 12px;border-color:var(--green);line-height:1.1;}
+/* Krimi: Flammen-Etikett unter dem Resultat, Grund im Spielbericht */
+.result.krimi{flex-direction:column;justify-content:center;gap:3px;padding:4px 12px;line-height:1.1;}
+.krimi-b{display:inline-flex;align-items:center;gap:3px;padding:1px 7px 1px 5px;border-radius:999px;background:color-mix(in srgb, var(--orange) 18%, transparent);color:var(--orange);font:700 0.62rem/1.4 var(--font);letter-spacing:0.02em;}
+.krimi-b svg, .krimi-why svg{width:11px;height:11px;fill:currentColor;flex:none;}
+.krimi-why{display:inline-flex;align-items:center;justify-content:center;gap:4px;color:var(--orange);font-weight:600;}
 .result.live small{font-family:var(--font);font-size:0.68rem;font-weight:500;color:var(--green);white-space:nowrap;}
 .day-game .mid{display:flex;flex-direction:column;align-items:center;line-height:1.15;}
 .day-game .mid small{font-family:var(--font);font-size:0.66rem;font-weight:500;color:var(--green);white-space:nowrap;}
