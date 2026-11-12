@@ -1014,11 +1014,12 @@ function renderBox() {
 }
 
 // Reiter „Videos“: gewähltes Video gross (lädt den Player von youtube-nocookie.com erst beim Antippen), die übrigen als Liste
+// Player auf Englisch (hl=en, Sprache der Videos): sonst übersetzt YouTube Untertitel, Titel und teils den Ton automatisch ins Deutsche
 function videosHtml(m, g, vids) {
   const cur = vids.find((v) => v.id === boxState.vid) || vids[0];
   const label = `${VIDEO_KIND[cur.k] || 'Video'} · ${name(m, g.home)} – ${name(m, g.away)}`;
   const stage = boxState.playing
-    ? `<div class="vstage"><iframe data-id="${esc(cur.id)}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(cur.id)}?autoplay=1&playsinline=1&rel=0" title="${esc(label)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
+    ? `<div class="vstage"><iframe data-id="${esc(cur.id)}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(cur.id)}?autoplay=1&playsinline=1&rel=0&cc_load_policy=0&cc_lang_pref=en&hl=en" title="${esc(label)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
     : `<button type="button" class="vstage" data-act="video-play" data-id="${esc(cur.id)}" aria-label="${esc(label)} abspielen, ${mmss(cur.d)}">
         <img src="${ytThumb(cur.id)}" alt=""><span class="vplay lg">${PLAY_SVG}</span><span class="vstage-title">${esc(label)}</span><span class="vdur num">${mmss(cur.d)}</span></button>`;
   const rest = vids.filter((v) => v !== cur).map((v) => `<button type="button" class="vrow" data-act="video-play" data-id="${esc(v.id)}" aria-label="${esc(VIDEO_KIND[v.k] || 'Video')} abspielen, ${mmss(v.d)}">
