@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-11",
+ "updated": "2026-11-12",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -100,18 +100,6 @@
   },
   {
    "id": "",
-   "name": "Tonye Jekiri",
-   "team": "PAR",
-   "status": "doubtful",
-   "since": "2026-10-31",
-   "note": "Adduktorenverletzung; trainiert wieder mit dem Team, Einsatz gegen Baskonia kurzfristig entschieden",
-   "back": "ca. 2 Wochen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
-   "reported": "2026-11-11"
-  },
-  {
-   "id": "",
    "name": "Iffe Lundberg",
    "team": "TEL",
    "status": "out",
@@ -181,18 +169,6 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
    "reported": "2026-11-11"
-  },
-  {
-   "id": "",
-   "name": "Rodions Kurucs",
-   "team": "BAS",
-   "status": "out",
-   "since": "2026-11-05",
-   "note": "Hüftverletzung",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
   },
   {
    "id": "",
