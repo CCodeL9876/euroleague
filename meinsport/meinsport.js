@@ -139,14 +139,83 @@ const missed = (g) => g.fav && g.st === 'ft' && g.hs != null && g.at > since && 
 const hidden = (g) => spoilerOn() && missed(g) && !revealed.has(gkey(g));
 
 const favSide = (g) => (g.sport === 'b' ? [elFav.includes(g.hk), elFav.includes(g.ak)] : g.sport === 'c' ? [chFav.includes(g.hk), chFav.includes(g.ak)] : [fbFav.some((n) => n.toLowerCase() === g.h.toLowerCase()), fbFav.some((n) => n.toLowerCase() === g.a.toLowerCase())]);
-const nextGame = (list, live) => (live.some((g) => g.fav) ? null : list.find((x) => x.fav && x.st === 'pre' && x.at > Date.now()));
-function nextHtml(list, live) {
-  const g = nextGame(list, live);
-  if (!g) return '';
-  const [fh, fa] = favSide(g), mins = Math.max(1, Math.round((g.at - Date.now()) / 60000));
-  const left = mins < 60 ? `in ${mins} Min.` : mins < 36 * 60 ? `in ${Math.round(mins / 60)} Std.` : `in ${Math.round(mins / 1440)} Tagen`;
-  const title = fh ? `${g.h} gegen ${g.a}` : `${g.a} bei ${g.h}`;
-  return `<a class="ms-next" href="${esc(g.href)}"><span class="k">Als Nächstes</span><span class="r">${crest(fh || !fa ? g.hl : g.al, 'lg')}<span class="n"><b>${esc(title)}</b><small>${esc(whenText(g.at))} · ${esc(g.lg)}${tvTag(g)}</small></span><span class="cd num">${left}</span></span></a>`;
+// ---------- Als Nächstes: das nächste Spiel jedes Lieblingsteams als Karte zum Wischen ----------
+// Pro Karte beide Teams mit Tabellenplatz, Bilanz und Form. Tabellenplatz: EuroLeague aus der Hauptrunde gerechnet
+// (wie auf der EuroLeague-Seite), SB League und 2. Liga aus deren Tabelle; Fussball ohne Tabelle, nur die Form
+// aus den geladenen Spielen (rund zwei Wochen).
+const NEXT_MAX = 8;
+const sideKey = (g, home) => (g.sport === 'f' ? `f:${String(home ? g.h : g.a).toLowerCase()}` : `${g.sport}:${home ? g.hk : g.ak}`);
+function standings() {
+  const rk = new Map(), st = {}, h2h = {};
+  const duel = (x, y) => (h2h[`${x}|${y}`] ||= { n: 0, w: 0, d: 0 });
+  for (const g of el?.games || []) {
+    if (g.status !== 'final' || (g.ph || 'RS') !== 'RS' || g.hs === g.as) continue;
+    for (const [c, o, us, them] of [[g.home, g.away, g.hs, g.as], [g.away, g.home, g.as, g.hs]]) {
+      const s = (st[c] ||= { c, w: 0, l: 0, d: 0 }), x = duel(c, o);
+      if (us > them) { s.w++; x.w++; } else s.l++;
+      s.d += us - them; x.n++; x.d += us - them;
+    }
+  }
+  const table = Object.values(st).sort((a, b) => b.w - a.w || a.l - b.l || b.d - a.d || a.c.localeCompare(b.c));
+  // Gleichstand: Direktvergleich, sobald die Punktgleichen alle Spiele gegeneinander gespielt haben (wie app.js model())
+  for (let i = 0; i < table.length;) {
+    let j = i + 1;
+    while (j < table.length && table[j].w === table[i].w && table[j].l === table[i].l) j++;
+    const grp = table.slice(i, j);
+    if (grp.length > 1 && grp.every((x) => grp.every((y) => x === y || (h2h[`${x.c}|${y.c}`]?.n || 0) >= 2))) {
+      const mini = (x) => grp.reduce((m, y) => { const e = x === y ? null : h2h[`${x.c}|${y.c}`]; return e ? [m[0] + e.w, m[1] + e.d] : m; }, [0, 0]);
+      const mm = new Map(grp.map((x) => [x.c, mini(x)]));
+      grp.sort((a, b) => mm.get(b.c)[0] - mm.get(a.c)[0] || mm.get(b.c)[1] - mm.get(a.c)[1] || b.d - a.d);
+      table.splice(i, grp.length, ...grp);
+    }
+    i = j;
+  }
+  table.forEach((s, i) => rk.set(`b:${s.c}`, { rank: i + 1, rec: `${s.w}–${s.l}` }));
+  for (const [lg, d] of [['sbl', sbl], ['h2l', h2l]]) for (const r of d?.table || []) if (r?.t?.c) rk.set(`c:${lg}:${r.t.c}`, { rank: r.rank, rec: `${r.w}–${r.l}` });
+  return rk;
+}
+// Form (S/N/U) der letzten 5 Spiele pro Team; Resultate unter Spoilerschutz zählen nicht
+function forms(list) {
+  const f = new Map();
+  for (const g of list) {
+    if (g.st !== 'ft' || g.hs == null || g.as == null || hidden(g)) continue;
+    for (const home of [true, false]) {
+      const us = home ? g.hs : g.as, them = home ? g.as : g.hs, k = sideKey(g, home);
+      if (!f.has(k)) f.set(k, []);
+      f.get(k).push(us > them ? 'w' : us < them ? 'l' : 'd');
+    }
+  }
+  return f;
+}
+// Nächstes Spiel jedes Lieblingsteams (ein Spiel zweier Lieblingsteams nur einmal), nach Anpfiff sortiert
+function nextGames(list) {
+  const now = Date.now(), covered = new Set(), out = [];
+  for (const g of list) {
+    if (!g.fav || g.st !== 'pre' || g.at <= now) continue;
+    const [fh, fa] = favSide(g), keys = [fh && sideKey(g, true), fa && sideKey(g, false)].filter(Boolean);
+    if (!keys.length || keys.every((k) => covered.has(k))) continue;
+    keys.forEach((k) => covered.add(k));
+    out.push(g);
+    if (out.length >= NEXT_MAX) break;
+  }
+  return out;
+}
+const countdown = (at) => {
+  const mins = Math.max(1, Math.round((at - Date.now()) / 60000));
+  return mins < 60 ? `in ${mins} Min.` : mins < 36 * 60 ? `in ${Math.round(mins / 60)} Std.` : `in ${Math.round(mins / 1440)} Tagen`;
+};
+function nextHtml(list) {
+  const games = nextGames(list);
+  if (!games.length) return '';
+  const rk = standings(), fm = forms(list);
+  const side = (g, home, fav) => {
+    const k = sideKey(g, home), r = rk.get(k), f = (fm.get(k) || []).slice(-5);
+    return `<span class="ms-nx-t${fav ? ' fav' : ''}">${crest(home ? g.hl : g.al, '', home ? g.hab : g.aab)}<span class="nm"><b>${esc(home ? g.h : g.a)}</b>${f.length ? `<span class="ms-form" aria-hidden="true">${f.map((x) => `<i class="${x}"></i>`).join('')}</span>` : ''}</span>${r ? `<span class="rk num">${r.rank}. · ${esc(r.rec)}</span>` : ''}</span>`;
+  };
+  const card = (g) => { const [fh, fa] = favSide(g);
+    return `<a class="ms-nx ${g.sport}" href="${esc(g.href)}"><span class="k">${esc(whenText(g.at))} · <span class="num">${countdown(g.at)}</span></span>${side(g, true, fh)}${side(g, false, fa)}<span class="lg">${esc(g.lg)}${tvTag(g)}</span></a>`; };
+  return `<section class="ms-nxs" aria-label="Als Nächstes"><div class="ms-hrow"><h2 class="ms-h">Als Nächstes</h2>${games.length > 1 ? `<span class="ms-nx-n">${games.length} Spiele</span>` : ''}</div>
+    <div class="ms-nx-strip${games.length > 1 ? ' multi' : ''}" data-keep="next">${games.map(card).join('')}</div></section>`;
 }
 function missedHtml(list) {
   const rows = list.filter(missed).reverse().slice(0, MISSED_MAX);
@@ -230,12 +299,14 @@ function teamCards(list, skip) {
     const done = mine.filter((g) => g.st === 'ft' && g.hs != null), live = mine.find((g) => g.st === 'live'), next = mine.find((g) => g.st === 'pre' && g.at > Date.now());
     const home = (g) => g.hk === key || g.h === key, us = (g) => (home(g) ? g.hs : g.as), them = (g) => (home(g) ? g.as : g.hs), opp = (g) => (home(g) ? g.a : g.h);
     const form = done.filter((g) => !hidden(g)).slice(-5).map((g) => (us(g) > them(g) ? 'w' : us(g) < them(g) ? 'l' : 'd'));
-    const shown = live || next || done.filter((g) => !hidden(g)).at(-1);
+    // Steht das nächste Spiel schon oben unter «Als Nächstes», zeigt die Karte das letzte Resultat (ergänzt statt doppelt)
+    const last = done.filter((g) => !hidden(g)).at(-1);
+    const shown = live || (next && skip.has(next) ? last || next : next || last);
     const href = sport === 'b' ? `basketball/euroleague/?team=${encodeURIComponent(key)}` : sport === 'c' ? (key.startsWith('sbl:') ? 'basketball/sbl/' : 'basketball/2liga/') : shown?.href || 'fussball/';
     const sub = shown ? `${home(shown) ? 'gegen' : 'bei'} ${opp(shown)}` : 'im Moment kein Spiel geplant';
     const x = editTeams ? `<button type="button" class="ms-x" data-act="team-x" data-s="${sport}" data-k="${esc(key)}" aria-label="${esc(name)} entfernen">×</button>` : '';
-    cards.push({ dup: !!skip && next === skip, rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg', ab)}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
-      <span class="k">${live ? '<i class="ms-dot"></i>Live' : next ? 'Nächstes' : shown ? 'Zuletzt' : 'Spielplan'}</span><span class="v num">${live ? `${us(live) ?? 0}:${them(live) ?? 0}` : next ? esc(whenText(next.at)) : shown ? `${us(shown)}:${them(shown)}` : '–'}</span><span class="s">${esc(sub)}</span></a>${x}</div>` });
+    cards.push({ rank: live ? 0 : next ? next.at : Infinity, html: `<div class="ms-tcw"><a class="ms-tc ${sport}${live ? ' on' : ''}" href="${esc(href)}"><div class="th">${crest(logo, 'lg', ab)}<div><b>${esc(name)}</b><span class="ms-form" aria-hidden="true">${form.map((x) => `<i class="${x}"></i>`).join('')}</span></div></div>
+      <span class="k">${live ? '<i class="ms-dot"></i>Live' : shown && shown === next ? 'Nächstes' : shown ? 'Zuletzt' : 'Spielplan'}</span><span class="v num">${live ? `${us(live) ?? 0}:${them(live) ?? 0}` : shown && shown === next ? esc(whenText(next.at)) : shown ? `${us(shown)}:${them(shown)}` : '–'}</span><span class="s">${esc(sub)}</span></a>${x}</div>` });
   };
   for (const c of elFav) add('b', c, el?.teams?.[c]?.short || c, el?.teams?.[c]?.crest, list.filter((g) => g.sport === 'b' && (g.hk === c || g.ak === c)));
   for (const n of fbFav) {
@@ -248,9 +319,7 @@ function teamCards(list, skip) {
     const t = catalog().find((x) => x.k === k);
     add('c', k, g0 ? (home ? g0.h : g0.a) : t?.n || k.replace(/^\w+:(h2l-)?/, ''), g0 ? (home ? g0.hl : g0.al) : t?.logo || '', mine, g0 ? (home ? g0.hab : g0.aab) : '');
   }
-  // Teams, die oben schon unter «Als Nächstes» stehen, nicht doppelt zeigen (im Bearbeiten-Modus und wenn sonst nichts bliebe: alle)
-  const rest = cards.filter((c) => !c.dup);
-  return (editTeams || !rest.length ? cards : rest).sort((x, y) => x.rank - y.rank).map((c) => c.html).join('');
+  return cards.sort((x, y) => x.rank - y.rank).map((c) => c.html).join('');
 }
 
 function render() {
@@ -271,8 +340,8 @@ function render() {
     ${feed.length ? `<div class="ms-feedbox"><h3>Live-Feed</h3><ul class="ms-feed">${(show.feed ? feed : feed.slice(0, FEED_MAX)).map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul>
       ${feed.length > FEED_MAX ? `<button type="button" class="ms-more" data-act="more-feed">${show.feed ? 'Weniger zeigen' : `Alle ${feed.length} Ereignisse`}</button>` : ''}</div>` : ''}</section>` : '';
 
-  const topHtml = `${nextHtml(list, live)}${missedHtml(list)}`;
-  const cards = teamCards(list, nextGame(list, live));
+  const topHtml = `${nextHtml(list)}${missedHtml(list)}`;
+  const cards = teamCards(list, new Set(nextGames(list)));
   const teamsHtml = `<div class="ms-hrow"><h2 class="ms-h">Deine Teams</h2>${cards ? `<button type="button" class="ms-edit" data-act="edit-teams" aria-pressed="${editTeams}">${editTeams ? 'Fertig' : 'Bearbeiten'}</button>` : ''}</div>
     <div class="ms-teams" data-keep="teams">${cards}<button type="button" class="ms-add" data-act="add-team" aria-haspopup="dialog"><b aria-hidden="true">+</b>Team hinzufügen</button></div>`;
 

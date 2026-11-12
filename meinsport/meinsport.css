@@ -78,14 +78,23 @@ a.live-hero{text-decoration:none;}
 .ms-tc .v{font-size:0.84rem;font-weight:600;}
 .ms-tc .s{font-size:0.76rem;color:var(--dim);}
 /* Als Nächstes und verpasste Resultate */
-a.ms-next{color:inherit;text-decoration:none;}
-.ms-next{background:var(--card);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:8px;}
-.ms-next .k{font-size:0.72rem;color:var(--faint);}
-.ms-next .r{display:flex;align-items:center;gap:10px;min-width:0;}
-.ms-next .n{flex:1;min-width:0;display:flex;flex-direction:column;}
-.ms-next b{font-size:0.92rem;font-weight:600;}
-.ms-next small{font-size:0.76rem;color:var(--dim);}
-.ms-next .cd{font-size:0.8rem;font-weight:600;white-space:nowrap;}
+/* Als Nächstes: Karten zum Wischen, je Spiel beide Teams mit Platz, Bilanz und Form */
+.ms-nxs{display:flex;flex-direction:column;gap:8px;}
+.ms-nx-n{font-size:0.74rem;color:var(--faint);margin-right:4px;}
+.ms-nx-strip{display:flex;gap:8px;}
+.ms-nx-strip.multi{overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-inline:-14px;padding-inline:14px;scroll-padding-inline:14px;}
+.ms-nx-strip.multi::-webkit-scrollbar{display:none;}
+a.ms-nx{color:inherit;text-decoration:none;}
+.ms-nx{flex:1 0 100%;scroll-snap-align:start;background:var(--card);border-radius:18px;padding:10px 12px 11px;border-top:3px solid var(--c);display:flex;flex-direction:column;gap:6px;min-width:0;}
+.ms-nx-strip.multi .ms-nx{flex:0 0 min(82%, 320px);}
+.ms-nx.b{--c:var(--bk);}.ms-nx.f{--c:var(--fb);}.ms-nx.c{--c:#E30613;}
+.ms-nx .k{font-size:0.72rem;color:var(--faint);}
+.ms-nx-t{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:center;}
+.ms-nx-t .nm{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.ms-nx-t b{font-size:0.88rem;font-weight:500;line-height:1.2;overflow-wrap:anywhere;}
+.ms-nx-t.fav b{font-weight:700;}
+.ms-nx-t .rk{font-size:0.74rem;color:var(--dim);white-space:nowrap;}
+.ms-nx .lg{font-size:0.72rem;color:var(--faint);}
 .ms-tv{display:inline-flex;align-items:center;gap:3px;white-space:nowrap;}
 .ms-tv .icon{width:12px;height:12px;}
 .ms-missed{background:var(--card);border-radius:18px;padding:10px 12px;display:flex;flex-direction:column;}
