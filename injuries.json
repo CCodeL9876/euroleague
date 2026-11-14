@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-13",
+ "updated": "2026-11-14",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -20,11 +20,11 @@
    "team": "BAR",
    "status": "out",
    "since": "2026-10-29",
-   "note": "Verstauchung am rechten Knöchel; fehlte auch gegen Hapoel",
+   "note": "Verstauchung am rechten Knöchel; fehlt auch bei Panathinaikos",
    "back": "ca. 10 Tage",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "003941",
@@ -143,20 +143,8 @@
    "note": "in der Rehabilitation nach Operation",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
-  },
-  {
-   "id": "",
-   "name": "P.J. Dozier",
-   "team": "IST",
-   "status": "out",
-   "since": "2026-11-05",
-   "note": "Rückenprobleme",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -166,9 +154,9 @@
    "since": "2026-11-05",
    "note": "Achillessehnenverletzung in Runde 3; Ausfall von 7-9 Monaten erwartet",
    "back": "7-9 Monate",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
-   "reported": "2026-11-11"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -208,18 +196,6 @@
   },
   {
    "id": "",
-   "name": "Umoja Gibson",
-   "team": "BAR",
-   "status": "out",
-   "since": "2026-11-05",
-   "note": "Knieverletzung",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
-  },
-  {
-   "id": "",
    "name": "Yoan Makoundou",
    "team": "BAR",
    "status": "out",
@@ -227,8 +203,8 @@
    "note": "Verletzung am linken Knie",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -275,8 +251,8 @@
    "note": "Adduktorenprobleme; wird untersucht",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -323,8 +299,8 @@
    "note": "nicht näher bezeichnetes gesundheitliches Problem",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
-   "reported": "2026-11-07"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -335,8 +311,8 @@
    "note": "Erholung nach Bruch des linken Handgelenks",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-6-2026-round-10-games/",
-   "reported": "2026-11-07"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -358,9 +334,9 @@
    "since": "2026-11-06",
    "note": "Beinprobleme; fehlt bei Efes",
    "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033937/injury-report-round-11-justin-anderson-ready-for-season-debut-johnathan-motley-out-for-zvezda/",
-   "reported": "2026-11-13"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -418,9 +394,9 @@
    "since": "2026-11-07",
    "note": "Knöchelverletzung aus dem ACB-Spiel gegen Breogan; fehlt u.a. bei Panathinaikos",
    "back": "3-6 Wochen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2032663/kevin-punter-sidelined-for-three-weeks-with-ankle-injury/",
-   "reported": "2026-11-10"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -430,9 +406,9 @@
    "since": "2026-11-07",
    "note": "Muskelriss in der schrägen Bauchmuskulatur",
    "back": "ca. 3 Wochen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2032663/kevin-punter-sidelined-for-three-weeks-with-ankle-injury/",
-   "reported": "2026-11-10"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -455,20 +431,8 @@
    "note": "Nasenbruch, im Acibadem-Maslak-Spital operiert; Rehabilitation begonnen",
    "back": "offen",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/besiktass-jaylen-nowell-undergoes-nose-surgery/",
-   "reported": "2026-11-11"
-  },
-  {
-   "id": "",
-   "name": "Nikos Rogkavopoulos",
-   "team": "PAN",
-   "status": "out",
-   "since": "2026-11-10",
-   "note": "verletzt, letzter Einsatz in Runde 5",
-   "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
-   "reported": "2026-11-11"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -502,9 +466,9 @@
    "since": "2026-11-12",
    "note": "fällt für das Spiel bei Efes aus",
    "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033937/injury-report-round-11-justin-anderson-ready-for-season-debut-johnathan-motley-out-for-zvezda/",
-   "reported": "2026-11-13"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -512,11 +476,11 @@
    "team": "VIR",
    "status": "out",
    "since": "2026-11-12",
-   "note": "fällt für das Spiel bei Efes aus",
+   "note": "Schienbeinkopfbruch",
    "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033937/injury-report-round-11-justin-anderson-ready-for-season-debut-johnathan-motley-out-for-zvezda/",
-   "reported": "2026-11-13"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -529,6 +493,66 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2034117/ethan-thompson-avoids-fracture-after-fall-against-baskonia/",
    "reported": "2026-11-13"
+  },
+  {
+   "id": "",
+   "status": "out",
+   "since": "2026-11-13",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14",
+   "name": "Eleftherios Mantzoukas",
+   "team": "PAN",
+   "note": "fällt gegen Barcelona aus, Grund nicht genannt"
+  },
+  {
+   "id": "",
+   "status": "doubtful",
+   "since": "2026-11-13",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14",
+   "name": "Juhann Begarin",
+   "team": "ASV",
+   "note": "nicht näher bezeichnete Probleme; wird untersucht"
+  },
+  {
+   "id": "",
+   "status": "out",
+   "since": "2026-11-13",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
+   "reported": "2026-11-14",
+   "name": "Berk Uğurlu",
+   "team": "BES",
+   "note": "fällt bei ASVEL aus, Grund nicht genannt"
+  },
+  {
+   "id": "",
+   "status": "out",
+   "since": "2026-11-13",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2034509/kenneth-faried-injury-update-baskonia-euroleague/",
+   "reported": "2026-11-14",
+   "name": "Kenneth Faried",
+   "team": "BAS",
+   "note": "Muskel-Sehnen-Verletzung an der Rückseite des linken Oberschenkels, erlitten gegen Partizan"
+  },
+  {
+   "id": "",
+   "status": "doubtful",
+   "since": "2026-11-13",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2034751/pablo-laso-on-bruno-fernandos-injury-i-cant-say-anything-without-mri-he-told-me-hes-fine/",
+   "reported": "2026-11-14",
+   "name": "Bruno Fernando",
+   "team": "IST",
+   "note": "verletzt gegen Virtus Bologna; MRI-Untersuchung steht aus"
   }
  ]
 }
