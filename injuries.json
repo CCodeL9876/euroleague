@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-14",
+ "updated": "2026-11-15",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -30,13 +30,13 @@
    "id": "003941",
    "name": "Nikola Milutinov",
    "team": "OLY",
-   "status": "doubtful",
-   "since": "2026-10-29",
-   "note": "wird noch untersucht",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/olympiacos-bartzokas-provides-injury-update-milutinov-and-fournier-still-being-evaluated/",
-   "reported": "2026-10-29"
+   "status": "out",
+   "since": "2026-11-14",
+   "note": "Bruch des Endglieds am rechten Zeigefinger; fehlt gegen Maccabi",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2035090/nikola-milutinov-injury-update-olympiacos-euroleague/",
+   "reported": "2026-11-15"
   },
   {
    "id": "010042",
@@ -544,15 +544,15 @@
   },
   {
    "id": "",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-13",
-   "back": "offen",
+   "back": "3-4 Wochen",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2034751/pablo-laso-on-bruno-fernandos-injury-i-cant-say-anything-without-mri-he-told-me-hes-fine/",
-   "reported": "2026-11-14",
+   "url": "https://www.eurohoops.net/en/euroleague/2035065/bruno-fernando-injury-update-euroleague/",
+   "reported": "2026-11-15",
    "name": "Bruno Fernando",
    "team": "IST",
-   "note": "verletzt gegen Virtus Bologna; MRI-Untersuchung steht aus"
+   "note": "Wadenverletzung, erlitten gegen Virtus Bologna; Diagnose nach MRI"
   }
  ]
 }

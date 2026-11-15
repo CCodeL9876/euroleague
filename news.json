@@ -1,7 +1,70 @@
 {
-  "issue": 44,
-  "updated": "14. November 2026 · 07:15 Uhr (CH)",
+  "issue": 45,
+  "updated": "15. November 2026 · 07:16 Uhr (CH)",
   "items": [
+    {
+      "tag": "Transfers · Olympiacos",
+      "title": "Konchar erwägt vorzeitigen Abgang von Olympiacos",
+      "text": "John Konchar, der jüngste Neuzugang von Olympiacos, denkt laut Eurohoops-Quellen bereits über einen Abschied nach. Der 30-jährige Amerikaner blieb in seinen beiden EuroLeague-Einsätzen gegen Crvena Zvezda und Dubai ohne Punkt und fühlt sich unsicher und unter Druck. Er reiste nicht zum Ligaspiel gegen Aris nach Thessaloniki, soll aber am Montag mit nach Zypern fliegen, wo Olympiacos am Dienstag auf Maccabi trifft.",
+      "time": "14.11.2026 · 21:38",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2035297/john-konchar-considering-leaving-olympiacos/",
+      "firstShown": "15.11.2026"
+    },
+    {
+      "tag": "Verletzung · Olympiacos",
+      "title": "Milutinov mit Fingerbruch, fehlt gegen Maccabi",
+      "text": "Olympiacos-Center Nikola Milutinov hat sich das Endglied des rechten Zeigefingers gebrochen. Der 31-jährige Serbe verpasst das Spiel der 12. Runde gegen Maccabi Tel Aviv am Dienstag in Zypern. Körperliche Probleme hatten ihn in dieser Saison bereits auf sieben Einsätze beschränkt.",
+      "time": "14.11.2026 · 14:27",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2035090/nikola-milutinov-injury-update-olympiacos-euroleague/",
+      "firstShown": "15.11.2026"
+    },
+    {
+      "tag": "Verletzung · Anadolu Efes",
+      "title": "Bruno Fernando fällt drei bis vier Wochen aus",
+      "text": "Anadolu Efes muss drei bis vier Wochen auf Center Bruno Fernando verzichten. Der Angolaner zog sich beim Sieg gegen Virtus Bologna eine Wadenverletzung zu, nachdem er in der ersten Halbzeit 15 Punkte und 10 Rebounds erzielt hatte; Teamarzt Ugur Dilicikik bestätigte die Diagnose nach einem MRI. Efes setzt nun unter anderem auf den zurückgekehrten Giorgos Papagiannis.",
+      "time": "14.11.2026 · 13:23",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2035065/bruno-fernando-injury-update-euroleague/",
+      "firstShown": "15.11.2026"
+    },
+    {
+      "tag": "MVP · Zalgiris",
+      "title": "Valanciunas ist MVP der 11. Runde",
+      "text": "Jonas Valanciunas von Zalgiris ist zum MVP der 11. Runde gewählt worden. Beim Auswärtssieg in Mailand kam der 34-Jährige auf 17 Punkte, 20 Rebounds und eine Karrierebestleistung von 36 PIR-Punkten. Dahinter folgten Talen Horton-Tucker (Fenerbahce, 33 PIR) und Tremont Waters (ASVEL, 30 PIR).",
+      "time": "14.11.2026 · 12:00",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2035039/jonas-valanciunas-round-11-mvp-euroleague/",
+      "firstShown": "15.11.2026"
+    },
+    {
+      "tag": "Liga · Fenerbahce",
+      "title": "Zwei Fenerbahce-Heimspiele nach München verlegt",
+      "text": "Die EuroLeague verlegt zwei Heimspiele von Fenerbahce in die BMW Arena in München. Betroffen sind die Partien gegen Hapoel Tel Aviv am 15. Dezember (Runde 17) und gegen Maccabi Tel Aviv am 17. Dezember (Runde 18). Die Liga begründet den Schritt mit Empfehlungen der lokalen Behörden.",
+      "time": "14.11.2026 · 11:40",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2035033/round-17-and-18-games-relocated-fenerbahce-vs-hapoel-and-fenerbahce-vs-maccabi/",
+      "firstShown": "15.11.2026"
+    },
+    {
+      "tag": "Transfers · Olimpia Milano",
+      "title": "Milano vor Verpflichtung von Onyema, Quinones im Visier",
+      "text": "Olimpia Milano will das Kader unter dem neuen Trainer Luca Banchi verstärken. Am weitesten fortgeschritten sind laut Sportando die Verhandlungen mit Scafati über Center Ze'Rik Onyema, eine offizielle Bestätigung fehlt noch. Als Aussenspieler gilt Lester Quinones als Kandidat.",
+      "time": "14.11.2026 · 09:15",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/olimpia-milano-make-moves-in-the-transfer-market-lester-quinones-emerges-as-a-target-onyema-closing-in/",
+      "firstShown": "15.11.2026"
+    },
+    {
+      "tag": "Liga · Olimpia Milano",
+      "title": "Cardinale: NBA Europe kommt auch ohne Einigung mit EuroLeague",
+      "text": "RedBird-Chef Gerry Cardinale sagte der Gazzetta dello Sport, die NBA verhandle mit der EuroLeague, NBA Europe werde aber notfalls auch ohne Einigung starten. Die ersten neuen Franchises erwartet er gegen Ende 2026 oder Anfang 2027. Für eine Arena mit 20'000 Plätzen in San Donato liege bereits eine Baubewilligung vor.",
+      "time": "14.11.2026 · 08:56",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/gerry-cardinale-doubles-down-nba-europe-san-donato-arena-and-new-projects-for-milan/",
+      "firstShown": "15.11.2026"
+    },
     {
       "tag": "Stimmen · Barcelona",
       "title": "Sekulic nach Sieg in Athen: \"I'm proud of what we did tonight\"",
@@ -18,15 +81,6 @@
       "time": "13.11.2026 · 21:51",
       "source": "Sportando",
       "url": "https://sportando.basketball/en/novasports-bombshell-three-team-trade-in-the-works-with-dorsey-and-guduric-involved-the-latest-market-rumor/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Verletzungen · Anadolu Efes",
-      "title": "Laso wartet nach Sieg gegen Virtus auf MRI von Bruno Fernando",
-      "text": "Anadolu Efes schlug Virtus Bologna in Istanbul 103:91 und feierte den fünften EuroLeague-Sieg. Bruno Fernando (15 Punkte, 10 Rebounds) verletzte sich und muss zur MRI-Untersuchung. Trainer Pablo Laso: \"I can't say anything without MRI, he told me he's fine.\"",
-      "time": "13.11.2026 · 21:44",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034751/pablo-laso-on-bruno-fernandos-injury-i-cant-say-anything-without-mri-he-told-me-hes-fine/",
       "firstShown": "14.11.2026"
     },
     {
@@ -91,60 +145,6 @@
       "source": "Sportando",
       "url": "https://sportando.basketball/en/valencia-beats-bayern-102-87-behind-balanced-offense-and-26-assists/",
       "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Resultat · Real Madrid",
-      "title": "Real Madrid trifft 17 Dreier beim 105:84 gegen Crvena Zvezda",
-      "text": "Real Madrid erzielte im ersten Viertel 38 Punkte und gewann gegen die beste Defensive der Liga 105:84. Timothé Luwawu-Cabarrot (22) und Gabriele Procida (19) führten das Team an, das ohne Campazzo, Maledon, Deck, Jantunen und Garuba auskam. Trainer Pedro Martínez: \"I don't think we should get carried away.\"",
-      "time": "13.11.2026 · 00:00",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034322/madrid-hits-17-threes-but-martinez-keeps-his-feet-on-the-ground/",
-      "firstShown": "13.11.2026"
-    },
-    {
-      "tag": "Kader · Olympiacos",
-      "title": "Dorseys Sperre beendet, Olympiacos sucht weiteren Spielmacher",
-      "text": "Die Sperre von Tyler Dorsey ist abgelaufen, er kehrt ins Training zurück und dürfte am Wochenende gegen Aris im Aufgebot stehen. Trainer Giorgos Bartzokas sagte, der Spieler müsse das Team nun überzeugen. Zudem bestätigte er, dass Olympiacos einen Spieler für die Spielgestaltung sucht.",
-      "time": "12.11.2026 · 23:05",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034257/dorsey-returns-to-olympiacos-practices-expected-to-be-in-the-active-roster-against-aris/",
-      "firstShown": "13.11.2026"
-    },
-    {
-      "tag": "Rekord · Zalgiris",
-      "title": "Valanciunas holt 20 Rebounds und stellt Zalgiris-Rekord auf",
-      "text": "Jonas Valanciunas kam beim 86:83-Auswärtssieg von Zalgiris in Mailand auf 17 Punkte und 20 Rebounds, Indexwert 36. Damit übertraf er den bisherigen Klubrekord von 19 Rebounds in einem EuroLeague-Spiel. Für Zalgiris war es der fünfte Sieg in Folge.",
-      "time": "12.11.2026 · 22:38",
-      "source": "BasketNews",
-      "url": "https://basketnews.com/news-259367-jonas-valanciunas-drops-4th-fastest-double-double-in-euroleague-career-night.html",
-      "firstShown": "13.11.2026"
-    },
-    {
-      "tag": "Resultate · Runde 11",
-      "title": "Olympiacos schlägt Dubai 101:72, Maccabi gewinnt Tel-Aviv-Derby",
-      "text": "Olympiacos besiegte Dubai mit 101:72, Evan Fournier war mit 28 Punkten bester Werfer. Maccabi Tel Aviv gewann das Derby gegen Hapoel in Limassol 80:73 und beendete eine Serie von vier Niederlagen. Valencia schlug Bayern 102:87 und steht bei 8:3 Siegen.",
-      "time": "12.11.2026 · 22:06",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034141/euroleague-roundup-vezenkov-passes-spanoulis-as-olympiacos-beats-dubai/",
-      "firstShown": "13.11.2026"
-    },
-    {
-      "tag": "Rekord · Olympiacos",
-      "title": "Vezenkov überholt Spanoulis als bester EuroLeague-Skorer von Olympiacos",
-      "text": "Sasha Vezenkov hat im Spiel gegen Dubai die Marke von Vassilis Spanoulis (3552 Punkte) übertroffen und ist neu der beste EuroLeague-Skorer der Klubgeschichte. Der 31-jährige Forward steht in seiner achten Saison bei Olympiacos. In der ewigen EuroLeague-Skorerliste liegt er auf Rang 11.",
-      "time": "12.11.2026 · 21:37",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/sasha-vezenkov-surpasses-vassilis-spanoulis-as-olympiacos-all-time-euroleague-leading-scorer/",
-      "firstShown": "13.11.2026"
-    },
-    {
-      "tag": "Liga · EuroLeague",
-      "title": "Abstimmung über sechs feste Lizenzen steht bevor",
-      "text": "Die Aktionäre der EuroLeague sollen noch vor Ende 2026 über sechs permanente Lizenzen abstimmen, Kandidaten sind Valencia, Roma, Hapoel Tel Aviv, PAOK, Dubai und Paris. Laut Bericht haben zudem mehrere grosse Fussballklubs aus Italien und Deutschland Interesse an einem Basketballteam angemeldet. Geplant ist eine Aufstockung von 20 auf 24 Teams für 2027-28.",
-      "time": "12.11.2026 · 19:31",
-      "source": "BasketNews",
-      "url": "https://basketnews.com/news-259360-euroleague-set-for-major-franchise-vote-as-top-football-clubs-express-interest.html",
-      "firstShown": "13.11.2026"
     }
   ]
 }
