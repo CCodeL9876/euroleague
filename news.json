@@ -1,7 +1,106 @@
 {
-  "issue": 45,
-  "updated": "15. November 2026 · 07:16 Uhr (CH)",
+  "issue": 46,
+  "updated": "16. November 2026 · 07:16 Uhr (CH)",
   "items": [
+    {
+      "tag": "Resultat · Olimpia Milano",
+      "title": "Milano und Virtus gewinnen auswärts",
+      "text": "Olimpia Milano siegte in der Serie A 83:70 in Udine, im ersten Ligaspiel unter Luca Banchi. Virtus Bologna gewann 88:75 in Trento, Trent Frazier erzielte 18 Punkte. Virtus führt die Tabelle mit 7-1 an.",
+      "time": "15.11.2026 · 21:59",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/legabasket/2035799/milano-and-virtus-win-on-the-road/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Resultat · Fenerbahce",
+      "title": "Fenerbahce dreht Derby gegen Efes",
+      "text": "Fenerbahce hat in der türkischen Liga Anadolu Efes nach Rückstand 77:75 geschlagen. Will Clyburn war mit 13 Punkten und sieben Rebounds bester Werfer, Shane Larkin kam gegen seinen Ex-Klub auf 10 Punkte. Bei Efes erzielte Ercan Osmani 18 Punkte.",
+      "time": "15.11.2026 · 21:45",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/tbl/2035788/fenerbahce-rally-past-anadolu-efes/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Stimmen · Barcelona",
+      "title": "Robinson nach Sieg in Athen: \"That's who we are\"",
+      "text": "Justin Robinson, Matchwinner beim Auswärtssieg gegen Panathinaikos, zeigt sich von der Serie Barcelonas nicht überrascht. \"We have 11 new guys, but we think we are one of the best teams as well\", sagte er. Robinson erzielt in der EuroLeague 14,6 Punkte und 3,8 Assists pro Spiel.",
+      "time": "15.11.2026 · 16:58",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/justin-robinson-not-surprised-by-barcelonas-winning-streak-thats-who-we-are/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Liga · EuroLeague",
+      "title": "Bueno: \"Euroleague doesn't need the NBA to succeed\"",
+      "text": "EuroLeague-CEO Chus Bueno bestätigt im Interview mit Eurohoops die Pläne für neue Franchises und dreijährige Lizenzen. Die Gespräche mit der NBA stocken seit dem Treffen in Como, Bueno weiss nach eigenen Angaben, dass die NBA einzelne Klubs direkt kontaktiert hat. Die Aktionäre seien aber geeint: \"We have very clear directions from the owners that we don't stop.\"",
+      "time": "15.11.2026 · 15:36",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/trademarks/2035452/chus-bueno-the-euroleague-doesnt-need-the-nba-to-succeed/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Resultat · Real Madrid",
+      "title": "Real Madrid bleibt in der ACB ungeschlagen, Maledon zurück",
+      "text": "Real Madrid gewann bei Baskonia 98:84 und steht in der Liga Endesa bei acht Siegen aus acht Spielen. Theo Maledon kehrte nach seiner Verletzung zurück und kam auf 18 Punkte. Barcelona schlug Obradoiro 108:83, Valencia besiegte Coruña 111:97.",
+      "time": "15.11.2026 · 14:19",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/acb/2035498/brooks-and-shorts-lead-valencia-past-leyma-coruna/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Resultat · Olympiacos",
+      "title": "Olympiacos verliert 78:100 bei Aris, Bartzokas ausgeschlossen",
+      "text": "Olympiacos kassierte bei Aris Thessaloniki die erste Niederlage der griechischen Meisterschaft. Trainer Georgios Bartzokas wurde nach seinem zweiten technischen Foul des Feldes verwiesen. Evan Fournier erzielte 29 Punkte, Panathinaikos schlug Kolossos Rhodes 78:73.",
+      "time": "15.11.2026 · 13:54",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/heba/2035479/panathinaikos-overcomes-kolossos/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Transfer · Real Madrid",
+      "title": "Real Madrid holt Eli Ndiaye von Joventut zurück",
+      "text": "Real Madrid hat die Leihe von Eli Ndiaye an Joventut Badalona vorzeitig beendet und den 22-Jährigen zurückgeholt. Grund sind die Ausfälle unter anderem von Mikael Jantunen und Gabriel Deck, auch Chuma Okeke hatte Probleme. Ndiaye steht seit 2021 bei Real unter Vertrag.",
+      "time": "15.11.2026 · 13:10",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/euroleague/2035459/real-madrid-recalls-eli-ndiaye-from-his-loan-at-joventut/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Transfer · Maccabi Tel Aviv",
+      "title": "Kamar Baldwin in Israel eingetroffen",
+      "text": "Maccabi-Neuzugang Kamar Baldwin ist in Israel gelandet und stösst zum Team. Der Klub plant, ihn für das kommende Spiel gegen Olympiacos zu melden.",
+      "time": "15.11.2026 · 11:54",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/kamar-baldwin-arrives-in-israel-set-to-make-his-debut-against-olympiacos/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Verletzung · Dubai",
+      "title": "Thomas Walkup feiert Comeback",
+      "text": "Dubai-Aufbauspieler Thomas Walkup ist im ABA-Ligaspiel gegen Spartak Subotica nach fast einem Monat Pause zurückgekehrt. Sein letzter EuroLeague-Einsatz war gegen Olimpia Milano. Dubai gewann 93:75, Walkup verbuchte neun Assists.",
+      "time": "15.11.2026 · 11:05",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/dubai-thomas-walkup-returns-to-action-against-spartak-subotica/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Transfergerücht · Virtus Bologna",
+      "title": "Virtus: Rückkehr von Abass verzögert, Lonati als Option",
+      "text": "Die Rückkehr von Awudu Abass zu Virtus Bologna ist laut Corriere di Bologna weniger nah als zuletzt angenommen, da er seinen Vertrag mit Dubai noch auflösen muss. Zudem soll sich Virtus nach Achille Lonati erkundigt haben, der am College in St. Bonaventure spielt.",
+      "time": "15.11.2026 · 09:37",
+      "source": "Sportando",
+      "url": "https://sportando.basketball/en/virtus-bologna-abass-move-on-hold-as-club-explores-achille-lonati-option/",
+      "firstShown": "16.11.2026"
+    },
+    {
+      "tag": "Resultat · Paris",
+      "title": "Paris siegt in Limoges, ASVEL verliert in Le Mans",
+      "text": "Paris Basketball gewann in der französischen Liga 97:82 in Limoges, Nadir Hifi erzielte 22 Punkte. ASVEL unterlag Le Mans 93:109 trotz 19 Punkten von Patty Mills.",
+      "time": "14.11.2026 · 22:59",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/proa/2035332/hifi-follows-fenerbahce-buzzer-beater-with-22-points-against-limoges/",
+      "firstShown": "16.11.2026"
+    },
     {
       "tag": "Transfers · Olympiacos",
       "title": "Konchar erwägt vorzeitigen Abgang von Olympiacos",
@@ -10,6 +109,15 @@
       "source": "Eurohoops",
       "url": "https://www.eurohoops.net/en/euroleague/2035297/john-konchar-considering-leaving-olympiacos/",
       "firstShown": "15.11.2026"
+    },
+    {
+      "tag": "Resultat · Partizan",
+      "title": "Partizan verliert in Zadar, Zvezda siegt zum sechsten Mal",
+      "text": "Partizan unterlag in der ABA-Liga Zadar 74:81 und kassierte die erste Saisonniederlage, Chris Silva gab sein Debüt. Crvena Zvezda schlug Cedevita Olimpija und feierte den sechsten ABA-Sieg in Folge.",
+      "time": "14.11.2026 · 20:59",
+      "source": "Eurohoops",
+      "url": "https://www.eurohoops.net/en/aba/2035275/partizans-comeback-falls-short-in-zadar/",
+      "firstShown": "16.11.2026"
     },
     {
       "tag": "Verletzung · Olympiacos",
@@ -37,114 +145,6 @@
       "source": "Eurohoops",
       "url": "https://www.eurohoops.net/en/euroleague/2035039/jonas-valanciunas-round-11-mvp-euroleague/",
       "firstShown": "15.11.2026"
-    },
-    {
-      "tag": "Liga · Fenerbahce",
-      "title": "Zwei Fenerbahce-Heimspiele nach München verlegt",
-      "text": "Die EuroLeague verlegt zwei Heimspiele von Fenerbahce in die BMW Arena in München. Betroffen sind die Partien gegen Hapoel Tel Aviv am 15. Dezember (Runde 17) und gegen Maccabi Tel Aviv am 17. Dezember (Runde 18). Die Liga begründet den Schritt mit Empfehlungen der lokalen Behörden.",
-      "time": "14.11.2026 · 11:40",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2035033/round-17-and-18-games-relocated-fenerbahce-vs-hapoel-and-fenerbahce-vs-maccabi/",
-      "firstShown": "15.11.2026"
-    },
-    {
-      "tag": "Transfers · Olimpia Milano",
-      "title": "Milano vor Verpflichtung von Onyema, Quinones im Visier",
-      "text": "Olimpia Milano will das Kader unter dem neuen Trainer Luca Banchi verstärken. Am weitesten fortgeschritten sind laut Sportando die Verhandlungen mit Scafati über Center Ze'Rik Onyema, eine offizielle Bestätigung fehlt noch. Als Aussenspieler gilt Lester Quinones als Kandidat.",
-      "time": "14.11.2026 · 09:15",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/olimpia-milano-make-moves-in-the-transfer-market-lester-quinones-emerges-as-a-target-onyema-closing-in/",
-      "firstShown": "15.11.2026"
-    },
-    {
-      "tag": "Liga · Olimpia Milano",
-      "title": "Cardinale: NBA Europe kommt auch ohne Einigung mit EuroLeague",
-      "text": "RedBird-Chef Gerry Cardinale sagte der Gazzetta dello Sport, die NBA verhandle mit der EuroLeague, NBA Europe werde aber notfalls auch ohne Einigung starten. Die ersten neuen Franchises erwartet er gegen Ende 2026 oder Anfang 2027. Für eine Arena mit 20'000 Plätzen in San Donato liege bereits eine Baubewilligung vor.",
-      "time": "14.11.2026 · 08:56",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/gerry-cardinale-doubles-down-nba-europe-san-donato-arena-and-new-projects-for-milan/",
-      "firstShown": "15.11.2026"
-    },
-    {
-      "tag": "Stimmen · Barcelona",
-      "title": "Sekulic nach Sieg in Athen: \"I'm proud of what we did tonight\"",
-      "text": "Barcelona-Trainer Aleksander Sekulic lobte nach dem Erfolg bei Panathinaikos Verteidigung und Widerstandskraft seines Teams. \"The most important thing is that we believed until the very end that we could pull off an upset here\", sagte er. Der letzte Angriff sei bewusst für Justin Robinson im Eins-gegen-eins angesetzt gewesen.",
-      "time": "13.11.2026 · 23:04",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034814/aleksander-sekulic-after-barcas-epic-win-against-panathinaikos-im-proud-of-what-we-did-tonight/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Transfers · Olympiacos",
-      "title": "Gerücht um Dreierhandel mit Dorsey, Guduric und Butler",
-      "text": "Laut dem Journalisten Nikitas Avgoulis (NovaSports) diskutieren Olimpia Milano, Crvena Zvezda und Olympiacos über einen Tausch unter drei Klubs. Demnach würde Tyler Dorsey nach Mailand, Marko Guduric zu Crvena Zvezda und Jared Butler zu Olympiacos wechseln. Eine Einigung gibt es nicht, ob und wann der Handel zustande kommt, ist offen.",
-      "time": "13.11.2026 · 21:51",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/novasports-bombshell-three-team-trade-in-the-works-with-dorsey-and-guduric-involved-the-latest-market-rumor/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Resultate · Barcelona",
-      "title": "Barcelona gewinnt 76:74 bei Panathinaikos, Besiktas siegt in Lyon",
-      "text": "Barcelona drehte das Spiel in Athen mit einem 33:17 im Schlussviertel; Justin Robinson (24 Punkte) traf 4,4 Sekunden vor Schluss den entscheidenden Dreier. Besiktas gewann bei ASVEL 95:91, Scottie Wilbekin sorgte sieben Sekunden vor dem Ende per Dreier für die Entscheidung. Anadolu Efes besiegte Virtus Bologna 103:91.",
-      "time": "13.11.2026 · 20:34",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034620/euroleague-roundup-efes-scores-103-points-and-easily-defeats-virtus/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Verletzungen · Runde 11",
-      "title": "Verletzungsbericht: Barcelona ohne vier Spieler, Dozier wieder verfügbar",
-      "text": "Barcelona muss in Athen auf Kevin Punter, Tosan Evbuomwan, Juan Núñez und Yoan Makoundou verzichten, Umoja Gibson ist wieder einsatzbereit. Bei Anadolu Efes kehrt P.J. Dozier zurück, Panathinaikos kann wieder auf Nikos Rogkavopoulos zählen. Virtus Bologna fehlt Davide Casarin mit einem Schienbeinkopfbruch.",
-      "time": "13.11.2026 · 15:25",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Verletzungen · Baskonia",
-      "title": "Faried fällt bei Baskonia auf unbestimmte Zeit aus",
-      "text": "Kenneth Faried hat sich gegen Partizan beim Kampf um einen Rebound eine Muskel-Sehnen-Verletzung an der Rückseite des linken Oberschenkels zugezogen. Ein Rückkehrdatum nennt Baskonia nicht, der Center hat mit der Rehabilitation begonnen. Baskonia steht in der EuroLeague bei 1:10 Siegen.",
-      "time": "13.11.2026 · 13:13",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034509/kenneth-faried-injury-update-baskonia-euroleague/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Liga · EuroLeague",
-      "title": "EuroLeague verlängert Partnerschaft mit Motorola",
-      "text": "Euroleague Basketball und Motorola setzen ihre Zusammenarbeit in einer vierten Saison in Folge fort. Die von Fans gewählte Auszeichnung \"Motorola Magic Moment\" erzielte bislang 457 Millionen Impressionen. Das Sozialprogramm \"Bouncing for Good\" erreichte seit 2024 mehr als 1000 Kinder aus zwölf Schulen.",
-      "time": "13.11.2026 · 11:54",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034476/motorola-and-euroleague-basketball-extend-partnership-for-a-fourth-consecutive-season/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Transfers · Partizan",
-      "title": "Chris Silva wechselt offiziell von Fenerbahce zu Partizan",
-      "text": "Fenerbahce hat den Abgang von Chris Silva bestätigt, kurz darauf vermeldete Partizan die Verpflichtung. Silva kam in dieser Saison in vier EuroLeague-Spielen auf durchschnittlich 1,8 Punkte und 1,2 Rebounds. Er ist ab dem Spiel gegen Zadar spielberechtigt.",
-      "time": "13.11.2026 · 08:55",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/chris-silva-leaves-fenerbahce-and-officially-joins-partizan/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Stimmen · Panathinaikos",
-      "title": "Yabusele: Panathinaikos könnte NBA-Teams schlagen",
-      "text": "Guerschon Yabusele bezeichnete das Kader von Panathinaikos gegenüber L'Equipe als womöglich das talentierteste, dem er je angehört habe. Wenn alles zusammenpasse, \"we could beat quite a few teams from the United States\". Das Angebot aus Minnesota nannte er \"very low\", in Athen unterschrieb er für drei Jahre.",
-      "time": "13.11.2026 · 08:19",
-      "source": "Eurohoops",
-      "url": "https://www.eurohoops.net/en/euroleague/2034365/guerschon-yabusele-talks-panathinaikos-euroleague-nba/",
-      "firstShown": "14.11.2026"
-    },
-    {
-      "tag": "Resultate · Valencia",
-      "title": "Valencia schlägt Bayern 102:87 mit 26 Assists",
-      "text": "Valencia gewann bei der Rückkehr in die Roig Arena nach vier Auswärtsspielen 102:87 gegen Bayern München. TJ Shorts und Armoni Brooks erzielten je 14 Punkte, Valencia verbuchte 26 Assists bei sechs Ballverlusten. Bei Bayern kam Andreas Obst auf einen Saisonbestwert von 22 Punkten; Valencia steht bei 8:3, Bayern bei 3:8.",
-      "time": "13.11.2026 · 08:04",
-      "source": "Sportando",
-      "url": "https://sportando.basketball/en/valencia-beats-bayern-102-87-behind-balanced-offense-and-26-assists/",
-      "firstShown": "14.11.2026"
     }
   ]
 }

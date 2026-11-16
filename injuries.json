@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-15",
+ "updated": "2026-11-16",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -13,18 +13,6 @@
    "source": "Sportando",
    "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
    "reported": "2026-11-13"
-  },
-  {
-   "id": "010106",
-   "name": "Juan Núñez",
-   "team": "BAR",
-   "status": "out",
-   "since": "2026-10-29",
-   "note": "Verstauchung am rechten Knöchel; fehlt auch bei Panathinaikos",
-   "back": "ca. 10 Tage",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14"
   },
   {
    "id": "003941",
@@ -57,18 +45,6 @@
    "status": "out",
    "since": "2026-10-30",
    "note": "vollständiger Riss der Plantarfaszie im linken Fuss; fehlte gegen Panathinaikos",
-   "back": "offen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
-  },
-  {
-   "id": "007027",
-   "name": "Theo Maledon",
-   "team": "MAD",
-   "status": "out",
-   "since": "2026-10-30",
-   "note": "Verstauchung im rechten Knie; fehlte gegen Panathinaikos",
    "back": "offen",
    "source": "Sportando",
    "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
@@ -357,18 +333,6 @@
    "status": "out",
    "since": "2026-11-06",
    "note": "Erholung nach Achillessehnenverletzung",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
-  },
-  {
-   "id": "",
-   "name": "Thomas Walkup",
-   "team": "DUB",
-   "status": "out",
-   "since": "2026-11-06",
-   "note": "Rückenprobleme; fehlte gegen Olympiacos",
    "back": "",
    "source": "Sportando",
    "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
