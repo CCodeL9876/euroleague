@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-16",
+ "updated": "2026-11-17",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -416,11 +416,11 @@
    "team": "RED",
    "status": "out",
    "since": "2026-11-12",
-   "note": "Krankheit; fehlte gegen Real Madrid",
+   "note": "Krankheit; fehlte gegen Real Madrid, bleibt für das Spiel in Mailand in Belgrad",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
+   "url": "https://sportando.basketball/en/navarro-warns-crvena-zvezda-milan-is-much-better-than-its-record/",
+   "reported": "2026-11-17"
   },
   {
    "id": "",
@@ -517,6 +517,30 @@
    "name": "Bruno Fernando",
    "team": "IST",
    "note": "Wadenverletzung, erlitten gegen Virtus Bologna; Diagnose nach MRI"
+  },
+  {
+   "id": "",
+   "name": "Nicolo Melli",
+   "team": "ULK",
+   "status": "out",
+   "since": "2026-11-11",
+   "note": "Meniskusproblem; Abklärung in Italien, Operation möglich",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2035850/braxton-key-nicolo-melli-injury-updates-fenerbahce-euroleague/",
+   "reported": "2026-11-17"
+  },
+  {
+   "id": "",
+   "name": "Braxton Key",
+   "team": "ULK",
+   "status": "doubtful",
+   "since": "2026-11-15",
+   "note": "ausgerenkter Finger mit Riss im Derby gegen Efes; Röntgenabklärung",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2035850/braxton-key-nicolo-melli-injury-updates-fenerbahce-euroleague/",
+   "reported": "2026-11-17"
   }
  ]
 }
