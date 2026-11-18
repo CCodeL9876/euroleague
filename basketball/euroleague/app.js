@@ -1089,8 +1089,9 @@ function renderBox() {
   // Spieler eines Teams
   const team = b.teams[boxState.team] || th;
   const top = Math.max(...team.players.map((p) => p.pts), 0);
-  // Nach Spielende: die drei Besten des Spiels (beide Teams) nach Punkten oder Effizienz, in der Tabelle mit 1/2/3 markiert
-  const best = g.status === 'final' ? topPlayers(b, boxState.topBy) : [];
+  // Live und nach Spielende: die drei Besten des Spiels (beide Teams) nach Punkten oder Effizienz, in der Tabelle mit 1/2/3 markiert.
+  // Live wird der Bericht alle 30 Sekunden neu gezeichnet, die Rangliste läuft also mit.
+  const best = g.status !== 'pre' ? topPlayers(b, boxState.topBy) : [];
   const rankOf = new Map(best.map((x, i) => [x.p, i + 1]));
   const players = team.players.map((p) => { const rk = rankOf.get(p); return `<tr class="${p.on && b.live ? 'on' : ''}${rk ? ` tp${rk}` : ''}">
       <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${rk ? `<span class="tp-rk r${rk}" aria-label="Platz ${rk}">${rk}</span>` : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
@@ -1104,17 +1105,17 @@ function renderBox() {
     ${shotsHtml(b, team)}
     <div class="pl-wrap"><table class="pl-table num"><thead><tr><th scope="col">#</th><th scope="col" class="pl">Spieler</th><th scope="col">Min</th><th scope="col">Pkt</th><th scope="col"><abbr title="Rebounds">Reb</abbr></th><th scope="col"><abbr title="Assists">Ass</abbr></th><th scope="col"><abbr title="2-Punkte-Würfe">2P</abbr></th><th scope="col"><abbr title="3-Punkte-Würfe">3P</abbr></th><th scope="col"><abbr title="Freiwürfe">FW</abbr></th><th scope="col"><abbr title="Steals">St</abbr></th><th scope="col"><abbr title="Ballverluste">BV</abbr></th><th scope="col"><abbr title="Blocks">Bl</abbr></th><th scope="col"><abbr title="Fouls">F</abbr></th><th scope="col"><abbr title="Effizienz">PIR</abbr></th><th scope="col">+/-</th></tr></thead>
     <tbody>${players}</tbody></table></div>
-    ${best.length ? topPlayersHtml(m, best) : ''}
+    ${best.length ? topPlayersHtml(m, best, b.live) : ''}
     <p class="box-note small">Quelle: EuroLeague. S5 = Startformation${b.live ? ', roter Punkt = gerade auf dem Feld. Aktualisiert sich alle 30 Sekunden' : ''}.</p>`);
 }
 
-// Top 3 eines beendeten Spiels über beide Teams: nach Punkten (Gleichstand: PIR) oder nach PIR (Gleichstand: Punkte)
+// Top 3 eines Spiels (live oder beendet) über beide Teams: nach Punkten (Gleichstand: PIR) oder nach PIR (Gleichstand: Punkte)
 function topPlayers(b, by) {
   const all = b.teams.flatMap((t) => t.players.filter((p) => p.min && p.min !== '00:00' || p.pts).map((p) => ({ p, team: t.code })));
   const k1 = by === 'pir' ? 'pir' : 'pts', k2 = by === 'pir' ? 'pts' : 'pir';
   return all.sort((x, y) => (y.p[k1] - x.p[k1]) || (y.p[k2] - x.p[k2])).slice(0, 3);
 }
-function topPlayersHtml(m, best) {
+function topPlayersHtml(m, best, live) {
   const by = boxState.topBy;
   const sign = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
   const fg = (p) => [p.fg2[0] + p.fg3[0], p.fg2[1] + p.fg3[1]];
@@ -1127,7 +1128,8 @@ function topPlayersHtml(m, best) {
       <span class="tp-big num">${by === 'pir' ? p.pir : p.pts}<small>${by === 'pir' ? 'PIR' : 'Pkt'}</small></span>
       <span class="tp-grid num">${stat('Min', esc(p.min || '–'))}${by === 'pir' ? stat('Pkt', p.pts) : stat('PIR', p.pir)}${stat('Reb', p.reb)}${stat('Ass', p.ast)}${stat('Stl', p.stl)}${stat('Blk', p.blk)}${stat('TO', p.tov)}${stat('+/−', sign(p.pm))}</span></div>`;
   }).join('');
-  return `<h3>${by === 'pir' ? 'Beste Spieler des Spiels' : 'Top-Scorer des Spiels'}</h3>
+  const title = live ? (by === 'pir' ? 'Aktuell beste Spieler' : 'Aktuelle Top-Scorer') : (by === 'pir' ? 'Beste Spieler des Spiels' : 'Top-Scorer des Spiels');
+  return `<h3>${live ? '<i class="live-dot" aria-hidden="true"></i>' : ''}${title}</h3>
     <div class="tp-sort" role="group" aria-label="Auswahl nach"><span>Nach</span><button type="button" data-act="top-by" data-by="pts" aria-pressed="${by !== 'pir'}">Punkten</button><button type="button" data-act="top-by" data-by="pir" aria-pressed="${by === 'pir'}">Effizienz (PIR)</button></div>
     <div class="tp-list">${rows}</div>`;
 }
