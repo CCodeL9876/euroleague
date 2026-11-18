@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-17",
+ "updated": "2026-11-18",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -66,13 +66,13 @@
    "id": "",
    "name": "Derek Willis",
    "team": "PAR",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-10-31",
-   "note": "Knöchelverletzung aus Runde 1; fehlt gegen Baskonia",
+   "note": "Knöchelverletzung; Einsatz gegen Valencia kurzfristig entschieden",
    "back": "offen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
-   "reported": "2026-11-11"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
   },
   {
    "id": "",
@@ -150,13 +150,13 @@
    "id": "",
    "name": "Márcio Santos",
    "team": "BAS",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-11-05",
-   "note": "Verletzung an der linken Wade",
+   "note": "Wadenprobleme links; wird untersucht",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
   },
   {
    "id": "",
@@ -205,30 +205,6 @@
    "source": "Sportando",
    "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
    "reported": "2026-11-13"
-  },
-  {
-   "id": "",
-   "name": "Mouhamadou Gueye",
-   "team": "PAM",
-   "status": "doubtful",
-   "since": "2026-11-05",
-   "note": "Probleme am rechten Fuss; Einsatz gegen Bayern kurzfristig entschieden",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
-  },
-  {
-   "id": "",
-   "name": "Mathis Dossou-Yovo",
-   "team": "ASV",
-   "status": "doubtful",
-   "since": "2026-11-05",
-   "note": "Adduktorenprobleme; wird untersucht",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14"
   },
   {
    "id": "",
@@ -304,18 +280,6 @@
   },
   {
    "id": "",
-   "name": "Tommaso Baldasso",
-   "team": "VIR",
-   "status": "out",
-   "since": "2026-11-06",
-   "note": "Beinprobleme; fehlt bei Efes",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14"
-  },
-  {
-   "id": "",
    "name": "Davis Bertans",
    "team": "DUB",
    "status": "out",
@@ -376,18 +340,6 @@
   },
   {
    "id": "",
-   "name": "Vasilije Micic",
-   "team": "HTA",
-   "status": "out",
-   "since": "2026-11-09",
-   "note": "Leistenverletzung; fehlte im Winner-Cup-Final gegen Maccabi",
-   "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/others/2032890/maccabi-erase-23-point-deficit-to-win-israeli-winner-cup/",
-   "reported": "2026-11-10"
-  },
-  {
-   "id": "",
    "name": "Jaylen Nowell",
    "team": "BES",
    "status": "out",
@@ -416,23 +368,11 @@
    "team": "RED",
    "status": "out",
    "since": "2026-11-12",
-   "note": "Krankheit; fehlte gegen Real Madrid, bleibt für das Spiel in Mailand in Belgrad",
+   "note": "Grippe; fehlte in Mailand",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/navarro-warns-crvena-zvezda-milan-is-much-better-than-its-record/",
-   "reported": "2026-11-17"
-  },
-  {
-   "id": "",
-   "name": "Daniel Hackett",
-   "team": "VIR",
-   "status": "out",
-   "since": "2026-11-12",
-   "note": "fällt für das Spiel bei Efes aus",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
   },
   {
    "id": "",
@@ -450,13 +390,13 @@
    "id": "",
    "name": "Ethan Thompson",
    "team": "PAR",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-12",
-   "note": "erhebliche Prellung im Hüftbereich nach Sturz gegen Baskonia, kein Bruch; Zustand wird täglich beurteilt",
+   "note": "Hüftverletzung; fehlte gegen Valencia",
    "back": "offen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2034117/ethan-thompson-avoids-fracture-after-fall-against-baskonia/",
-   "reported": "2026-11-13"
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
   },
   {
    "id": "",
@@ -472,15 +412,15 @@
   },
   {
    "id": "",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-13",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18",
    "name": "Juhann Begarin",
    "team": "ASV",
-   "note": "nicht näher bezeichnete Probleme; wird untersucht"
+   "note": "nicht näher bezeichnete Probleme; fehlte bei Fenerbahce"
   },
   {
    "id": "",
@@ -534,13 +474,97 @@
    "id": "",
    "name": "Braxton Key",
    "team": "ULK",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-15",
-   "note": "ausgerenkter Finger mit Riss im Derby gegen Efes; Röntgenabklärung",
+   "note": "ausgerenkter und verletzter Finger; fehlte gegen ASVEL",
    "back": "offen",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
+  },
+  {
+   "id": "",
+   "name": "Joel Bolomboy",
+   "team": "ASV",
+   "status": "out",
+   "since": "2026-11-17",
+   "note": "Nasenbruch; fehlte bei Fenerbahce",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
+  },
+  {
+   "id": "",
+   "name": "Yves Pons",
+   "team": "ASV",
+   "status": "out",
+   "since": "2026-11-17",
+   "note": "fehlte bei Fenerbahce, Grund nicht genannt",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
+  },
+  {
+   "id": "",
+   "name": "Tyler Dorsey",
+   "team": "OLY",
+   "status": "out",
+   "since": "2026-11-17",
+   "note": "Suspendierung durch den Klub und Fitness; reiste nicht nach Zypern",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
+  },
+  {
+   "id": "",
+   "name": "Umoja Gibson",
+   "team": "BAR",
+   "status": "out",
+   "since": "2026-11-17",
+   "note": "Bauchmuskelverletzung; fehlte gegen Paris",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
+  },
+  {
+   "id": "",
+   "name": "Juan Núñez",
+   "team": "BAR",
+   "status": "doubtful",
+   "since": "2026-11-17",
+   "note": "Knöchelprobleme; Einsatz gegen Paris kurzfristig entschieden",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
+  },
+  {
+   "id": "",
+   "name": "Bruno Caboclo",
+   "team": "HTA",
+   "status": "out",
+   "since": "2026-11-17",
+   "note": "Wadenverletzung; fehlte bei Baskonia",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
+   "reported": "2026-11-18"
+  },
+  {
+   "id": "",
+   "name": "Jared Butler",
+   "team": "RED",
+   "status": "out",
+   "since": "2026-11-17",
+   "note": "Krankheit; fehlte in Mailand",
+   "back": "",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2035850/braxton-key-nicolo-melli-injury-updates-fenerbahce-euroleague/",
-   "reported": "2026-11-17"
+   "url": "https://www.eurohoops.net/en/euroleague/2036457/euroleague-roundup-kabengele-leads-dubai-past-efes/",
+   "reported": "2026-11-18"
   }
  ]
 }
