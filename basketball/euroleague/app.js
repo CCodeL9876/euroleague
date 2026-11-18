@@ -952,7 +952,7 @@ function toast(msg, variant = '') {
 }
 
 // ---------- Spielbericht ----------
-const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false };
+const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false, topBy: 'pts' };
 const pct = (a) => (a[1] ? `${Math.round(a[0] / a[1] * 100)}%` : '–');
 const ratio = (a) => `${a[0]}/${a[1]}`;
 
@@ -1051,10 +1051,13 @@ function renderBox() {
   // Spieler eines Teams
   const team = b.teams[boxState.team] || th;
   const top = Math.max(...team.players.map((p) => p.pts), 0);
-  const players = team.players.map((p) => `<tr class="${p.on && b.live ? 'on' : ''}">
-      <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
-      <td>${esc(p.min || '–')}</td><td class="${p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
-      <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`).join('');
+  // Nach Spielende: die drei Besten des Spiels (beide Teams) nach Punkten oder Effizienz, in der Tabelle mit 1/2/3 markiert
+  const best = g.status === 'final' ? topPlayers(b, boxState.topBy) : [];
+  const rankOf = new Map(best.map((x, i) => [x.p, i + 1]));
+  const players = team.players.map((p) => { const rk = rankOf.get(p); return `<tr class="${p.on && b.live ? 'on' : ''}${rk ? ` tp${rk}` : ''}">
+      <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${rk ? `<span class="tp-rk r${rk}" aria-label="Platz ${rk}">${rk}</span>` : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
+      <td>${esc(p.min || '–')}</td><td class="${!best.length && p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
+      <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`; }).join('');
   setBox(dlg, `${head}${seg}${quarters}${flowHtml(m, g, b)}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
     <h3>Spieler</h3>
@@ -1063,7 +1066,32 @@ function renderBox() {
     ${shotsHtml(b, team)}
     <div class="pl-wrap"><table class="pl-table num"><thead><tr><th scope="col">#</th><th scope="col" class="pl">Spieler</th><th scope="col">Min</th><th scope="col">Pkt</th><th scope="col"><abbr title="Rebounds">Reb</abbr></th><th scope="col"><abbr title="Assists">Ass</abbr></th><th scope="col"><abbr title="2-Punkte-Würfe">2P</abbr></th><th scope="col"><abbr title="3-Punkte-Würfe">3P</abbr></th><th scope="col"><abbr title="Freiwürfe">FW</abbr></th><th scope="col"><abbr title="Steals">St</abbr></th><th scope="col"><abbr title="Ballverluste">BV</abbr></th><th scope="col"><abbr title="Blocks">Bl</abbr></th><th scope="col"><abbr title="Fouls">F</abbr></th><th scope="col"><abbr title="Effizienz">PIR</abbr></th><th scope="col">+/-</th></tr></thead>
     <tbody>${players}</tbody></table></div>
+    ${best.length ? topPlayersHtml(m, best) : ''}
     <p class="box-note small">Quelle: EuroLeague. S5 = Startformation${b.live ? ', roter Punkt = gerade auf dem Feld. Aktualisiert sich alle 30 Sekunden' : ''}.</p>`);
+}
+
+// Top 3 eines beendeten Spiels über beide Teams: nach Punkten (Gleichstand: PIR) oder nach PIR (Gleichstand: Punkte)
+function topPlayers(b, by) {
+  const all = b.teams.flatMap((t) => t.players.filter((p) => p.min && p.min !== '00:00' || p.pts).map((p) => ({ p, team: t.code })));
+  const k1 = by === 'pir' ? 'pir' : 'pts', k2 = by === 'pir' ? 'pts' : 'pir';
+  return all.sort((x, y) => (y.p[k1] - x.p[k1]) || (y.p[k2] - x.p[k2])).slice(0, 3);
+}
+function topPlayersHtml(m, best) {
+  const by = boxState.topBy;
+  const sign = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+  const fg = (p) => [p.fg2[0] + p.fg3[0], p.fg2[1] + p.fg3[1]];
+  const rows = best.map(({ p, team }, i) => {
+    const img = (players?.players || []).find((x) => x.id && x.id === p.id)?.img || '';
+    const stat = (k, v) => `<span><b>${v}</b><small>${k}</small></span>`;
+    return `<div class="tp-row${i === 0 ? ' first' : ''}">
+      <span class="tp-av">${playerImg({ img })}<span class="tp-rk r${i + 1}" aria-hidden="true">${i + 1}</span></span>
+      <span class="tp-nm"><b>${playerBtn(p, team)}</b><small class="num">${esc(short(team))} · ${ratio(fg(p))} FG · ${ratio(p.fg3)} 3P · ${ratio(p.ft)} FW</small></span>
+      <span class="tp-big num">${by === 'pir' ? p.pir : p.pts}<small>${by === 'pir' ? 'PIR' : 'Pkt'}</small></span>
+      <span class="tp-grid num">${stat('Min', esc(p.min || '–'))}${by === 'pir' ? stat('Pkt', p.pts) : stat('PIR', p.pir)}${stat('Reb', p.reb)}${stat('Ass', p.ast)}${stat('Stl', p.stl)}${stat('Blk', p.blk)}${stat('TO', p.tov)}${stat('+/−', sign(p.pm))}</span></div>`;
+  }).join('');
+  return `<h3>${by === 'pir' ? 'Beste Spieler des Spiels' : 'Top-Scorer des Spiels'}</h3>
+    <div class="tp-sort" role="group" aria-label="Auswahl nach"><span>Nach</span><button type="button" data-act="top-by" data-by="pts" aria-pressed="${by !== 'pir'}">Punkten</button><button type="button" data-act="top-by" data-by="pir" aria-pressed="${by === 'pir'}">Effizienz (PIR)</button></div>
+    <div class="tp-list">${rows}</div>`;
 }
 
 // Reiter „Videos“: gewähltes Video gross (lädt den Player von youtube-nocookie.com erst beim Antippen), die übrigen als Liste
@@ -1785,6 +1813,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'box-view') { boxState.view = t.dataset.v; boxState.playing = false; renderBox(); }
   else if (act === 'video-play') { boxState.vid = t.dataset.id; boxState.playing = true; renderBox(); $('#box .vstage')?.scrollIntoView({ block: 'nearest' }); }
   else if (act === 'box-close') $('#box').close();
+  else if (act === 'top-by') { boxState.topBy = t.dataset.by === 'pir' ? 'pir' : 'pts'; renderBox(); }
   else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; boxState.shotV = 0; renderBox(); }
   else if (act === 'shot-v') {
     const v = Number(t.dataset.v);
