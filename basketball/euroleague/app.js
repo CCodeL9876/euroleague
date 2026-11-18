@@ -611,12 +611,48 @@ function renderLeft(m) {
 }
 
 // ---------- Bestenlisten ----------
-const CATS = [['pts', 'Punkte'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['pir', 'PIR'], ['stl', 'Steals'], ['blk', 'Blocks'], ['fg3m', 'Dreier']];
+const CATS = [['pts', 'Punkte'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['pir', 'PIR'], ['eff', 'Effizienz'], ['ts', 'TS%'], ['stl', 'Steals'], ['blk', 'Blocks'], ['fg3m', 'Dreier']];
+// TS% und Effizienz-Wert gibt es erst, wenn die Funktion euroleague das Feld ts liefert
+const hasTs = () => (players?.players || []).some((p) => p.ts > 0);
+const cats = () => CATS.filter(([k]) => (k !== 'ts' && k !== 'eff') || hasTs());
 // Nur Spieler mit mindestens der Hälfte der Spiele des fleissigsten Spielers (sonst führt jemand mit einem einzigen Spiel)
 function qualified() {
   const list = players?.players || [];
   const maxGp = Math.max(1, ...list.map((p) => p.gp));
   return list.filter((p) => p.gp >= Math.max(1, Math.floor(maxGp / 2)));
+}
+// ---------- Effizienz-Wert: PIR, angepasst an die Wurfeffizienz (TS%) ----------
+// Wert = PIR × (1 + ½ × (TS% ÷ Schnitt − 1)); der Schnitt ist punktegewichtet über alle Spieler der Bestenliste.
+// Die Abweichung vom Schnitt zählt nur zur Hälfte, damit der PIR die Hauptrolle behält.
+let effCache = { src: null, avg: 0, rank: new Map() };
+function effData() {
+  if (effCache.src === players) return effCache;
+  const list = qualified().filter((p) => p.ts > 0);
+  const shots = list.reduce((s, p) => s + p.pts / p.ts, 0);
+  const avg = shots ? list.reduce((s, p) => s + p.pts, 0) / shots : 0;
+  list.forEach((p) => { p.eff = avg ? Math.round(p.pir * (1 + (p.ts / avg - 1) / 2) * 10) / 10 : 0; });
+  const rank = new Map([...list].sort((a, b) => b.eff - a.eff).map((p, i) => [p.id, i + 1]));
+  effCache = { src: players, avg, rank, n: list.length };
+  return effCache;
+}
+const STAT_INFO = {
+  pir: ['PIR', 'Performance Index Rating, der offizielle Bewertungswert der EuroLeague', () => `<p class="box-note">Fasst die Leistung eines Spielers in einer Zahl zusammen.</p>
+    <p class="box-note"><b>Plus:</b> Punkte, Rebounds, Assists, Steals, eigene Blocks, gezogene Fouls<br><b>Minus:</b> verfehlte Würfe und Freiwürfe, Ballverluste, selbst geblockte Würfe, begangene Fouls</p>
+    <p class="box-note">Einordnung pro Spiel: um 10 solide, ab 15 sehr gut, über 20 Spitzenklasse. Schwäche: Verteidigung ohne Statistik-Eintrag zählt nicht, und Grosse sammeln leichter Punkte.</p>`],
+  ts: ['TS%', 'True Shooting Percentage', (avg) => `<p class="box-note">Misst, wie effizient ein Spieler punktet. Anders als die normale Wurfquote berücksichtigt sie, dass Dreier mehr wert sind und Freiwürfe auch Punkte bringen.</p>
+    <p class="box-note"><b>Formel:</b> Punkte ÷ (2 × (Würfe + 0,44 × Freiwürfe))</p>
+    <p class="box-note">Einordnung: Schnitt der Bestenliste ${de1(avg)} %, ab 62 % sehr effizient, unter 52 % schwach. Center, die nah am Korb abschliessen, kommen oft auf über 70 %.</p>`],
+  eff: ['Effizienz-Wert', 'Eigener Wert dieser Seite aus PIR und TS%', (avg) => `<p class="box-note"><b>Formel:</b> PIR × (1 + ½ × (TS% ÷ ${de1(avg)} % − 1))</p>
+    <p class="box-note">Grundlage ist der PIR. Wer effizienter trifft als der Schnitt der Bestenliste (${de1(avg)} % TS), bekommt einen Bonus, wer schlechter trifft, einen Abzug. Die Abweichung zählt nur zur Hälfte: 10 % besser als der Schnitt ergibt 5 % mehr.</p>
+    <p class="box-note">Beispiel: PIR 15 und 10 % über dem Schnitt → 15 × 1,05 = 15,8. Auf der Spielerseite steht die Rechnung für jeden Spieler.</p>`],
+};
+function openStatInfo(k) {
+  const info = STAT_INFO[k];
+  if (!info) return;
+  const dlg = $('#infoDlg');
+  dlg.innerHTML = `<div class="box-in"><div class="box-top"><h2 id="infoTitle">${info[0]}</h2><button type="button" class="box-close" data-act="info-close" aria-label="Schliessen">×</button></div>
+    <p class="box-note small">${info[1]}</p>${info[2](effData().avg)}</div>`;
+  if (!dlg.open) dlg.showModal();
 }
 function leaderTeaser(m) {
   if (!players) return 'Top-Scorer, Rebounds, Assists und mehr.';
@@ -629,12 +665,14 @@ function playerImg(p, cls = 'pimg') {
 }
 function leadersHtml(m) {
   if (!players) return `<p class="label">${esc(playersError || 'Lade Spielerstatistik …')}</p>`;
-  const [cat, label] = CATS.find((c) => c[0] === leaderState.cat) || CATS[0];
-  const list = qualified().filter((p) => !leaderState.fav || FAV.includes(p.team)).sort((a, b) => b[cat] - a[cat] || b.gp - a.gp).slice(0, 10);
-  return `<div class="cats" role="group" aria-label="Kategorie">${CATS.map(([k, l]) => `<button type="button" data-act="leader-cat" data-cat="${k}" aria-pressed="${k === cat}">${l}</button>`).join('')}</div>
+  const [cat, label] = cats().find((c) => c[0] === leaderState.cat) || CATS[0];
+  if (hasTs()) effData();
+  const list = qualified().filter((p) => (cat !== 'ts' && cat !== 'eff') || p.ts > 0).filter((p) => !leaderState.fav || FAV.includes(p.team)).sort((a, b) => b[cat] - a[cat] || b.gp - a.gp).slice(0, 10);
+  const unit = cat === 'ts' ? '%' : 'pro Spiel';
+  return `<div class="cats" role="group" aria-label="Kategorie">${cats().map(([k, l]) => `<button type="button" data-act="leader-cat" data-cat="${k}" aria-pressed="${k === cat}">${l}</button>`).join('')}</div>
     <label class="fav-only"><input type="checkbox" data-act="leader-fav" ${leaderState.fav ? 'checked' : ''}> Nur deine Teams</label>
-    <ol class="leaders">${list.map((p, i) => `<li><span class="rk num">${i + 1}</span>${playerImg(p)}<span class="who"><b>${playerBtn(p)}</b><small><button type="button" class="team-link" data-act="team" data-c="${esc(p.team)}">${esc(name(m, p.team))}</button> · ${p.gp} Spiele</small></span><span class="val num">${num1(p[cat])}<small>${cat === 'fg3m' ? 'pro Spiel' : 'pro Spiel'}</small></span></li>`).join('') || '<li class="label">Keine Spieler.</li>'}</ol>
-    <p class="standings-note">${label} pro Spiel, nur Spieler mit mindestens der Hälfte der Spiele. <a href="https://www.euroleaguebasketball.net/en/euroleague/stats/" target="_blank" rel="noopener">Alle Statistiken der EuroLeague ↗</a></p>`;
+    <ol class="leaders">${list.map((p, i) => `<li><span class="rk num">${i + 1}</span>${playerImg(p)}<span class="who"><b>${playerBtn(p)}</b><small><button type="button" class="team-link" data-act="team" data-c="${esc(p.team)}">${esc(name(m, p.team))}</button> · ${p.gp} Spiele</small></span><span class="val num">${cat === 'ts' || cat === 'eff' ? de1(p[cat]) : num1(p[cat])}<small>${unit}</small></span></li>`).join('') || '<li class="label">Keine Spieler.</li>'}</ol>
+    <p class="standings-note">${STAT_INFO[cat] ? `<button type="button" class="info-link" data-act="stat-info" data-k="${cat}">Was ist ${label === 'Effizienz' ? 'der Effizienz-Wert' : label}? ⓘ</button> ` : ''}${label}${cat === 'ts' ? '' : ' pro Spiel'}, nur Spieler mit mindestens der Hälfte der Spiele. <a href="https://www.euroleaguebasketball.net/en/euroleague/stats/" target="_blank" rel="noopener">Alle Statistiken der EuroLeague ↗</a></p>`;
 }
 
 // ---------- Mitte: Spieltag ----------
@@ -1547,6 +1585,20 @@ function playerChart(d) {
     <p class="pc-info" aria-live="polite">${info}</p>`;
 }
 
+// Effizienz-Wert im Spieler-Dialog: Wert, Rang und die Rechnung zum Aufklappen (Saisonwerte aus der Bestenliste)
+function effBlock(id) {
+  if (!hasTs()) return '';
+  const e = effData(), p = (players?.players || []).find((x) => x.id === id);
+  if (!p || !e.rank.has(id)) return '';
+  const dev = p.ts / e.avg - 1, sgn = (v) => `${v >= 0 ? '+' : '−'}${de1(Math.abs(v * 100))} %`;
+  return `<details class="pc-eff"><summary><span class="pc-eff-v"><b class="num">${de1(p.eff)}</b><span>Effizienz-Wert</span></span><span class="pc-eff-r"><b class="num">${e.rank.get(id)}.</b> von ${e.n}<small>TS ${de1(p.ts)} %</small></span></summary>
+    <table class="pc-eff-t"><tr><td>PIR pro Spiel</td><td class="num">${de1(p.pir)}</td></tr>
+    <tr><td>True Shooting (Schnitt ${de1(e.avg)} %)</td><td class="num">${de1(p.ts)} %</td></tr>
+    <tr><td>Abweichung vom Schnitt</td><td class="num">${sgn(dev)}</td></tr>
+    <tr><td>davon zählt die Hälfte</td><td class="num">${sgn(dev / 2)}</td></tr>
+    <tr class="tot"><td>Effizienz-Wert</td><td class="num">${de1(p.eff)}</td></tr></table>
+    <p class="box-note small"><button type="button" class="info-link" data-act="stat-info" data-k="eff">Effizienz-Wert ⓘ</button> <button type="button" class="info-link" data-act="stat-info" data-k="pir">PIR ⓘ</button> <button type="button" class="info-link" data-act="stat-info" data-k="ts">TS% ⓘ</button></p></details>`;
+}
 function renderPlayer() {
   const dlg = $('#playerDlg');
   const d = playerState.data, m = model();
@@ -1608,6 +1660,7 @@ function renderPlayer() {
         <b>${esc(s.name)}</b><small>${esc(s.gap ? s.sub : s.comps ? [...s.comps].join(', ') : s.sub)}</small></li>`).join('')}</ol>${d.history?.length ? '<p class="box-note small">Vereine laut Wikipedia</p>' : ''}</section>` : ''}
       <section aria-label="Saisonwerte"><h3>Saison ${(() => { const y = Number((/\d{4}/.exec(data?.season || '') || [])[0]); return y ? `${y}/${String(y + 1).slice(2)}` : ''; })()} <small>pro Spiel · ${a.gp} ${a.gp === 1 ? 'Spiel' : 'Spiele'}</small></h3>
         ${a.gp ? `<div class="pc-stats">${[['pts', 'Punkte'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['pir', 'PIR (Bewertung)']].map(([k, l], i) => `<div class="pc-stat${i ? '' : ' key'}"><b class="num">${de1(a[k])}</b><span>${l}</span></div>`).join('')}</div>
+        ${effBlock(playerState.id)}
         <div class="pc-sub"><span><b class="num">${de1(a.min)}</b> Minuten</span><span><b class="num">${a.gs} von ${a.gp}</b> in der Startformation</span><span><b class="num">${de1(a.fd)}</b> gezogene Fouls</span></div>
         <div class="pc-shots">${shot('Zweier', `${de1(a.fg2[0])}/${de1(a.fg2[1])}`, a.fg2p)}${shot('Dreier', `${de1(a.fg3[0])}/${de1(a.fg3[1])}`, a.fg3p)}${shot('Freiwürfe', `${de1(a.ft[0])}/${de1(a.ft[1])}`, a.ftp)}${shot('True Shooting', '', ts)}</div>
         ${playerShotsHtml(d)}` : '<p class="label">Noch keine Einsätze in dieser Saison.</p>'}</section>
@@ -1827,6 +1880,8 @@ document.addEventListener('click', (e) => {
   else if (act === 'facts-close') $('#factsDlg').close();
   else if (act === 'stats') openStats();
   else if (act === 'stats-close') $('#statsDlg').close();
+  else if (act === 'stat-info') openStatInfo(t.dataset.k);
+  else if (act === 'info-close') $('#infoDlg').close();
   else if (act === 'facts-cat') { factsState.cat = t.dataset.cat; renderFacts(); }
   else if (act === 'player') openPlayer(t.dataset.id, t.dataset.pteam);
   else if (act === 'player-close') $('#playerDlg').close();
@@ -1886,6 +1941,7 @@ $('#teamDlg').addEventListener('close', () => { teamCode = ''; });
 $('#playerDlg').addEventListener('close', () => { playerState.id = ''; });
 $('#factsDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#statsDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+$('#infoDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#playerDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('#teamDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 document.addEventListener('change', (e) => {
@@ -1941,7 +1997,7 @@ function setupPullToRefresh() {
   };
   const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
   window.addEventListener('touchstart', (e) => {
-    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open) return;
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open) return;
     startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
@@ -2016,7 +2072,7 @@ function setupInstallHint() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const shareIcon = '<svg class="ins-ico" viewBox="0 0 24 24" aria-label="Teilen"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
   setTimeout(() => {
-    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open) return;
+    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open) return;
     const howto = ios
       ? `Tippe in Safari auf ${shareIcon} <b>Teilen</b> (bei neueren iPhones im Menü <b>«…»</b>) und dann auf <b>«Zum Home-Bildschirm»</b>. Danach öffnet sich die Seite wie eine App – ohne Adresszeile.`
       : installEvent ? 'Mit einem Tipp auf «Installieren» liegt die Seite wie eine App auf deinem Startbildschirm.'

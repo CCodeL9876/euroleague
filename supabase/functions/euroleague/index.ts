@@ -283,7 +283,10 @@ export function buildPlayers(stats) {
       gp: Number(s.gamesPlayed) || 0, gs: Number(s.gamesStarted) || 0, min: r1(s.minutesPlayed), pts: r1(s.pointsScored),
       reb: r1(s.totalRebounds), oreb: r1(s.offensiveRebounds), ast: r1(s.assists), stl: r1(s.steals), blk: r1(s.blocks),
       tov: r1(s.turnovers), pir: r1(s.pir), fg2p: pctNum(s.twoPointersPercentage), fg3p: pctNum(s.threePointersPercentage),
-      ftp: pctNum(s.freeThrowsPercentage), fg3m: r1(s.threePointersMade) };
+      ftp: pctNum(s.freeThrowsPercentage), fg3m: r1(s.threePointersMade),
+      // True Shooting in %: Punkte / (2 × (Würfe + 0,44 × Freiwürfe)); Grundlage für TS% und Effizienz-Wert der Bestenlisten
+      ts: (() => { const v = (Number(s.twoPointersAttempted) || 0) + (Number(s.threePointersAttempted) || 0) + 0.44 * (Number(s.freeThrowsAttempted) || 0);
+        return v > 0 ? r1((Number(s.pointsScored) || 0) / (2 * v) * 100) : 0; })() };
   }).filter((p) => p.id && p.team);
 }
 
