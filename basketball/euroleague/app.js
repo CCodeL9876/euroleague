@@ -1218,16 +1218,18 @@ function playerShotsHtml(d) {
 
 // Nur Feld und Summen: beim Wechsel des Spielers wird allein dieser Teil ersetzt. Das Auswahlfeld darf nicht neu gezeichnet
 // und fokussiert werden, sonst klappt es auf dem iPhone gleich wieder auf.
+// Zweier in der Zone (Rechteck 490 × 580 cm ab Grundlinie, Korb bei 0/0) oder ausserhalb, dazu Dreier
+const shotKind = (x) => (x.v === 3 ? '3' : Math.abs(x.x) <= 245 && x.y <= 422.5 ? 'z' : 'm');
+const SHOT_KIND = { z: ['2P Zone', 'Zweier in der Zone'], m: ['2P aussen', 'Zweier ausserhalb der Zone'], 3: ['3P', 'Dreier'] };
 function shotBodyHtml(b, team) {
   const list = (b.shots || []).filter((x) => x.t === team.code && (!boxState.shooter || x.p === boxState.shooter));
-  const cnt = (v) => { const l = list.filter((x) => x.v === v); return [l.filter((x) => x.m).length, l.length]; };
-  const c2 = cnt(2), c3 = cnt(3);
-  const shown = list.filter((x) => !boxState.shotV || x.v === boxState.shotV);
+  const cnt = (k) => { const l = list.filter((x) => shotKind(x) === k); return [l.filter((x) => x.m).length, l.length]; };
+  const shown = list.filter((x) => !boxState.shotV || shotKind(x) === boxState.shotV);
   const dots = shown.map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
-  const filter = (v, c) => `<button type="button" class="shot-f" data-act="shot-v" data-v="${v}" aria-pressed="${boxState.shotV === v}" aria-label="Nur ${v}-Punkte-Würfe zeigen">${v}P ${c[0]}/${c[1]} (${pct(c)})</button>`;
+  const filter = (k) => { const c = cnt(k); return `<button type="button" class="shot-f" data-act="shot-v" data-v="${k}" aria-pressed="${boxState.shotV === k}" aria-label="Nur ${SHOT_KIND[k][1]} zeigen"><b>${SHOT_KIND[k][0]}</b><small>${c[0]}/${c[1]} (${pct(c)})</small></button>`; };
   return `${courtSvg(dots, `Wurfkarte: ${shown.filter((x) => x.m).length} von ${shown.length} Würfen getroffen`)}
     <p class="shots-sum num"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span></p>
-    <div class="shot-fs" role="group" aria-label="Würfe filtern">${filter(2, c2)}${filter(3, c3)}</div>`;
+    <div class="shot-fs" role="group" aria-label="Würfe filtern">${filter('z')}${filter('m')}${filter('3')}</div>`;
 }
 function refreshShots() {
   const b = boxState.data, team = b?.teams?.[boxState.team] || b?.teams?.[0], body = $('#shotBody');
@@ -1871,7 +1873,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'top-by') { boxState.topBy = t.dataset.by === 'pir' ? 'pir' : 'pts'; renderBox(); }
   else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; boxState.shotV = 0; renderBox(); }
   else if (act === 'shot-v') {
-    const v = Number(t.dataset.v);
+    const v = t.dataset.v;
     boxState.shotV = boxState.shotV === v ? 0 : v;
     refreshShots();
     $(`#shotBody [data-v="${v}"]`)?.focus();
