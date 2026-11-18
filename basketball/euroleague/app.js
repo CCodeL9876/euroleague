@@ -990,7 +990,7 @@ function toast(msg, variant = '') {
 }
 
 // ---------- Spielbericht ----------
-const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false, topBy: 'pts' };
+const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false, topBy: 'pts', court: 'dots' };
 const pct = (a) => (a[1] ? `${Math.round(a[0] / a[1] * 100)}%` : '–');
 const ratio = (a) => `${a[0]}/${a[1]}`;
 
@@ -1018,6 +1018,8 @@ function openBox(code, view = 'stats') {
   if (!g) return;
   if (g.status === 'pre') { if (!players) loadPlayers().then(() => { if (boxState.code === code) renderBox(); }); return; }
   loadBox(code).then(renderBox);
+  // Liga-Schnitt pro Zone für die Zonen-Ansicht der Wurfkarte
+  if (!teamStats.data) loadTeamStats().then(() => { if (boxState.code === code && boxState.data) refreshShots(); });
   if (g.status === 'live') boxState.timer = setInterval(async () => {
     // Im Hintergrund nichts laden; nach dem Schlusspfiff aufhören
     if (document.visibilityState === 'hidden') return;
@@ -1200,38 +1202,41 @@ function courtSvg(dots, label) {
 function playerShotsHtml(d) {
   const all = d.shots || [];
   if (!all.length) return '';
-  const zone = (x) => (x.v === 3 ? 'three' : Math.hypot(x.x, x.y) <= 300 ? 'paint' : 'mid');
-  const z = { paint: [0, 0], mid: [0, 0], three: [0, 0] };
-  for (const x of all) { const k = zone(x); z[k][1]++; if (x.m) z[k][0]++; }
-  const zoned = playerState.court === 'zones' && teamStats.data?.zones?.rim;
-  const dots = [...all].sort((a, b) => a.m - b.m).map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
   const made = all.filter((x) => x.m).length;
-  const zt = (l, [mm, n]) => `<div class="pc-zone"><span>${l}</span><b class="num">${n ? Math.round(mm / n * 100) : 0} %</b><small class="num">${mm}/${n}</small></div>`;
-  const seg = teamStats.data?.zones?.rim ? `<div class="seg" role="group" aria-label="Darstellung der Wurfkarte">${[['zones', 'Zonen'], ['dots', 'Würfe']].map(([k, l]) => `<button type="button" data-act="player-court" data-k="${k}" aria-pressed="${(zoned ? 'zones' : 'dots') === k}">${l}</button>`).join('')}</div>` : '';
-  return `<div class="pc-court"><h4>Wurfkarte der Saison <small class="num">${made}/${all.length} getroffen</small></h4>${seg}
-    ${zoned ? zoneCourt(all, teamStats.data.zones) : courtSvg(dots, `Wurfkarte der Saison: ${made} von ${all.length} Würfen getroffen`)}
-    <div class="pc-zones">${zt('Korbnähe', z.paint)}${zt('Mitteldistanz', z.mid)}${zt('Dreier', z.three)}</div>
-    ${zoned ? `<div class="zone-scale"><span>Kälter als Liga</span><span class="zone-sw" aria-hidden="true">${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--z${i})"></i>`).join('')}</span><span>Heisser als Liga</span></div>
-    <p class="box-note small">Die Farbe vergleicht jede Zone mit dem Liga-Schnitt. Grau heisst weniger als ${ZONE_MIN} Versuche, das ist zu wenig für eine Aussage. Ohne Freiwürfe.</p>`
-    : '<p class="shots-sum"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>ohne Freiwürfe</span></p>'}</div>`;
+  return `<div class="pc-court"><h4>Wurfkarte der Saison <small class="num">${made}/${all.length} getroffen</small></h4>
+    <div id="plShotBody" class="shots-body">${shotChartHtml(all, playerState, 'pl', 'Wurfkarte der Saison')}</div></div>`;
 }
 
 // Nur Feld und Summen: beim Wechsel des Spielers wird allein dieser Teil ersetzt. Das Auswahlfeld darf nicht neu gezeichnet
 // und fokussiert werden, sonst klappt es auf dem iPhone gleich wieder auf.
-// Zweier in der Zone (Rechteck 490 × 580 cm ab Grundlinie, Korb bei 0/0) oder ausserhalb, dazu Dreier
-const shotKind = (x) => (x.v === 3 ? '3' : Math.abs(x.x) <= 245 && x.y <= 422.5 ? 'z' : 'm');
+// Zweier in der Zone (Rechteck 490 × 580 cm ab Grundlinie, Korb bei 0/0) oder ausserhalb, dazu Dreier.
+// Die Linie gehört zur Zone, und der Punkt markiert nur ungefähr den Standort: bis 15 cm ausserhalb zählt noch als Zone
+const ZONE_TOL = 15;
+const shotKind = (x) => (x.v === 3 ? '3' : Math.abs(x.x) <= 245 + ZONE_TOL && x.y <= 422.5 + ZONE_TOL ? 'z' : 'm');
 const SHOT_KIND = { z: ['2P Zone', 'Zweier in der Zone'], m: ['2P aussen', 'Zweier ausserhalb der Zone'], 3: ['3P', 'Dreier'] };
+// Gemeinsame Wurfkarte für Spielbericht (ns 'box') und Spielerseite (ns 'pl'): Umschalter Zonen/Würfe, Feld, Kacheln als Filter
+function shotChartHtml(list, st, ns, label) {
+  const league = teamStats.data?.zones?.rim ? teamStats.data.zones : null;
+  const zoned = st.court === 'zones' && league;
+  const cnt = (k) => { const l = list.filter((x) => shotKind(x) === k); return [l.filter((x) => x.m).length, l.length]; };
+  const shown = list.filter((x) => !st.shotV || shotKind(x) === st.shotV);
+  const dots = [...shown].sort((a, b) => a.m - b.m).map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
+  const seg = league ? `<div class="seg" role="group" aria-label="Darstellung der Wurfkarte">${[['zones', 'Zonen'], ['dots', 'Würfe']].map(([k, l]) => `<button type="button" data-act="shot-court" data-ns="${ns}" data-k="${k}" aria-pressed="${(zoned ? 'zones' : 'dots') === k}">${l}</button>`).join('')}</div>` : '';
+  const tile = (k) => { const c = cnt(k); const on = !zoned && st.shotV === k;
+    return `<button type="button" class="shot-t" data-act="shot-v" data-ns="${ns}" data-v="${k}" aria-pressed="${on}" aria-label="${on ? 'Wieder alle Würfe zeigen' : `Nur ${SHOT_KIND[k][1]} zeigen`}"><span>${SHOT_KIND[k][0]}</span><b class="num">${c[1] ? Math.round(c[0] / c[1] * 100) : 0} %</b><small class="num">${c[0]}/${c[1]}</small></button>`; };
+  const legend = zoned
+    ? `<div class="zone-scale"><span>Kälter als Liga</span><span class="zone-sw" aria-hidden="true">${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--z${i})"></i>`).join('')}</span><span>Heisser als Liga</span></div>`
+    : '<p class="shots-sum"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span><span>ohne Freiwürfe</span></p>';
+  return `${seg}${zoned ? zoneCourt(list, league) : courtSvg(dots, `${label}: ${shown.filter((x) => x.m).length} von ${shown.length} Würfen getroffen`)}
+    ${legend}<div class="shot-ts" role="group" aria-label="Würfe nach Art">${tile('z')}${tile('m')}${tile('3')}</div>
+    ${zoned ? `<p class="box-note small">Die Farbe vergleicht jede Zone mit dem Liga-Schnitt. Grau heisst weniger als ${ZONE_MIN} Versuche, das ist zu wenig für eine Aussage.</p>` : ''}`;
+}
 function shotBodyHtml(b, team) {
   const list = (b.shots || []).filter((x) => x.t === team.code && (!boxState.shooter || x.p === boxState.shooter));
-  const cnt = (k) => { const l = list.filter((x) => shotKind(x) === k); return [l.filter((x) => x.m).length, l.length]; };
-  const shown = list.filter((x) => !boxState.shotV || shotKind(x) === boxState.shotV);
-  const dots = shown.map((x) => (x.m ? `<circle class="shot made" cx="${x.x}" cy="${x.y}" r="26"/>` : `<circle class="shot miss" cx="${x.x}" cy="${x.y}" r="22"/>`)).join('');
-  const filter = (k) => { const c = cnt(k); return `<button type="button" class="shot-f" data-act="shot-v" data-v="${k}" aria-pressed="${boxState.shotV === k}" aria-label="Nur ${SHOT_KIND[k][1]} zeigen"><b>${SHOT_KIND[k][0]}</b><small>${c[0]}/${c[1]} (${pct(c)})</small></button>`; };
-  return `${courtSvg(dots, `Wurfkarte: ${shown.filter((x) => x.m).length} von ${shown.length} Würfen getroffen`)}
-    <p class="shots-sum num"><span><i class="shot-key made"></i>Treffer</span><span><i class="shot-key miss"></i>Fehlwurf</span></p>
-    <div class="shot-fs" role="group" aria-label="Würfe filtern">${filter('z')}${filter('m')}${filter('3')}</div>`;
+  return shotChartHtml(list, boxState, 'box', 'Wurfkarte');
 }
-function refreshShots() {
+function refreshShots(ns = 'box') {
+  if (ns === 'pl') { const body = $('#plShotBody'); if (body && playerState.data) body.innerHTML = shotChartHtml(playerState.data.shots || [], playerState, 'pl', 'Wurfkarte der Saison'); return; }
   const b = boxState.data, team = b?.teams?.[boxState.team] || b?.teams?.[0], body = $('#shotBody');
   if (body && team) body.innerHTML = shotBodyHtml(b, team);
 }
@@ -1469,7 +1474,7 @@ const IOC = { USA: 'US', CRO: 'HR', SRB: 'RS', GRE: 'GR', ESP: 'ES', FRA: 'FR', 
   GUI: 'GN', SSD: 'SS', RSA: 'ZA', GAB: 'GA', CAF: 'CF', BEN: 'BJ', TOG: 'TG', GHA: 'GH', SUD: 'SD', ISV: 'VI', TTO: 'TT', PAN: 'PA', CUB: 'CU' };
 const COMP = { Euroleague: 'EuroLeague', Eurocup: 'EuroCup', 'U18 Tournament': 'Nachwuchsturnier' };
 const playerCache = new Map();
-const playerState = { id: '', team: '', data: null, error: '', metric: 'pts', sel: -1, court: 'zones' };
+const playerState = { id: '', team: '', data: null, error: '', metric: 'pts', sel: -1, court: 'zones', shotV: 0 };
 
 function countryName(code, fallback) {
   try { if (IOC[code]) return new Intl.DisplayNames(['de'], { type: 'region' }).of(IOC[code]); } catch { /* alter Browser */ }
@@ -1487,7 +1492,7 @@ const crestImg = (url) => /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\
 
 async function openPlayer(id, team) {
   const dlg = $('#playerDlg');
-  Object.assign(playerState, { id, team, data: playerCache.get(id) || null, error: '', metric: 'pts', sel: -1, court: 'zones' });
+  Object.assign(playerState, { id, team, data: playerCache.get(id) || null, error: '', metric: 'pts', sel: -1, court: 'zones', shotV: 0 });
   renderPlayer();
   if (!dlg.open) dlg.showModal();
   dlg.scrollTop = 0;
@@ -1872,11 +1877,12 @@ document.addEventListener('click', (e) => {
   else if (act === 'box-close') $('#box').close();
   else if (act === 'top-by') { boxState.topBy = t.dataset.by === 'pir' ? 'pir' : 'pts'; renderBox(); }
   else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; boxState.shotV = 0; renderBox(); }
-  else if (act === 'shot-v') {
-    const v = t.dataset.v;
-    boxState.shotV = boxState.shotV === v ? 0 : v;
-    refreshShots();
-    $(`#shotBody [data-v="${v}"]`)?.focus();
+  else if (act === 'shot-v' || act === 'shot-court') {
+    const ns = t.dataset.ns === 'pl' ? 'pl' : 'box', st = ns === 'pl' ? playerState : boxState;
+    if (act === 'shot-court') { st.court = t.dataset.k; if (st.court === 'zones') st.shotV = 0; }
+    else { const v = t.dataset.v; st.shotV = st.court !== 'zones' && st.shotV === v ? 0 : v; st.court = 'dots'; } // aus der Zonen-Ansicht: zu den Würfen wechseln
+    refreshShots(ns);
+    $(`#${ns === 'pl' ? 'plShotBody' : 'shotBody'} [data-act="${act}"][data-${act === 'shot-v' ? 'v' : 'k'}="${act === 'shot-v' ? t.dataset.v : t.dataset.k}"]`)?.focus();
   }
   else if (act === 'team') openTeam(t.dataset.c);
   else if (act === 'team-close') $('#teamDlg').close();
@@ -1890,7 +1896,6 @@ document.addEventListener('click', (e) => {
   else if (act === 'player') openPlayer(t.dataset.id, t.dataset.pteam);
   else if (act === 'player-close') $('#playerDlg').close();
   else if (act === 'player-metric') { playerState.metric = t.dataset.k; renderPlayer(); }
-  else if (act === 'player-court') { playerState.court = t.dataset.k; renderPlayer(); }
   else if (act === 'player-bar') { playerState.sel = Number(t.dataset.i); const c = $('#pcChart'); if (c && playerState.data) c.innerHTML = playerChart(playerState.data); }
   else if (act === 'toggle-leaders') {
     open.leaders = !open.leaders; render();
