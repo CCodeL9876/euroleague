@@ -990,7 +990,7 @@ function toast(msg, variant = '') {
 }
 
 // ---------- Spielbericht ----------
-const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false, topBy: 'pts', court: 'dots' };
+const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false, topBy: 'pts', court: 'dots', topOpen: false };
 const pct = (a) => (a[1] ? `${Math.round(a[0] / a[1] * 100)}%` : '–');
 const ratio = (a) => `${a[0]}/${a[1]}`;
 
@@ -1010,7 +1010,7 @@ async function loadBox(code) {
 function openBox(code, view = 'stats') {
   const dlg = $('#box');
   boxState.code = code; boxState.data = null; boxState.error = ''; boxState.team = 0; boxState.shooter = ''; boxState.shotV = 0;
-  boxState.view = view; boxState.vid = ''; boxState.playing = false;
+  boxState.view = view; boxState.vid = ''; boxState.playing = false; boxState.topOpen = false;
   clearInterval(boxState.timer);
   renderBox();
   if (!dlg.open) dlg.showModal();
@@ -1099,7 +1099,7 @@ function renderBox() {
       <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${rk ? `<span class="tp-rk r${rk}" aria-label="Platz ${rk}">${rk}</span>` : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
       <td>${esc(p.min || '–')}</td><td class="${!best.length && p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`; }).join('');
-  setBox(dlg, `${head}${seg}${quarters}${flowHtml(m, g, b)}
+  setBox(dlg, `${head}${best.length ? topPlayersHtml(m, best, b.live) : ''}${seg}${quarters}${flowHtml(m, g, b)}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
     <h3>Spieler</h3>
     <div class="seg" role="group" aria-label="Team wählen">${b.teams.map((t, i) => `<button type="button" data-act="box-team" data-i="${i}" aria-pressed="${i === boxState.team}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>
@@ -1107,7 +1107,6 @@ function renderBox() {
     ${shotsHtml(b, team)}
     <div class="pl-wrap"><table class="pl-table num"><thead><tr><th scope="col">#</th><th scope="col" class="pl">Spieler</th><th scope="col">Min</th><th scope="col">Pkt</th><th scope="col"><abbr title="Rebounds">Reb</abbr></th><th scope="col"><abbr title="Assists">Ass</abbr></th><th scope="col"><abbr title="2-Punkte-Würfe">2P</abbr></th><th scope="col"><abbr title="3-Punkte-Würfe">3P</abbr></th><th scope="col"><abbr title="Freiwürfe">FW</abbr></th><th scope="col"><abbr title="Steals">St</abbr></th><th scope="col"><abbr title="Ballverluste">BV</abbr></th><th scope="col"><abbr title="Blocks">Bl</abbr></th><th scope="col"><abbr title="Fouls">F</abbr></th><th scope="col"><abbr title="Effizienz">PIR</abbr></th><th scope="col">+/-</th></tr></thead>
     <tbody>${players}</tbody></table></div>
-    ${best.length ? topPlayersHtml(m, best, b.live) : ''}
     <p class="box-note small">Quelle: EuroLeague. S5 = Startformation${b.live ? ', roter Punkt = gerade auf dem Feld. Aktualisiert sich alle 30 Sekunden' : ''}.</p>`);
 }
 
@@ -1131,9 +1130,13 @@ function topPlayersHtml(m, best, live) {
       <span class="tp-grid num">${stat('Min', esc(p.min || '–'))}${by === 'pir' ? stat('Pkt', p.pts) : stat('PIR', p.pir)}${stat('Reb', p.reb)}${stat('Ass', p.ast)}${stat('Stl', p.stl)}${stat('Blk', p.blk)}${stat('TO', p.tov)}${stat('+/−', sign(p.pm))}</span></div>`;
   }).join('');
   const title = live ? (by === 'pir' ? 'Aktuell beste Spieler' : 'Aktuelle Top-Scorer') : (by === 'pir' ? 'Beste Spieler des Spiels' : 'Top-Scorer des Spiels');
-  return `<h3>${live ? '<i class="live-dot" aria-hidden="true"></i>' : ''}${title}</h3>
-    <div class="tp-sort" role="group" aria-label="Auswahl nach"><span>Nach</span><button type="button" data-act="top-by" data-by="pts" aria-pressed="${by !== 'pir'}">Punkten</button><button type="button" data-act="top-by" data-by="pir" aria-pressed="${by === 'pir'}">Effizienz (PIR)</button></div>
-    <div class="tp-list">${rows}</div>`;
+  // Zugeklappt eine Zeile «1 Nunn 18 · 2 …», aufgeklappt die volle Darstellung. Offen/zu bleibt beim Neuzeichnen (live alle 30 s)
+  const last = (n) => String(n).replace(/^.*?\.\s*/, '');
+  const items = best.map(({ p }, i) => `<span class="tp-it"><span class="tp-rk r${i + 1}" aria-hidden="true">${i + 1}</span>${esc(last(p.name))} <em class="num">${by === 'pir' ? p.pir : p.pts}</em></span>`).join('');
+  return `<details class="tp-box" id="topBox"${boxState.topOpen ? ' open' : ''}>
+    <summary><span class="tp-lab">${live ? '<i class="live-dot" aria-hidden="true"></i>' : ''}Top 3</span><span class="tp-its">${items}</span><span class="tp-title">${title}</span><span class="tp-chev" aria-hidden="true">›</span></summary>
+    <div class="tp-body"><div class="tp-sort" role="group" aria-label="Auswahl nach"><span>Nach</span><button type="button" data-act="top-by" data-by="pts" aria-pressed="${by !== 'pir'}">Punkten</button><button type="button" data-act="top-by" data-by="pir" aria-pressed="${by === 'pir'}">Effizienz (PIR)</button></div>
+    <div class="tp-list">${rows}</div></div></details>`;
 }
 
 // Reiter „Videos“: gewähltes Video gross (lädt den Player von youtube-nocookie.com erst beim Antippen), die übrigen als Liste
@@ -1958,6 +1961,7 @@ document.addEventListener('change', (e) => {
   boxState.shooter = e.target.value;
   refreshShots();
 });
+document.addEventListener('toggle', (e) => { if (e.target.id === 'topBox') boxState.topOpen = e.target.open; }, true);
 document.addEventListener('submit', (e) => { if (e.target.id === 'profileForm') e.preventDefault(); });
 document.addEventListener('input', (e) => {
   if (e.target.id === 'profName') profileDraft.name = e.target.value;
