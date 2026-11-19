@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-18",
+ "updated": "2026-11-19",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -80,11 +80,11 @@
    "team": "TEL",
    "status": "out",
    "since": "2026-10-20",
-   "note": "Teilriss der Quadrizepssehne; fällt bis Dezember aus",
-   "back": "6-8 Wochen, Rückkehr zu Runde 15",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
+   "note": "Teilriss der Quadrizepssehne im Oktober; nach erneuten Schmerzen Operation am rechten Knie",
+   "back": "ca. 3 Monate, Februar oder März",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037007/gabriel-iffe-lundberg-injury-update-maccabi-euroleague/",
+   "reported": "2026-11-19"
   },
   {
    "id": "",
@@ -249,18 +249,6 @@
    "status": "out",
    "since": "2026-11-06",
    "note": "nicht näher bezeichnetes gesundheitliches Problem",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14"
-  },
-  {
-   "id": "",
-   "name": "DaQuan Jeffries",
-   "team": "BES",
-   "status": "out",
-   "since": "2026-11-06",
-   "note": "Erholung nach Bruch des linken Handgelenks",
    "back": "",
    "source": "Sportando",
    "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
@@ -464,11 +452,11 @@
    "team": "ULK",
    "status": "out",
    "since": "2026-11-11",
-   "note": "Meniskusproblem; Abklärung in Italien, Operation möglich",
-   "back": "offen",
+   "note": "Meniskusriss im linken Knie, arthroskopisch operiert",
+   "back": "6-8 Wochen",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2035850/braxton-key-nicolo-melli-injury-updates-fenerbahce-euroleague/",
-   "reported": "2026-11-17"
+   "url": "https://www.eurohoops.net/en/euroleague/2037064/nicolo-melli-braxton-key-injury-updates-fenerbahce-euroleague/",
+   "reported": "2026-11-19"
   },
   {
    "id": "",
@@ -476,11 +464,11 @@
    "team": "ULK",
    "status": "out",
    "since": "2026-11-15",
-   "note": "ausgerenkter und verletzter Finger; fehlte gegen ASVEL",
-   "back": "offen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
+   "note": "offener Bruch des dritten Fingers der rechten Hand, operiert",
+   "back": "6-8 Wochen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037064/nicolo-melli-braxton-key-injury-updates-fenerbahce-euroleague/",
+   "reported": "2026-11-19"
   },
   {
    "id": "",

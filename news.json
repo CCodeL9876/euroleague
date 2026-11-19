@@ -1,7 +1,61 @@
 {
- "issue": 48,
- "updated": "18. November 2026 · 07:16 Uhr (CH)",
+ "issue": 49,
+ "updated": "19. November 2026 · 07:15 Uhr (CH)",
  "items": [
+  {
+   "tag": "Resultat · Besiktas",
+   "title": "Besiktas schlägt Real Madrid 83:79",
+   "text": "Besiktas hat Real Madrid in der 12. Runde in Istanbul 83:79 bezwungen; Real lag nur beim 2:0 zu Beginn in Führung. DaQuan Jeffries war mit 20 Punkten bester Werfer und prägte das Schlussviertel, für Real erzielte Theo Maledon 22 Punkte. Für Madrid war es die zweite Niederlage aus den letzten 16 Spielen, das Team steht nun bei 7-5, Besiktas bei 6-6.",
+   "time": "18.11.2026 · 20:05",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037248/besiktas-upsets-real-madrid-after-drama-in-istanbul/",
+   "firstShown": "19.11.2026"
+  },
+  {
+   "tag": "Verletzung · Fenerbahce",
+   "title": "Melli und Key operiert, rund zwei Monate Pause erwartet",
+   "text": "Nicolo Melli ist wegen eines Meniskusrisses im linken Knie arthroskopisch operiert worden, Braxton Key wegen eines offenen Bruchs des dritten Fingers der rechten Hand, den er sich am Sonntag in der Liga gegen Anadolu Efes zugezogen hatte. Beide Eingriffe verliefen laut Klub erfolgreich. Nach Informationen von Eurohoops fallen beide sechs bis acht Wochen aus.",
+   "time": "18.11.2026 · 13:55",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037064/nicolo-melli-braxton-key-injury-updates-fenerbahce-euroleague/",
+   "firstShown": "19.11.2026"
+  },
+  {
+   "tag": "Transfer · Barcelona",
+   "title": "Barcelona verpflichtet Killian Hayes offiziell",
+   "text": "Killian Hayes hat den Medizincheck bestanden und sich Barcelona für den Rest der Saison 2026/27 angeschlossen. Der 25-jährige Point Guard mit amerikanischem und französischem Pass bestritt 239 NBA-Spiele in sechs Saisons und kam dort auf 7,9 Punkte und 5,0 Assists. Barcelona steht in der EuroLeague bei 8-4, ein Sieg hinter Valencia und Olympiacos.",
+   "time": "18.11.2026 · 13:45",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037059/killian-hayes-to-barcelona-euroleague/",
+   "firstShown": "19.11.2026"
+  },
+  {
+   "tag": "Transfer · Virtus Bologna",
+   "title": "Lonati unterschreibt mehrjährigen Vertrag bei Virtus",
+   "text": "Virtus Bologna hat den 19-jährigen Achille Lonati mit einem Mehrjahresvertrag ausgestattet. Der Guard stammt aus dem Nachwuchs von Olimpia Milano, für das er im April 2025 seinen bisher einzigen EuroLeague-Einsatz hatte, und kehrt vom College St. Bonaventure nach Italien zurück. Virtus steht in der EuroLeague bei 5-7.",
+   "time": "18.11.2026 · 12:37",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037037/achille-lonati-to-virtus-bologna-euroleague/",
+   "firstShown": "19.11.2026"
+  },
+  {
+   "tag": "Verletzung · Maccabi Tel Aviv",
+   "title": "Lundberg muss am Knie operiert werden",
+   "text": "Maccabi Tel Aviv hat bestätigt, dass Iffe Lundberg am rechten Knie operiert wird. Der Guard hatte sich Ende Oktober im Training einen Teilriss der Quadrizepssehne zugezogen, in der Rehabilitation traten erneut Schmerzen auf. Er fällt rund drei weitere Monate aus, die Rückkehr wird für Februar oder März erwartet.",
+   "time": "18.11.2026 · 10:50",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037007/gabriel-iffe-lundberg-injury-update-maccabi-euroleague/",
+   "firstShown": "19.11.2026"
+  },
+  {
+   "tag": "Liga · Panathinaikos",
+   "title": "Panathinaikos meldet rassistische Beleidigungen in Bologna",
+   "text": "Panathinaikos wirft einem einzelnen Virtus-Fan am Spielfeldrand vor, beim EuroLeague-Spiel in Bologna vor allem Guerschon Yabusele, Jerian Grant und Moustapha Fall rassistisch beleidigt zu haben. Präsident Vassilis Parthenopoulos sagte: \"We were subjected to an incredible verbal and racist attack.\" Der Klub will offiziell bei der EuroLeague Beschwerde einreichen.",
+   "time": "18.11.2026 · 08:36",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/panathinaikos-alleges-racist-abuse-by-one-virtus-bologna-fan/",
+   "firstShown": "19.11.2026"
+  },
   {
    "tag": "Resultat · Zalgiris",
    "title": "Edwards führt Zalgiris zu Klubrekord gegen Bayern",
@@ -91,60 +145,6 @@
    "source": "Sportando",
    "url": "https://sportando.basketball/en/olympiacos-tyler-dorsey-shares-another-cryptic-social-media-message-he-will-miss-the-maccabi-game/",
    "firstShown": "18.11.2026"
-  },
-  {
-   "tag": "Verletzung · Real Madrid",
-   "title": "Maledon zurück, Campazzo und Jantunen fehlen weiter",
-   "text": "Theo Maledon steht Real Madrid nach einer Knieverstauchung vor der Doppelrunde wieder zur Verfügung. Facundo Campazzo und Mikael Jantunen fallen weiterhin aus, ebenso Gabriel Deck und Usman Garuba. Trainer Pedro Martinez: \"We hope they come back, but without rushing things.\"",
-   "time": "17.11.2026 · 14:49",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2036388/theo-maledon-injury-update-real-madrid-euroleague/",
-   "firstShown": "18.11.2026"
-  },
-  {
-   "tag": "Transfer · Zalgiris",
-   "title": "Zalgiris behält Keenan Evans bis Saisonende",
-   "text": "Zalgiris hat laut BasketNews entschieden, Keenan Evans für den Rest der Saison 2026/27 zu behalten. Der 30-jährige Aufbauspieler war Ende Oktober von seiner Leihe bei den London Lions zurückgeholt worden. Seine Rückkehr fiel mit einer Serie von fünf EuroLeague-Siegen zusammen.",
-   "time": "17.11.2026 · 14:13",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/zalgiris-kaunas-decide-to-keep-keenan-evans-for-the-rest-of-the-season/",
-   "firstShown": "18.11.2026"
-  },
-  {
-   "tag": "Transfer · Virtus",
-   "title": "Virtus einigt sich mit Achille Lonati",
-   "text": "Virtus Bologna hat sich laut Sportando mit dem 2007 geborenen Flügelspieler Achille Lonati geeinigt. Er soll nach der Verletzung von Davide Casarin das Kader von Trainer Alex Mumbru ergänzen. Lonati spielte zuletzt in der NCAA für St. Bonaventure.",
-   "time": "17.11.2026 · 11:36",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/virtus-bologna-reached-an-agreement-with-achille-lonati/",
-   "firstShown": "18.11.2026"
-  },
-  {
-   "tag": "Transfergerücht · Barcelona",
-   "title": "Killian Hayes offenbar mit Einigung bei Barcelona",
-   "text": "Killian Hayes und der FC Barcelona haben sich laut Hoopshype-Reporter Michael Scotto, der sich auf den Agenten des Spielers beruft, auf einen Vertrag mit NBA-Ausstiegsklausel geeinigt. Der 25-jährige französische Guard war 2020 an siebter Stelle gedraftet worden und kam in sechs NBA-Saisons auf 7,9 Punkte und 5,0 Assists im Schnitt. Auch andere EuroLeague-Klubs sollen interessiert gewesen sein.",
-   "time": "17.11.2026 · 00:04",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2036184/killian-hayes-reportedly-has-a-deal-with-fc-barcelona/",
-   "firstShown": "17.11.2026"
-  },
-  {
-   "tag": "Kader · Crvena Zvezda",
-   "title": "Zvezda reist ohne Moneke nach Mailand",
-   "text": "Crvena Zvezda ist ohne Chima Moneke zum Spiel der 12. Runde bei Olimpia Milano gereist. Laut Mozzart Sport steht die Abwesenheit nicht mit einer Verletzung in Zusammenhang, der Trainerstab habe ihn aus taktischen Gründen nicht berücksichtigt. Moneke kam in elf Spielen auf 9,6 Punkte und 4,6 Rebounds im Schnitt.",
-   "time": "16.11.2026 · 21:20",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/crvena-zvezda-travel-to-milan-without-chima-moneke/",
-   "firstShown": "17.11.2026"
-  },
-  {
-   "tag": "Transfergerücht · Olimpia Milano",
-   "title": "Hines zu möglichem Dreier-Tausch: \"Dorsey can take charge of Olimpia\"",
-   "text": "Der frühere Milano-Center Kyle Hines hat den gemeldeten Dreier-Tausch zwischen Olimpia Milano, Olympiacos und Crvena Zvezda mit Tyler Dorsey, Jared Butler und Marko Guduric beurteilt. Butler zu Olympiacos ergebe \"perfect sense from a basketball standpoint\", Milano brauche dringend einen Scorer wie Dorsey. Guduric bringe Zvezda die Erfahrung, die für den Weg ins Final Four nötig sei.",
-   "time": "16.11.2026 · 19:17",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/kyle-hines-breaks-down-potential-euroleague-three-team-move-dorsey-can-take-charge-of-olimpia/",
-   "firstShown": "17.11.2026"
   }
  ]
 }
