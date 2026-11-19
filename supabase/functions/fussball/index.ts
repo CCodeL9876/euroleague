@@ -1600,7 +1600,7 @@ async function elPushTick(now, subs, profs) {
     const st = await pushPing(s.endpoint).catch(() => 0);
     if (st >= 200 && st < 300) sent++;
   }
-  return { events: events.length, sent };
+  return { events: events.length, sent, live: busy };
 }
 // Jede Minute: Cache-Zeitplan ausführen und Tore seit dem letzten Lauf für Push erkennen
 async function pushTick(now) {
@@ -1612,6 +1612,12 @@ async function pushTick(now) {
   const favs = new Set([...fav.values()].flatMap((x) => [...x]));
   // EuroLeague zuerst und unabhängig vom Fussball: ein Fehler dort hält die Tor-Mitteilungen nicht auf
   const el = await elPushTick(now, subs, profs).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
+  // Läuft ein EuroLeague-Spiel eines Lieblingsteams: nach 30 Sekunden im Hintergrund ein zweites Mal prüfen, so kommen die
+  // Viertel-Mitteilungen etwa eine halbe Minute schneller, ohne den Zeitplan (jede Minute) zu ändern. Die Funktion
+  // «euroleague» hält Live-Stände 20 Sekunden, der zweite Durchlauf sieht also einen neuen Stand.
+  if (el?.live && globalThis.EdgeRuntime?.waitUntil) {
+    globalThis.EdgeRuntime.waitUntil(new Promise((r) => setTimeout(r, 30 * 1000)).then(() => elPushTick(Date.now(), subs, profs)).catch(() => {}));
+  }
   // Fussball-Teil wie die EuroLeague: schläft bis 100 Minuten vor dem nächsten Spiel eines Lieblingsteams (Aufstellung ab
   // 90 Min. vorher), dann jede Minute bis 2½ Std. nach Anpfiff bzw. Spielende. Spätestens alle 3 Std. kurz aufwachen
   // (verschobene Anstosszeiten). Ändern sich die Lieblingsteams, sofort aufwachen. Wer die Seite offen hat, holt seine
