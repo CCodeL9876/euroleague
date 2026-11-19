@@ -5,7 +5,7 @@ import { tvOf } from '../fussball/tv.js';
 
 const EL_URL = `${SUPABASE_URL}/functions/v1/euroleague`, FB_URL = `${SUPABASE_URL}/functions/v1/fussball`, CH_URL = `${SUPABASE_URL}/functions/v1/basket`;
 const HEAD = { apikey: SUPABASE_ANON_KEY };
-const LIVE_POLL_MS = 60 * 1000, IDLE_POLL_MS = 10 * 60 * 1000;
+const LIVE_POLL_MS = 60 * 1000, IDLE_POLL_MS = 60 * 60 * 1000; // ohne Spiel: bis 20 Min. vor dem nächsten Anpfiff, höchstens 1 Std.
 const TODAY_MAX = 8, MISSED_MAX = 6, MISSED_DAYS = 7, FIRST_DAYS = 3, FEED_MAX = 8, FEED_ALL = 40, RECENT_MS = 30 * 60 * 1000;
 
 const $ = (s) => document.querySelector(s);
@@ -401,7 +401,8 @@ async function load() {
   render();
   const now = Date.now();
   const soon = games().some((g) => g.st === 'live' || (g.st === 'pre' && Math.abs(g.at - now) < 20 * 60 * 1000));
-  timer = setTimeout(refresh, soon ? LIVE_POLL_MS : IDLE_POLL_MS);
+  const nextAt = Math.min(...games().filter((g) => g.st === 'pre' && g.at > now).map((g) => g.at));
+  timer = setTimeout(refresh, soon ? LIVE_POLL_MS : Math.max(LIVE_POLL_MS, Math.min(IDLE_POLL_MS, nextAt - 20 * 60 * 1000 - now)));
 }
 
 // Lieblingsteams vom Profil holen, falls sie auf einem anderen Gerät geändert wurden

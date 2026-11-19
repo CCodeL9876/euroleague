@@ -29,7 +29,7 @@ let FAV = (() => {
 const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const LIVE_POLL_MS = 30 * 1000; // läuft ein Spiel: alle 30 s (die Funktion hält Live-Stände 20 s)
 const SOON_POLL_MS = 60 * 1000; // Spiel beginnt in den nächsten 20 Min.
-const IDLE_POLL_MS = 10 * 60 * 1000;
+const IDLE_POLL_MS = 60 * 60 * 1000; // ohne Spiel: bis 20 Min. vor dem nächsten Anpfiff, höchstens 1 Std.
 const NEWS_POLL_MS = 30 * 60 * 1000;
 const VIDEO_POLL_MS = 15 * 60 * 1000;
 
@@ -1845,6 +1845,10 @@ async function loadNews() {
   return false;
 }
 
+function idleDelay() {
+  const now = Date.now(), next = Math.min(...(data?.games || []).filter((g) => g.status === 'pre' && new Date(g.utc) > now).map((g) => new Date(g.utc) - 20 * 60000));
+  return Math.max(SOON_POLL_MS, Math.min(IDLE_POLL_MS, next - now));
+}
 function liveSoon() {
   const now = Date.now();
   return (data?.games || []).some((g) => g.status === 'live' || (g.status === 'pre' && new Date(g.utc) - now < 20 * 60000 && now - new Date(g.utc) < 4 * 3600e3));
@@ -1858,7 +1862,7 @@ async function refresh({ withNews = false } = {}) {
   if (withNews || newsChanged) { newsAt = Date.now(); renderFeed(); }
   render();
   if ($('#teamDlg').open) renderTeamPage();
-  if (document.visibilityState === 'visible') dataTimer = setTimeout(refresh, (data?.games || []).some((g) => g.status === 'live') ? LIVE_POLL_MS : liveSoon() ? SOON_POLL_MS : IDLE_POLL_MS);
+  if (document.visibilityState === 'visible') dataTimer = setTimeout(refresh, (data?.games || []).some((g) => g.status === 'live') ? LIVE_POLL_MS : liveSoon() ? SOON_POLL_MS : idleDelay());
 }
 
 // ---------- Bedienung ----------
