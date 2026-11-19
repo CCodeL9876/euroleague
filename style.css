@@ -1356,5 +1356,3 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .el-tv svg{width:11px;height:11px;fill:currentColor;flex:none;}
 .el-tv:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}
 .el-tv.sm{margin-top:6px;}
-.el-tv.mini{padding:3px 8px;font-size:0.66rem;margin-left:auto;margin-right:8px;}
-.el-tv.mini svg{width:9px;height:9px;}
