@@ -1612,11 +1612,22 @@ async function pushTick(now) {
   const favs = new Set([...fav.values()].flatMap((x) => [...x]));
   // EuroLeague zuerst und unabhängig vom Fussball: ein Fehler dort hält die Tor-Mitteilungen nicht auf
   const el = await elPushTick(now, subs, profs).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
+  // Fussball-Teil nur jede Minute, wenn ein Spiel eines Lieblingsteams läuft oder in den nächsten 100 Minuten beginnt
+  // (Aufstellung ab 90 Min. vorher); sonst höchstens alle 10 Minuten. Spart Datenverkehr und Protokolle. Wer die Seite
+  // offen hat, holt seine Daten selbst; Tabellen und Statistiken nach Spielende dürfen ein paar Minuten warten.
+  const gate = (await cacheGet('fbtick'))?.data;
+  if (gate?.next && now < gate.next) return { el, wait: new Date(gate.next).toISOString() };
   const viewer = await cacheGet('fbview');
   const cached = (await cacheGet('fbov:last'))?.data?.matches || [];
   liveEager = Boolean(viewer && now - viewer.at < 10 * 60 * 1000) || cached.some((m) => (m.st === 'live' || m.st === 'ht') && (favs.has(String(m.h).toLowerCase()) || favs.has(String(m.a).toLowerCase())));
   const ov = await fbOverview(now);
   await cacheSet('fbov:last', { matches: ov.matches.filter((m) => m.st === 'live' || m.st === 'ht').map((m) => ({ h: m.h, a: m.a, st: m.st })) });
+  const isFav = (m) => favs.has(String(m.h).toLowerCase()) || favs.has(String(m.a).toLowerCase());
+  const busy = ov.matches.some((m) => isFav(m) && (m.st === 'live' || m.st === 'ht'
+    || (m.st === 'pre' && Date.parse(m.utc) - now < 100 * 60 * 1000 && now - Date.parse(m.utc) < 3 * 3600e3)));
+  const nextFav = Math.min(...ov.matches.filter((m) => isFav(m) && m.st === 'pre' && Date.parse(m.utc) > now).map((m) => Date.parse(m.utc) - 100 * 60 * 1000));
+  const next = busy ? 0 : Math.max(now + 60 * 1000, Math.min(now + 10 * 60 * 1000, nextFav));
+  if (next || gate?.next) await cacheSet('fbtick', { next });
   const refresh = await refreshAroundMatches(now, ov, favs);
   const prev = (await cacheGet('push:scores'))?.data || {};
   const cur = {}, events = [], scoreChanges = [];
