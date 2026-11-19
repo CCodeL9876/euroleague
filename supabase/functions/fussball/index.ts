@@ -82,22 +82,42 @@ const liveWindow = (list, now) => list.some((m) => m.st === 'live' || m.st === '
   || (m.st !== 'ft' && m.st !== 'off' && now > Date.parse(m.utc) && now - Date.parse(m.utc) < 130 * 60 * 1000));
 const kickoffJustStarted = (m, now) => m.st === 'pre' && now >= Date.parse(m.utc) && now - Date.parse(m.utc) <= 3 * 60 * 1000;
 
-// Kleiner Zwischenspeicher in der Datenbank (überlebt Neustarts der Funktion); ohne Tabelle nur im Speicher
+// Kleiner Zwischenspeicher in der Datenbank (überlebt Neustarts der Funktion); ohne Tabelle nur im Speicher.
+// Gegen Datenverkehr (Egress): Liegt der Eintrag schon im Speicher dieser Instanz, zuerst nur den Zeitstempel lesen
+// (wenige Bytes) und die Daten nur neu holen, wenn ein anderer Aufruf sie inzwischen geändert hat. Der Minuten-Tick
+// liest sonst jede Minute die ganzen Tabellen und Spielpläne (rund 1 MB) aus der Datenbank.
 const fbMem = new Map();
 async function cacheGet(key) {
   if (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+    const url = `${SUPABASE_URL}/rest/v1/el_fb_cache?key=eq.${encodeURIComponent(key)}`;
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/el_fb_cache?key=eq.${encodeURIComponent(key)}&select=data,at`, { headers: serviceHeaders(), signal: AbortSignal.timeout(TIMEOUT_MS) });
-      if (r.ok) { const row = (await r.json())[0]; if (row) return { data: row.data, at: Date.parse(row.at) }; return null; }
+      const mem = fbMem.get(key);
+      if (mem) {
+        const r = await fetch(`${url}&select=at`, { headers: serviceHeaders(), signal: AbortSignal.timeout(TIMEOUT_MS) });
+        if (r.ok) {
+          const row = (await r.json())[0];
+          if (!row) { fbMem.delete(key); return null; }
+          if (Date.parse(row.at) === mem.at) return mem;
+        }
+      }
+      const r = await fetch(`${url}&select=data,at`, { headers: serviceHeaders(), signal: AbortSignal.timeout(TIMEOUT_MS) });
+      if (r.ok) {
+        const row = (await r.json())[0];
+        if (!row) return null;
+        const hit = { data: row.data, at: Date.parse(row.at) };
+        fbMem.set(key, hit);
+        return hit;
+      }
     } catch { /* Tabelle fehlt: Speicher */ }
   }
   return fbMem.get(key) || null;
 }
 async function cacheSet(key, data) {
-  fbMem.set(key, { data, at: Date.now() });
+  const at = Date.now();
+  fbMem.set(key, { data, at });
   if (!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) return;
   await fetch(`${SUPABASE_URL}/rest/v1/el_fb_cache?on_conflict=key`, { method: 'POST', headers: { ...serviceHeaders(), Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ key, data, at: new Date().toISOString() }), signal: AbortSignal.timeout(TIMEOUT_MS) }).catch(() => {});
+    body: JSON.stringify({ key, data, at: new Date(at).toISOString() }), signal: AbortSignal.timeout(TIMEOUT_MS) }).catch(() => {});
 }
 // Tageszähler gegen die Kontingente der Anbieter. Atomar über die SQL-Funktion el_fb_incr (README / unten); fehlt sie,
 // lesen + schreiben mit einem Zähler pro Instanz, damit gleichzeitige Abfragen derselben Instanz nicht alle denselben Stand lesen.
