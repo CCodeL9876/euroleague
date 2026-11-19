@@ -536,6 +536,12 @@ function boxTarget(node, m, g) {
   node.setAttribute('role', 'button'); node.tabIndex = 0;
   node.setAttribute('aria-label', `Spielbericht ${name(m, g.home)} gegen ${name(m, g.away)}`);
 }
+// EuroLeague TV: Link zur App bzw. Website (dort einmal anmelden). Ab 30 Min. vor dem Anpfiff bis zum Schluss.
+// Der Link sitzt teils in anklickbaren Karten: der Klick-Handler lässt ihn durch, ohne den Spielbericht zu öffnen.
+const EL_TV_URL = 'https://euroleague.tv/';
+const PLAY_SM = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const tvWindow = (g) => g.status === 'live' || (g.status === 'pre' && Date.parse(g.utc) - Date.now() < 30 * 60000 && Date.now() - Date.parse(g.utc) < 4 * 3600e3);
+const tvLink = (cls, label) => `<a class="el-tv ${cls}" href="${EL_TV_URL}" target="_blank" rel="noopener">${PLAY_SM}${label}</a>`;
 const boxAttrs = (m, g) => `data-act="box" data-code="${g.code}" role="button" tabindex="0" aria-label="Spielbericht ${esc(name(m, g.home))} gegen ${esc(name(m, g.away))}"`;
 
 // Krimi: beendetes Spiel mit hoher Spannung (exc aus der Funktion, aus Führungswechseln, Comeback, Verlängerung …).
@@ -786,7 +792,7 @@ function renderCenter(m) {
       return `<section class="live-hero" ${boxAttrs(m, g)}>
       <div class="flap-row">${logo(m, g.home, 'sm')}<span class="flap-name">${esc(name(m, g.home))}</span>${tiles(String(g.hs).padStart(3, ' '))}</div>
       <div class="flap-row">${logo(m, g.away, 'sm')}<span class="flap-name">${esc(name(m, g.away))}</span>${tiles(String(g.as).padStart(3, ' '))}</div>
-      <div class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)}<span class="flap-round">&nbsp;· Spieltag ${g.round}</span></span>
+      <div class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)}<span class="flap-round">&nbsp;· Spieltag ${g.round}</span></span>${tvLink('mini', 'EL TV')}
         <span class="flap-clock">${clock ? tiles(clock) : ''}<span class="flap-more" aria-hidden="true">›</span></span></div></section>`;
     }).join('');
     parts.push(`<div class="hero-scroll${lives.length > 1 ? ' multi' : ''}" data-keep-scroll="live" aria-label="Live-Spiele">${cards}</div>`);
@@ -1053,7 +1059,7 @@ function renderBox() {
   const head = `<div class="box-top"><h2 id="boxTitle">Spielbericht · Spieltag ${g.round}</h2><button type="button" class="box-close" data-act="box-close" aria-label="Schliessen">×</button></div>
     <div class="box-score">
       <button type="button" class="box-team" data-act="team" data-c="${g.home}">${logo(m, g.home)}<b>${esc(name(m, g.home))}</b><small>${esc(rec(m, g.home))}</small></button>
-      <div class="box-mid"><span class="num">${g.status === 'pre' ? '–:–' : `${g.hs} : ${g.as}`}</span><small>${status}</small>${isKrimi(g) ? `<small class="krimi-why">${FLAME_SVG}${esc(krimiWhy(g))}</small>` : ''}</div>
+      <div class="box-mid"><span class="num">${g.status === 'pre' ? '–:–' : `${g.hs} : ${g.as}`}</span><small>${status}</small>${isKrimi(g) ? `<small class="krimi-why">${FLAME_SVG}${esc(krimiWhy(g))}</small>` : ''}${tvWindow(g) ? tvLink('sm', g.status === 'live' ? 'Live auf EuroLeague TV' : 'Auf EuroLeague TV schauen') : ''}</div>
       <button type="button" class="box-team" data-act="team" data-c="${g.away}">${logo(m, g.away)}<b>${esc(name(m, g.away))}</b><small>${esc(rec(m, g.away))}</small></button>
     </div>`;
   if (g.status === 'pre') {
@@ -1870,6 +1876,7 @@ async function refresh({ withNews = false } = {}) {
 // ---------- Bedienung ----------
 document.addEventListener('click', (e) => {
   if (profileMenuOpen && !e.target.closest('#profileMenu, #profileBtn')) { profileMenuOpen = false; renderProfileMenu(); }
+  if (e.target.closest('a.el-tv')) return; // EuroLeague TV öffnen, nicht den Spielbericht
   const t = e.target.closest('[data-act], [data-team], [data-src], .mtabs button');
   if (!t) return;
   if (t.matches('.mtabs button')) return setTab(t.dataset.tab);
@@ -1964,6 +1971,7 @@ function logout() {
 }
 // Spielzeilen auch mit der Tastatur öffnen
 document.addEventListener('keydown', (e) => {
+  if (e.target.closest?.('a.el-tv')) return; // Link selbst behandelt Enter
   const t = e.target.closest?.('[data-act="box"], article[data-act="team"], g[data-act="team"]');
   if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (t.dataset.act === 'box') openBox(Number(t.dataset.code)); else openTeam(t.dataset.c); }
 });

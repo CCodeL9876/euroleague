@@ -1347,3 +1347,11 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .tp-box[open] .tp-chev{transform:rotate(90deg);}
 .tp-body{border-top:1px solid var(--line);}
 @media (prefers-reduced-motion: reduce){ .tp-chev{transition:none;} }
+
+/* EuroLeague TV: kleiner Knopf im Spielbericht und auf der Live-Karte (Variante A, kompakt) */
+.el-tv{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 12px;background:#D9551A;color:#fff;font-size:0.74rem;font-weight:700;text-decoration:none;white-space:nowrap;}
+.el-tv svg{width:11px;height:11px;fill:currentColor;flex:none;}
+.el-tv:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}
+.el-tv.sm{margin-top:6px;}
+.el-tv.mini{padding:3px 8px;font-size:0.66rem;margin-left:auto;margin-right:8px;}
+.el-tv.mini svg{width:9px;height:9px;}
