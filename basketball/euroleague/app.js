@@ -27,7 +27,8 @@ let FAV = (() => {
   return ['PAN', 'OLY', 'PAM', 'ULK'];
 })();
 const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-const LIVE_POLL_MS = 60 * 1000;
+const LIVE_POLL_MS = 30 * 1000; // läuft ein Spiel: alle 30 s (die Funktion hält Live-Stände 20 s)
+const SOON_POLL_MS = 60 * 1000; // Spiel beginnt in den nächsten 20 Min.
 const IDLE_POLL_MS = 10 * 60 * 1000;
 const NEWS_POLL_MS = 30 * 60 * 1000;
 const VIDEO_POLL_MS = 15 * 60 * 1000;
@@ -1857,7 +1858,7 @@ async function refresh({ withNews = false } = {}) {
   if (withNews || newsChanged) { newsAt = Date.now(); renderFeed(); }
   render();
   if ($('#teamDlg').open) renderTeamPage();
-  if (document.visibilityState === 'visible') dataTimer = setTimeout(refresh, liveSoon() ? LIVE_POLL_MS : IDLE_POLL_MS);
+  if (document.visibilityState === 'visible') dataTimer = setTimeout(refresh, (data?.games || []).some((g) => g.status === 'live') ? LIVE_POLL_MS : liveSoon() ? SOON_POLL_MS : IDLE_POLL_MS);
 }
 
 // ---------- Bedienung ----------
