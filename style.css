@@ -535,11 +535,36 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .pm-item:hover, .pm-item:focus-visible{background:var(--card);outline:none;}
 .pm-item .icon{width:18px;height:18px;color:var(--dim);flex:none;}
 .profile-menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px;}
-.brand{padding-right:96px;}
+.brand{padding-right:144px;}
+.theme-btn.search-btn{right:116px;}
+/* Spielersuche */
+.search-dlg{align-self:start;margin-top:min(12vh, 90px);max-width:560px;}
+.search-dlg .box-in{gap:10px;}
+.ps-row{display:flex;align-items:center;gap:8px;}
+.ps-field{flex:1;display:flex;align-items:center;gap:8px;min-height:48px;padding:0 6px 0 14px;background:var(--card);border:1px solid var(--line);border-radius:14px;color:var(--dim);min-width:0;}
+.ps-field:focus-within{border-color:var(--blue-hi);}
+.ps-field .icon{width:19px;height:19px;flex:none;}
+.ps-field input{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px;outline:0;}
+.ps-field input::-webkit-search-cancel-button{display:none;}
+.ps-clear{width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--faint);font-size:1.3rem;cursor:pointer;}
+.ps-cancel{border:0;background:none;color:var(--blue-hi);font:inherit;font-weight:500;padding:8px 4px;cursor:pointer;}
+.ps-list{list-style:none;margin:0;padding:0;max-height:min(60vh, 520px);overflow:auto;}
+.ps-list li[role="option"]{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:12px;cursor:pointer;}
+.ps-list li[role="option"]:hover, .ps-list li[aria-selected="true"]{background:var(--card);}
+.ps-nm{flex:1;min-width:0;display:flex;flex-direction:column;}
+.ps-nm b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ps-nm mark{background:none;color:var(--blue-hi);font-weight:700;}
+.ps-nm small{font-size:0.78rem;color:var(--faint);}
+.ps-v{text-align:right;font-size:0.75rem;color:var(--dim);display:flex;flex-direction:column;}
+.ps-v b{font-size:0.95rem;color:var(--text);font-weight:600;}
+.ps-hd{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--faint);padding:10px 10px 4px;}
+.ps-empty{color:var(--dim);font-size:0.9rem;padding:12px 10px;}
+@media (max-width:820px){.search-dlg{margin-top:0;}}
 @media (max-width:820px){
   .brand-area{flex-wrap:wrap;row-gap:4px;}
   .brand{flex:1;order:1;padding-right:0;min-width:0;}
   .theme-btn{position:static;flex:none;order:2;}
+  .theme-btn.search-btn{order:2;}
   #profileBtn{order:3;}
   .profile-menu{top:76px;right:max(16px, env(safe-area-inset-right, 0px));}
   #profileBar{order:4;flex-basis:100%;}

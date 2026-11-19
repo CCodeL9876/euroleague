@@ -54,6 +54,7 @@ const ICON = {
   bars: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   trend: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/>',
@@ -1915,6 +1916,9 @@ document.addEventListener('click', (e) => {
   } else if (act === 'leader-cat') { leaderState.cat = t.dataset.cat; render(); }
   else if (act === 'leader-fav') { leaderState.fav = t.checked; render(); }
   else if (act === 'theme') toggleTheme();
+  else if (act === 'search') openSearch();
+  else if (act === 'search-close') $('#searchDlg').close();
+  else if (act === 'search-clear') { searchState.q = ''; searchState.sel = -1; $('#psInput').value = ''; drawSearch(); $('#psInput').focus(); }
   else if (act === 'logout') logout();
   else if (act === 'profile-menu') { profileMenuOpen = !profileMenuOpen; renderProfileMenu(); if (profileMenuOpen) $('#profileMenu .pm-item')?.focus(); }
   else if (act === 'fav-edit') { favEdit = true; profileMenuOpen = false; profileError = ''; renderProfileMenu(); renderFavSheet(); }
@@ -1977,6 +1981,99 @@ document.addEventListener('input', (e) => {
   else if (e.target.id === 'profPin') profileDraft.pin = e.target.value;
 });
 
+// ---------- Spielersuche (Lupe oben) ----------
+// Sucht nur Spieler, im Browser über die schon geladene Saison-Spielerliste (?players=1): keine Anfrage pro Tastendruck.
+// Treffer am Namensanfang zuerst, dann nach PIR; ohne Eingabe: zuletzt gesucht und die Besten nach PIR.
+const searchState = { q: '', sel: -1 };
+const normTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const recentIds = () => { try { return JSON.parse(store.get('el-search-recent', '[]')) || []; } catch { return []; } };
+function searchHits(q) {
+  const list = players?.players || [];
+  q = normTxt(q.trim());
+  if (!q) return [];
+  const m = model();
+  const score = (p) => {
+    const n = normTxt(p.name);
+    if (n.startsWith(q)) return 0;
+    if (n.split(/[\s-]+/).some((w) => w.startsWith(q))) return 1;
+    if (n.includes(q)) return 2;
+    if (q.length >= 3 && normTxt(`${m?.teams?.[p.team]?.name || ''} ${short(p.team)} ${p.team}`).includes(q)) return 3;
+    return 9;
+  };
+  return list.map((p) => [score(p), p]).filter((x) => x[0] < 9).sort((a, b) => a[0] - b[0] || b[1].pir - a[1].pir).slice(0, 8).map((x) => x[1]);
+}
+function searchMark(name, q) {
+  const n = normTxt(name), k = normTxt(q.trim()), i = k ? n.indexOf(k) : -1;
+  return i < 0 ? esc(name) : `${esc(name.slice(0, i))}<mark>${esc(name.slice(i, i + k.length))}</mark>${esc(name.slice(i + k.length))}`;
+}
+function searchListHtml() {
+  if (!players) return `<li class="ps-empty">${esc(playersError || 'Lade Spieler …')}</li>`;
+  const m = model(), q = searchState.q;
+  const row = (p, i) => `<li role="option" id="ps-o${i}" data-i="${i}" aria-selected="${i === searchState.sel}">${playerImg(p, 'pimg sm')}<span class="ps-nm"><b>${searchMark(p.name, q)}</b><small>${esc(m?.teams?.[p.team]?.name || short(p.team))} · ${p.gp} ${p.gp === 1 ? 'Spiel' : 'Spiele'}</small></span><span class="ps-v num"><b>${de1(p.pts)}</b>Pkt.</span></li>`;
+  let groups;
+  if (q.trim()) {
+    const hits = searchHits(q);
+    searchState.items = hits;
+    if (!hits.length) return '<li class="ps-empty">Kein Spieler gefunden. Gesucht wird nach Vor- und Nachname, ohne Akzente.</li>';
+    groups = [['Spieler', hits]];
+  } else {
+    const all = players.players || [];
+    const rec = recentIds().map((id) => all.find((p) => p.id === id)).filter(Boolean);
+    const top = [...qualified()].sort((a, b) => b.pir - a.pir).filter((p) => !rec.includes(p)).slice(0, 3);
+    groups = [['Zuletzt gesucht', rec], ['Beste nach PIR', top]].filter((g) => g[1].length);
+    searchState.items = groups.flatMap((g) => g[1]);
+  }
+  let i = 0;
+  return groups.map(([h, l]) => `<li class="ps-hd" role="presentation">${h}</li>${l.map((p) => row(p, i++)).join('')}`).join('');
+}
+function drawSearch() {
+  const ul = $('#psList');
+  if (!ul) return;
+  ul.innerHTML = searchListHtml();
+  const inp = $('#psInput');
+  inp.setAttribute('aria-activedescendant', searchState.sel >= 0 ? `ps-o${searchState.sel}` : '');
+  $('#psClear').hidden = !searchState.q;
+  ul.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+function openSearch() {
+  const dlg = $('#searchDlg');
+  Object.assign(searchState, { q: '', sel: -1 });
+  dlg.innerHTML = `<div class="box-in"><div class="ps-row"><label class="ps-field">${icon('search')}<span class="sr-only">Spieler suchen</span>
+    <input id="psInput" type="search" placeholder="Spieler suchen …" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="psList" aria-autocomplete="list" enterkeyhint="go">
+    <button type="button" class="ps-clear" id="psClear" data-act="search-clear" aria-label="Eingabe löschen" hidden>×</button></label>
+    <button type="button" class="ps-cancel" data-act="search-close">Abbrechen</button></div>
+    <ul class="ps-list" id="psList" role="listbox" aria-label="Vorschläge"></ul>
+    <p class="box-note small ps-hint">Auch ein Teamname geht: «Real» zeigt Spieler von Real Madrid. Am Computer öffnet die Taste «/» die Suche.</p></div>`;
+  dlg.showModal();
+  drawSearch();
+  $('#psInput').focus();
+  if (!players) loadPlayers().then(() => { if (dlg.open) drawSearch(); });
+}
+function pickSearch(i) {
+  const p = searchState.items?.[i];
+  if (!p) return;
+  store.set('el-search-recent', JSON.stringify([p.id, ...recentIds().filter((x) => x !== p.id)].slice(0, 4)));
+  $('#searchDlg').close();
+  openPlayer(p.id, p.team);
+}
+$('#searchDlg').addEventListener('input', (e) => { if (e.target.id === 'psInput') { searchState.q = e.target.value; searchState.sel = -1; drawSearch(); } });
+$('#searchDlg').addEventListener('keydown', (e) => {
+  if (e.target.id !== 'psInput') return;
+  const n = searchState.items?.length || 0;
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) { e.preventDefault(); searchState.sel = (searchState.sel + (e.key === 'ArrowDown' ? 1 : -1) + n) % n; drawSearch(); }
+  else if (e.key === 'Enter') { e.preventDefault(); pickSearch(Math.max(0, searchState.sel)); }
+});
+$('#searchDlg').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) { e.currentTarget.close(); return; }
+  const li = e.target.closest('#psList [role="option"]');
+  if (li) pickSearch(Number(li.dataset.i));
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]') || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
+  if (document.body.classList.contains('needs-profile')) return;
+  e.preventDefault(); openSearch();
+});
+
 // ---------- Hell / Dunkel ----------
 // Ohne eigene Wahl folgt die Seite dem iPhone; theme-boot.js setzt eine gespeicherte Wahl schon vor dem ersten Zeichnen
 const currentTheme = () => document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
@@ -2019,7 +2116,7 @@ function setupPullToRefresh() {
   };
   const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
   window.addEventListener('touchstart', (e) => {
-    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open) return;
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open || $('#searchDlg').open) return;
     startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
@@ -2094,7 +2191,7 @@ function setupInstallHint() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const shareIcon = '<svg class="ins-ico" viewBox="0 0 24 24" aria-label="Teilen"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
   setTimeout(() => {
-    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open) return;
+    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open || $('#searchDlg').open) return;
     const howto = ios
       ? `Tippe in Safari auf ${shareIcon} <b>Teilen</b> (bei neueren iPhones im Menü <b>«…»</b>) und dann auf <b>«Zum Home-Bildschirm»</b>. Danach öffnet sich die Seite wie eine App – ohne Adresszeile.`
       : installEvent ? 'Mit einem Tipp auf «Installieren» liegt die Seite wie eine App auf deinem Startbildschirm.'
