@@ -538,7 +538,10 @@ function boxTarget(node, m, g) {
 }
 // EuroLeague TV: Link zur App bzw. Website (dort einmal anmelden). Ab 30 Min. vor dem Anpfiff bis zum Schluss.
 // Der Link sitzt teils in anklickbaren Karten: der Klick-Handler lässt ihn durch, ohne den Spielbericht zu öffnen.
-const EL_TV_URL = 'https://euroleague.tv/';
+// iPhone/iPad: euroleague.tv unterstützt keine Universal Links (öffnet nur die Website). Darum dort die App-Store-Seite der
+// EuroLeague-TV-App: ist sie installiert, steht dort «Öffnen». Sonst (Mac, Android) die Website.
+const IOS_DEVICE = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const EL_TV_URL = IOS_DEVICE ? 'https://apps.apple.com/ch/app/euroleague-tv/id1480235204' : 'https://euroleague.tv/';
 const PLAY_SM = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
 const tvWindow = (g) => g.status === 'live' || (g.status === 'pre' && Date.parse(g.utc) - Date.now() < 30 * 60000 && Date.now() - Date.parse(g.utc) < 4 * 3600e3);
 const tvLink = (cls, label) => `<a class="el-tv ${cls}" href="${EL_TV_URL}" target="_blank" rel="noopener">${PLAY_SM}${label}</a>`;
