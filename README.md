@@ -143,7 +143,7 @@ Einrichtung (einmalig):
    `supabase/functions/fussball/index.ts` einfügen, **„Verify JWT“ ausschalten** (wie bei `euroleague`) und deployen.
 
 Der vorhandene `pg_cron`-Zeitplan muss mindestens jede Minute `?fbpushtick=1` auf der Funktion `fussball` aufrufen.
-Der Fussball-Teil des Ticks arbeitet nur jede Minute, wenn ein Spiel eines Lieblingsteams läuft oder in den nächsten 100 Minuten beginnt, sonst höchstens alle 10 Minuten (`fbtick` in `el_fb_cache`). Der Cache wird zuerst nur über den Zeitstempel geprüft, um Egress zu sparen (Gratis-Plan: 5 GB pro Monat).
+Der Fussball-Teil des Ticks schläft wie der EuroLeague-Teil bis 100 Minuten vor dem nächsten Spiel eines Lieblingsteams und arbeitet dann jede Minute bis etwa 2½ Stunden nach Anpfiff; spätestens alle 3 Stunden wacht er kurz auf (`fbtick` in `el_fb_cache`, wacht sofort auf, wenn sich die Lieblingsteams ändern). Der Cache wird zuerst nur über den Zeitstempel geprüft, um Egress zu sparen (Gratis-Plan: 5 GB pro Monat).
 Dieser Tick prüft nun auch fällige Vor-/Nach-Spiel-Aktualisierungen: Aufstellungen bis 90 Minuten vor Anpfiff,
 Statistiken nach Spielende sowie Tabellen und Torschützenlisten nach dem letzten beendeten Spiel der Liga am lokalen Tag.
 Teamstatistiken kommen nach Spielende von Big Balls (dauerhaft im Cache); während des Spiels liefert Sportradar sie für UCL, Premier League und Championship.

@@ -1612,11 +1612,13 @@ async function pushTick(now) {
   const favs = new Set([...fav.values()].flatMap((x) => [...x]));
   // EuroLeague zuerst und unabhängig vom Fussball: ein Fehler dort hält die Tor-Mitteilungen nicht auf
   const el = await elPushTick(now, subs, profs).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
-  // Fussball-Teil nur jede Minute, wenn ein Spiel eines Lieblingsteams läuft oder in den nächsten 100 Minuten beginnt
-  // (Aufstellung ab 90 Min. vorher); sonst höchstens alle 10 Minuten. Spart Datenverkehr und Protokolle. Wer die Seite
-  // offen hat, holt seine Daten selbst; Tabellen und Statistiken nach Spielende dürfen ein paar Minuten warten.
+  // Fussball-Teil wie die EuroLeague: schläft bis 100 Minuten vor dem nächsten Spiel eines Lieblingsteams (Aufstellung ab
+  // 90 Min. vorher), dann jede Minute bis 2½ Std. nach Anpfiff bzw. Spielende. Spätestens alle 3 Std. kurz aufwachen
+  // (verschobene Anstosszeiten). Ändern sich die Lieblingsteams, sofort aufwachen. Wer die Seite offen hat, holt seine
+  // Daten selbst; Tabellen fremder Ligen werden dann beim Öffnen frisch geholt statt vorgewärmt.
+  const favKey = [...favs].sort().join('|');
   const gate = (await cacheGet('fbtick'))?.data;
-  if (gate?.next && now < gate.next) return { el, wait: new Date(gate.next).toISOString() };
+  if (gate?.next && now < gate.next && gate.favs === favKey) return { el, wait: new Date(gate.next).toISOString() };
   const viewer = await cacheGet('fbview');
   const cached = (await cacheGet('fbov:last'))?.data?.matches || [];
   liveEager = Boolean(viewer && now - viewer.at < 10 * 60 * 1000) || cached.some((m) => (m.st === 'live' || m.st === 'ht') && (favs.has(String(m.h).toLowerCase()) || favs.has(String(m.a).toLowerCase())));
@@ -1624,10 +1626,11 @@ async function pushTick(now) {
   await cacheSet('fbov:last', { matches: ov.matches.filter((m) => m.st === 'live' || m.st === 'ht').map((m) => ({ h: m.h, a: m.a, st: m.st })) });
   const isFav = (m) => favs.has(String(m.h).toLowerCase()) || favs.has(String(m.a).toLowerCase());
   const busy = ov.matches.some((m) => isFav(m) && (m.st === 'live' || m.st === 'ht'
-    || (m.st === 'pre' && Date.parse(m.utc) - now < 100 * 60 * 1000 && now - Date.parse(m.utc) < 3 * 3600e3)));
+    || (m.st === 'pre' && Date.parse(m.utc) - now < 100 * 60 * 1000 && now - Date.parse(m.utc) < 3 * 3600e3)
+    || (m.st === 'ft' && now - Date.parse(m.utc) < 150 * 60 * 1000)));
   const nextFav = Math.min(...ov.matches.filter((m) => isFav(m) && m.st === 'pre' && Date.parse(m.utc) > now).map((m) => Date.parse(m.utc) - 100 * 60 * 1000));
-  const next = busy ? 0 : Math.max(now + 60 * 1000, Math.min(now + 10 * 60 * 1000, nextFav));
-  if (next || gate?.next) await cacheSet('fbtick', { next });
+  const next = busy ? 0 : Math.max(now + 60 * 1000, Math.min(now + 3 * 3600e3, nextFav));
+  if (next || gate?.next || gate?.favs !== favKey) await cacheSet('fbtick', { next, favs: favKey });
   const refresh = await refreshAroundMatches(now, ov, favs);
   const prev = (await cacheGet('push:scores'))?.data || {};
   const cur = {}, events = [], scoreChanges = [];
