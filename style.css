@@ -1316,7 +1316,6 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .tps-row.first .tp-g4 span:first-child b{color:var(--gold);}
 .tp-teams{margin:10px 14px 0;}
 .tp-teams button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;}
-.tp-teams .logo{flex:none;}
 .tp-tc{font-size:0.62rem;font-weight:700;color:var(--faint);margin-right:5px;letter-spacing:0.04em;}
 .tp-more{margin:0;padding:4px 14px 12px;font-size:0.72rem;color:var(--faint);}
 .box h3 .live-dot{display:inline-block;margin-right:7px;vertical-align:2px;}

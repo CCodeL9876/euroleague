@@ -1143,7 +1143,7 @@ function topPlayersHtml(m, g, b, tops) {
       <span class="tp-nm"><b>${playerBtn(p, code)}</b><small class="num">${fg(p)}</small></span>
       <span class="tp-g4 num">${chip(val(p), unit)}${chip(p.reb, 'Reb')}${chip(p.ast, 'Ass')}${by === 'pir' ? chip(p.pts, 'Pkt') : chip(p.pir, 'PIR')}</span></div>`;
   }).join('');
-  const teamSeg = `<div class="seg tp-teams" role="group" aria-label="Team">${b.teams.map((t, i) => `<button type="button" data-act="top-team" data-i="${i}" aria-pressed="${i === ti}">${logo(m, i === 0 ? g.home : g.away, 'xs')}${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>`;
+  const teamSeg = `<div class="seg tp-teams" role="group" aria-label="Team">${b.teams.map((t, i) => `<button type="button" data-act="top-team" data-i="${i}" aria-pressed="${i === ti}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>`;
   return `<details class="tp-box" id="topBox"${boxState.topOpen ? ' open' : ''}>
     <summary><span class="tp-lab">${b.live ? '<i class="live-dot" aria-hidden="true"></i>' : ''}Top 3</span><span class="tp-its">${items}</span><span class="tp-title">${b.live ? 'Aktuell beste Spieler pro Team' : 'Beste Spieler pro Team'}</span><span class="tp-chev" aria-hidden="true">›</span></summary>
     <div class="tp-body">${teamSeg}
