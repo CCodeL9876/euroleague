@@ -98,7 +98,7 @@ const staleText = (why, iso) => `${why === 'net' ? 'Offline' : 'Datenquelle gera
 
 let sel = FAV.includes(store.get('el-team')) ? store.get('el-team') : FAV[0];
 let tab = ['spiel', 'news', 'teams'].includes(store.get('el-tab')) ? store.get('el-tab') : 'spiel';
-const open = { table: false, next: false, leaders: false };
+const open = { table: false, leaders: false };
 let roundSel = null;    // gewählter Spieltag in der Resultatliste (null = letzter mit Resultaten)
 let players = null;     // Saisonwerte aller Spieler (?players=1), erst bei Bedarf geladen
 let videos = {};        // Spielcode → Videos des EuroLeague-Kanals (?videos=1)
@@ -610,7 +610,7 @@ function nextHtml(m, c) {
     : `${esc(rel(g.date))} ${esc(g.time)}<small>Spieltag ${g.round} · ${home ? 'Heimspiel' : 'Auswärts'}</small>`;
   return `<div class="who"><span class="pair" aria-hidden="true">${logo(m, c)}${logo(m, opp)}</span>
       <div><span class="label">${g.status === 'live' ? 'Läuft gerade' : 'Nächstes Spiel'} · ${esc(short(c))}</span><strong>${home ? 'gegen ' : 'bei '}${esc(name(m, opp))}</strong></div></div>
-    <div class="next-foot"><button type="button" class="btn-ghost" data-act="open-next">Spielplan</button><div class="when num">${when}</div></div>`;
+    <div class="next-foot"><button type="button" class="btn-ghost" data-act="open-next" data-r="${g.round}">Spielplan</button><div class="when num">${when}</div></div>`;
 }
 
 function renderLeft(m) {
@@ -823,15 +823,8 @@ function renderCenter(m) {
   const [leader, second] = m.table;
   const same = second ? m.table.filter((t) => t !== leader && t.s === second.s && t.n === second.n).length : 0;
   const tabTxt = leader && leader.s + leader.n ? `${esc(name(m, leader.c))} führt mit ${leader.s}–${leader.n}${second ? `, dahinter ${same > 1 ? `${same} Teams` : esc(name(m, second.c))} mit ${second.s}–${second.n}` : ''}.` : 'Rangliste der EuroLeague.';
-  let nextTxt = 'Keine weiteren Spiele im Spielplan.';
-  if (nx) {
-    const started = m.rounds[nx.round].some((g) => g.status !== 'pre');
-    nextTxt = started ? `Spieltag ${nx.round} läuft, nächstes Spiel ${esc(rel(nx.date))} um ${esc(nx.time)}.`
-      : `Spieltag ${nx.round} startet ${esc(rel(nx.date))} um ${esc(nx.time)} mit ${esc(name(m, nx.home))} gegen ${esc(name(m, nx.away))}.`;
-  }
-  parts.push(`<div class="tiles">
+  parts.push(`<div class="tiles tiles-2">
     <button type="button" class="tile t-blue" data-act="toggle-table" aria-expanded="${open.table}" aria-controls="tableBox"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M34 18h52v22c0 18-12 30-26 30S34 58 34 40z" fill="#8FA6FF"/><path d="M34 26H18c0 16 8 24 18 26M86 26h16c0 16-8 24-18 26" fill="none" stroke="#8FA6FF" stroke-width="8" stroke-linecap="round"/><rect x="52" y="68" width="16" height="18" fill="#7D96FF"/><rect x="36" y="86" width="48" height="14" rx="5" fill="#A9BBFF"/></svg><strong>Tabelle</strong><p>${tabTxt}</p></button>
-    <button type="button" class="tile t-violet" data-act="toggle-next" aria-expanded="${open.next}" aria-controls="nextBox"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="58" r="44" fill="#9C78FF"/><path d="M16 58h88M60 14v88M30 26c14 16 14 48 0 64M90 26c-14 16-14 48 0 64" fill="none" stroke="#5A2BD6" stroke-width="6" stroke-linecap="round"/></svg><strong>Nächste Spiele</strong><p>${nextTxt}</p></button>
     <button type="button" class="tile t-coral" data-act="toggle-leaders" aria-expanded="${open.leaders}" aria-controls="leadersBox"><svg viewBox="0 0 120 120" aria-hidden="true"><rect x="18" y="62" width="20" height="38" rx="6" fill="#FF9AA0"/><rect x="50" y="40" width="20" height="60" rx="6" fill="#FFB4B8"/><rect x="82" y="18" width="20" height="82" rx="6" fill="#FF9AA0"/></svg><strong>Bestenlisten</strong><p>${esc(leaderTeaser(m))}</p></button>
     <button type="button" class="tile t-teal tile-wide" data-act="facts" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M60 4v7M24 18l5 5M96 18l-5 5M10 50h7M103 50h7" stroke="#6FD6C9" stroke-width="6" stroke-linecap="round"/><path d="M41 75.7A32 32 0 1 1 79 75.7c-4 3-6 7-6 11.3v3H47v-3c0-4.3-2-8.3-6-11.3z" fill="#6FD6C9"/><path d="M50 58l10 9 10-9M60 67v21" fill="none" stroke="#0E5E57" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="46" y="94" width="28" height="8" rx="4" fill="#3FB5A7"/><rect x="51" y="105" width="18" height="7" rx="3.5" fill="#3FB5A7"/></svg><strong>Nice things to know</strong><p>${esc(factsTeaser())}</p><span class="tile-go" aria-hidden="true">›</span></button>
     <button type="button" class="tile t-violet tile-wide" data-act="stats" aria-haspopup="dialog"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M18 14v88h88" fill="none" stroke="#C9B6FF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="44" cy="74" r="9" fill="#9C78FF"/><circle cx="66" cy="50" r="9" fill="#C9B6FF"/><circle cx="90" cy="30" r="9" fill="#9C78FF"/><circle cx="84" cy="70" r="9" fill="#C9B6FF"/></svg><strong>Team-Analyse</strong><p>Wer ist wirklich stark, und wer lebt von der Bank?</p><span class="tile-go" aria-hidden="true">›</span></button>
@@ -846,17 +839,6 @@ function renderCenter(m) {
     <p class="standings-note">Aus allen Resultaten berechnet; bei gleicher Bilanz zählen die direkten Duelle, sobald alle gespielt sind, sonst die Korbdifferenz. Team antippen öffnet die Teamseite.</p>`;
   center.appendChild(tableBox);
 
-  // Nächste Spiele
-  const nextBox = el('section', 'next-box'); nextBox.id = 'nextBox'; nextBox.hidden = !open.next; nextBox.setAttribute('aria-label', 'Nächste Spiele');
-  const upRounds = [...new Set(m.games.filter((g) => g.status !== 'final' && g.at > now - 4 * 3600e3).map((g) => g.round))].slice(0, 2);
-  if (!upRounds.length) nextBox.appendChild(el('p', 'label', 'Keine weiteren Spiele im Spielplan.'));
-  upRounds.forEach((r) => {
-    nextBox.appendChild(el('h3', '', `Spieltag ${r} · Nächste Spiele`));
-    const l = el('div', 'games');
-    m.rounds[r].filter((g) => g.status !== 'final').forEach((g) => l.appendChild(gameRow(m, g, false)));
-    nextBox.appendChild(l);
-  });
-  center.appendChild(nextBox);
 
   // Bestenlisten (Saisonwerte pro Spiel)
   const leadersBox = el('section', 'leaders-box'); leadersBox.id = 'leadersBox'; leadersBox.hidden = !open.leaders; leadersBox.setAttribute('aria-label', 'Bestenlisten');
@@ -1886,12 +1868,14 @@ document.addEventListener('click', (e) => {
   if (t.dataset.team) { sel = t.dataset.team; store.set('el-team', sel); return render(); }
   if (t.hasAttribute('data-src')) { feedState.src = t.dataset.src; return renderFeed(); }
   const act = t.dataset.act;
-  if (act === 'toggle-table' || act === 'toggle-next') {
-    const k = act === 'toggle-table' ? 'table' : 'next';
-    open[k] = !open[k]; render();
+  if (act === 'toggle-table') {
+    open.table = !open.table; render();
   } else if (act === 'open-next') {
-    open.next = true; setTab('spiel', false); render();
-    $('#nextBox')?.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+    // «Spielplan» auf der Teamseite: Spieltag des nächsten Spiels in der Resultatliste zeigen
+    if (t.dataset.r) roundSel = Number(t.dataset.r);
+    $('#teamDlg')?.open && $('#teamDlg').close();
+    setTab('spiel', false); render();
+    $('.round-nav')?.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
   } else if (act === 'round') { roundSel = Number(t.dataset.r); const id = t.id; render(); const b = document.getElementById(id); (b && !b.disabled ? b : $('.round-btn:not(:disabled)'))?.focus({ preventScroll: true }); }
   else if (act === 'show-news') showNews(Number(t.dataset.i));
   else if (act === 'news-cat') { feedState.cat = t.dataset.cat; renderFeed(); }

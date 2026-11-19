@@ -1358,3 +1358,4 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .el-tv.sm{margin-top:6px;}
 .el-tv.mini{padding:3px 8px;font-size:0.66rem;margin-left:auto;margin-right:8px;}
 .el-tv.mini svg{width:9px;height:9px;}
+.tiles.tiles-2{grid-template-columns:repeat(2, minmax(0,1fr));}
