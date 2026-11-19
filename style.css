@@ -1356,3 +1356,18 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .el-tv svg{width:11px;height:11px;fill:currentColor;flex:none;}
 .el-tv:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}
 .el-tv.sm{margin-top:6px;}
+
+/* Spielerseite: Sofortanzeige aus den Bestenlisten, während Wurfkarte und Karriere laden */
+.pc-quick-head{display:flex;align-items:center;gap:12px;}
+.pc-quick-head .pimg{width:56px;height:56px;}
+.pc-quick-head b{display:block;font-size:1.3rem;}
+.pc-quick-head small{color:var(--dim);font-size:0.82rem;}
+.pc-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0 4px;}
+.pc-quick span{background:var(--card);border-radius:12px;padding:8px 4px;text-align:center;}
+.pc-quick b{display:block;font-family:var(--mono);font-size:1.05rem;font-weight:700;}
+.pc-quick small{font-size:0.62rem;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;}
+.pc-skel{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+.pc-skel i{display:block;height:64px;border-radius:14px;background:var(--card);animation:pc-pulse 1.4s ease-in-out infinite;}
+.pc-skel i:nth-child(2){height:180px;}
+@keyframes pc-pulse{50%{opacity:.5;}}
+@media (prefers-reduced-motion: reduce){ .pc-skel i{animation:none;} }

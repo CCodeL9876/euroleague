@@ -1619,8 +1619,13 @@ function renderPlayer() {
   const d = playerState.data, m = model();
   const top = `<div class="box-top"><h2 id="playerTitle">Spielerseite</h2><button type="button" class="box-close" data-act="player-close" aria-label="Schliessen">×</button></div>`;
   if (!d) {
+    // Was die Bestenlisten schon wissen (Foto, Name, Team, Saisonschnitt) sofort zeigen; Wurfkarte und Karriere kommen nach
     const p = (players?.players || []).find((x) => x.id === playerState.id);
-    dlg.innerHTML = `<div class="box-in">${top}<div class="pc-loading">${p ? `<b>${esc(p.name)}</b>` : ''}<p class="label">${esc(playerState.error || 'Lade Spielerdaten …')}</p></div></div>`;
+    const tc = p?.team || playerState.team;
+    const avg = p ? `<div class="pc-quick num">${[['Pkt', p.pts], ['Reb', p.reb], ['Ass', p.ast], ['PIR', p.pir]].map(([k, v]) => `<span><b>${num1(v)}</b><small>${k}</small></span>`).join('')}</div>` : '';
+    dlg.innerHTML = `<div class="box-in">${top}<div class="pc-loading">
+      ${p ? `<div class="pc-quick-head">${playerImg(p, 'pimg')}<div><b>${esc(p.name)}</b><small>${esc(tc ? name(model(), tc) : '')}${p.gp ? ` · ${p.gp} Spiele` : ''}</small></div></div>${avg}` : ''}
+      <p class="label">${esc(playerState.error || 'Lade Wurfkarte und Karriere …')}</p>${playerState.error ? '' : '<div class="pc-skel" aria-hidden="true"><i></i><i></i><i></i></div>'}</div></div>`;
     return;
   }
   const team = d.team, color = TEAM_COLOR[team] || favColor(team || 'X'), a = d.avg;

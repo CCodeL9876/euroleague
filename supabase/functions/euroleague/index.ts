@@ -551,10 +551,30 @@ async function factsOf(season) {
   return data;
 }
 
+// Spielerseiten dauerhaft in el_fb_cache «pl:<Saison>:<id>:<team>»: Supabase startet die Funktion oft neu, dann wäre der
+// Arbeitsspeicher leer und jede Seite bräuchte wieder 2–10 Sekunden (EuroLeague, Wurfdaten jedes Spiels, Wikipedia).
+// Ist der gespeicherte Stand älter als 3 Std., kommt er trotzdem sofort; die neue Seite entsteht im Hintergrund.
+const PLAYER_DB_MS = 3 * 3600 * 1000;
+const playerRefreshing = new Set();
 async function playerOf(season, id, team) {
   const key = `${id}:${team}`;
   const hit = playerPages.get(key);
   if (hit && Date.now() - hit.at < PLAYER_MS) return hit.data;
+  const dk = `pl:${season}:${key}`;
+  const stored = await videoCacheGet(dk).catch(() => null);
+  if (stored?.data?.id) {
+    playerPages.set(key, { at: Date.now(), data: stored.data });
+    if (Date.now() - (stored.at || 0) > PLAYER_DB_MS && !playerRefreshing.has(dk)) {
+      playerRefreshing.add(dk);
+      const p = playerFresh(season, id, team).catch(() => null).finally(() => playerRefreshing.delete(dk));
+      if (globalThis.EdgeRuntime?.waitUntil) globalThis.EdgeRuntime.waitUntil(p);
+    }
+    return stored.data;
+  }
+  return playerFresh(season, id, team);
+}
+async function playerFresh(season, id, team) {
+  const key = `${id}:${team}`;
   const base = 'https://api-live.euroleague.net/v2';
   const [bio, seasonStats, careerRaw] = await Promise.all([
     getJson(`${base}/people/${id}`).catch(() => null),
@@ -574,6 +594,7 @@ async function playerOf(season, id, team) {
   data.history = history; data.shots = shots;
   playerPages.set(key, { at: Date.now(), data });
   if (playerPages.size > 300) playerPages.delete(playerPages.keys().next().value);
+  await videoCacheSet(`pl:${season}:${key}`, { at: Date.now(), data }).catch(() => {});
   return data;
 }
 
