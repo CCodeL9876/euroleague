@@ -1548,7 +1548,9 @@ async function elPushTick(now, subs, profs) {
   const favs = new Set([...fav.values()].flatMap((x) => [...x]));
   if (!favs.size) return { skip: 'keine Teams' };
   const state = (await cacheGet('elpush'))?.data || { sleep: 0, games: {} };
-  if (now < state.sleep) return { sleep: new Date(state.sleep).toISOString() };
+  // Geänderte Lieblingsteams wecken sofort (sonst merkt der Tick ein neues Team erst beim nächsten Aufwachen, bis 3 Std.)
+  const favKey = [...favs].sort().join('|');
+  if (now < state.sleep && state.favs === favKey) return { sleep: new Date(state.sleep).toISOString() };
   const ov = await elJson();
   const mine = (ov.games || []).filter((g) => favs.has(g.home) || favs.has(g.away));
   const games = {}, events = [];
@@ -1586,7 +1588,7 @@ async function elPushTick(now, subs, profs) {
   const busy = mine.some((g) => g.status === 'live' || (games[g.code] && !games[g.code].final && now - t(g) < 5 * 3600e3)
     || (g.status === 'pre' && t(g) - now < 6 * 60 * 1000 && now - t(g) < 4 * 3600e3));
   const next = Math.min(...mine.filter((g) => g.status === 'pre' && t(g) > now).map(t));
-  await cacheSet('elpush', { sleep: busy ? 0 : Math.min(Number.isFinite(next) ? next - 5 * 60 * 1000 : Infinity, now + 3 * 3600e3), games });
+  await cacheSet('elpush', { sleep: busy ? 0 : Math.min(Number.isFinite(next) ? next - 5 * 60 * 1000 : Infinity, now + 3 * 3600e3), games, favs: favKey });
   if (!events.length) return { events: 0, live: busy };
   const nm = (c) => ov.teams?.[c]?.short || ov.teams?.[c]?.name || c;
   let sent = 0;
