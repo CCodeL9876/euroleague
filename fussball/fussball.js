@@ -87,7 +87,16 @@ const isFav = (m) => isFavName(m.h) || isFavName(m.a);
 const LOGO_OK = /^(https:\/\/(upload\.wikimedia\.org|i\.imgur\.com|assets\.dfb\.de|media\.api-sports\.io|(www\.)?live-football-api\.com|img\.uefa\.com|derivates\.kicker\.de|s\.hs-data\.com|api\.bigballsdata\.com\/v1\/assets)\/|data:image\/(png|jpeg|gif|webp);base64,)/;
 const logo = (u) => `<span class="fb-logo">${LOGO_OK.test(u || '') ? `<img src="${esc(u)}" alt="" loading="lazy">` : ''}</span>`;
 
-let data = null, error = '', sel = '', mineOnly = false, timer = 0;
+let data = null, error = '', sel = '', mineOnly = false, timer = 0, staleNote = '';
+// «Stand von 21:40 Uhr» bzw. an einem anderen Tag «Stand vom 18.11., 21:40 Uhr» (Schweizer Zeit)
+const standText = (iso) => {
+  const d = new Date(iso); if (!Number.isFinite(d.getTime())) return '';
+  const f = (o) => new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', ...o }).format(d);
+  const day = f({ day: 'numeric', month: 'numeric' }), now = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', day: 'numeric', month: 'numeric' }).format(new Date());
+  return day === now ? `Stand von ${f({ hour: '2-digit', minute: '2-digit' })} Uhr` : `Stand vom ${day}, ${f({ hour: '2-digit', minute: '2-digit' })} Uhr`;
+};
+const staleText = (why, iso) => `${why === 'net' ? 'Offline' : 'Datenquelle gerade nicht erreichbar'}. Angezeigt wird der letzte Stand${standText(iso) ? ` (${standText(iso).replace(/^Stand (von|vom) /, '')})` : ''}.`;
+
 const open = new Set();
 const goalsCache = new Map(); // id → { goals, final } (nach Spielende nicht mehr neu laden)
 const lastSum = new Map(); // id → Tore beim letzten Laden (neues Tor erkennen)
@@ -372,7 +381,7 @@ function render() {
   };
   const favBar = mineOnly ? `<button type="button" class="fb-fav-edit" data-act="fb-fav" aria-haspopup="dialog">${icon('star')}<span>${FAV?.size ? `${FAV.size} ${FAV.size === 1 ? 'Team' : 'Teams'}: ${esc([...FAV.values()].join(', '))}` : 'Noch keine Teams gewählt'}</span><b>Ändern ›</b></button>` : '';
   const strip = list.querySelector('[data-keep-scroll="fb-live"]'), keep = strip ? strip.scrollLeft : 0;
-  list.innerHTML = favBar + liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
+  list.innerHTML = (staleNote ? `<p class="notice fb-stale">${esc(staleNote)}</p>` : '') + favBar + liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
     + data.leagues.filter((lg) => lg.status !== 'ok').map((lg) => `<p class="fb-warn"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span>${esc(lg.name)}: ${esc(lg.message || 'nicht verfügbar')}</p>`).join('');
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   renderDash(dayMs, matches);
@@ -851,6 +860,7 @@ async function load() {
     for (const m of d.matches) if ((m.st === 'live' || m.st === 'ht') && Date.parse(m.utc) < stale && m.hs != null && m.as != null) { m.st = 'ft'; m.min = null; }
     data = d;
     error = '';
+    staleNote = res.headers.get('x-offline') ? staleText(res.headers.get('x-offline'), d.updated) : '';
     if (!FAV) { FAV = new Map(allTeams().filter((t) => isFavName(t.n)).map((t) => [t.n.toLowerCase(), t.n])); saveFav(); }
     settleFav();
   } catch (err) {

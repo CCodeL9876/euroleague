@@ -372,6 +372,7 @@ const getJson = async (url, ms) => {
   const res = await fetch(url, { headers: HEAD, cache: 'no-store', signal: AbortSignal.timeout(ms) });
   const d = await res.json().catch(() => null);
   if (!res.ok || !d) throw new Error(`Fehler ${res.status}`);
+  if (res.headers.get('x-offline')) Object.defineProperty(d, 'stale', { value: true }); // letzter Stand aus dem Service Worker
   return d;
 };
 async function loadFlows() {
@@ -389,9 +390,12 @@ async function load() {
   const [a, b, c, d] = await Promise.allSettled([getJson(EL_URL, 20000), getJson(`${FB_URL}?fb=1`, 30000), getJson(`${CH_URL}?sbl=1`, 25000), getJson(`${CH_URL}?bvn=h2l`, 25000)]);
   if (c.status === 'fulfilled' && Array.isArray(c.value.games)) sbl = c.value;
   if (d.status === 'fulfilled' && Array.isArray(d.value.games)) h2l = d.value;
-  chFailed = c.status === 'rejected' && d.status === 'rejected';
-  if (a.status === 'fulfilled' && Array.isArray(a.value.games)) { el = a.value; elFailed = false; } else elFailed = true;
-  if (b.status === 'fulfilled' && Array.isArray(b.value.matches)) { fb = b.value; fbFailed = false; trackGoals(); } else fbFailed = true;
+  const okv = (r) => r.status === 'fulfilled' && !r.value.stale;
+  chFailed = !okv(c) && !okv(d);
+  if (a.status === 'fulfilled' && Array.isArray(a.value.games)) el = a.value;
+  elFailed = !okv(a);
+  if (b.status === 'fulfilled' && Array.isArray(b.value.matches)) { fb = b.value; if (!b.value.stale) trackGoals(); }
+  fbFailed = !okv(b);
   render();
   await loadFlows();
   render();

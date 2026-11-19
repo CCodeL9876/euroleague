@@ -373,3 +373,4 @@ button.fb-bpl:hover span{text-decoration:underline;}
 .fb-use-r .src.sr{color:#F59E0B;}
 .fb-use-r .n{grid-area:n;text-align:right;font-family:var(--mono);font-weight:600;}
 .fb-use-r i{grid-area:bar;}
+.fb-stale{margin:0 0 12px;border-left:3px solid var(--orange);}

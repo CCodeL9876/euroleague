@@ -2,10 +2,10 @@
 // aktuell ist); ohne Netz kommt der letzte Stand – bei den Spieldaten mit Kopfzeile „x-offline“, damit die Seite
 // „Offline – Stand von …“ anzeigt. Logos und Spielerfotos: zuerst aus dem Zwischenspeicher (ändern sich kaum).
 
-const CACHE = 'euroleague-v182';
+const CACHE = 'euroleague-v183';
 const IMAGES = /^https:\/\/media-cdn\.(incrowdsports\.com|cortextech\.io)\//;
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
-const DATA = /\/functions\/v1\/euroleague/;
+const DATA = /\/functions\/v1\/(euroleague|fussball|basket)\b/;
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', 'index.html', 'gate.js', 'basketball/euroleague/', 'basketball/euroleague/app.js', 'basketball/sbl/', 'basketball/2liga/', 'basketball/regio.js', 'basketball/swipe.js', 'basketball/switch.js', 'basketball/img/bca.png', 'basketball/img/sbl.png', 'basketball/img/bvn.png', 'basketball/regio.css', 'meinsport/meinsport.js', 'meinsport/meinsport.css', 'fussball/tv.js', 'style.css', 'config.js', 'theme-boot.js', 'start-boot.js', 'news.json', 'icon.svg', 'manifest.webmanifest', 'fussball/', 'fussball/fussball.js', 'fussball/fussball.css', 'fussball/manifest.webmanifest', 'fussball/icon.svg'])).catch(() => {}));
@@ -19,20 +19,22 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+// Spieldaten (markOffline): auch bei einer Fehlerantwort der Funktion (402 = Supabase gesperrt, 429, 5xx) den letzten Stand
+// zeigen, mit «x-offline», damit die Seite «Stand von …» anzeigt. Sonst stünde die Seite leer da.
 async function networkFirst(req, markOffline) {
   const cache = await caches.open(CACHE);
-  try {
-    const res = await fetch(req);
+  let res = null, err = null;
+  try { res = await fetch(req); } catch (e) { err = e; }
+  if (res && (res.ok || !markOffline || !(res.status === 402 || res.status === 429 || res.status >= 500))) {
     if (res.ok) cache.put(req, res.clone());
     return res;
-  } catch (err) {
-    const hit = await cache.match(req, { ignoreVary: true });
-    if (!hit) throw err;
-    if (!markOffline) return hit;
-    const headers = new Headers(hit.headers);
-    headers.set('x-offline', '1');
-    return new Response(await hit.blob(), { status: 200, headers });
   }
+  const hit = await cache.match(req, { ignoreVary: true });
+  if (!hit) { if (res) return res; throw err; }
+  if (!markOffline) return hit;
+  const headers = new Headers(hit.headers);
+  headers.set('x-offline', res ? String(res.status) : 'net');
+  return new Response(await hit.blob(), { status: 200, headers });
 }
 
 async function cacheFirst(req) {

@@ -33,8 +33,18 @@ async function api(q) {
   const res = await fetch(`${API}?${q}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) });
   const j = await res.json().catch(() => null);
   if (!res.ok || !j || j.error) throw new Error(j?.error || `Fehler ${res.status}`);
+  if (res.headers.get('x-offline')) Object.defineProperty(j, 'stale', { value: res.headers.get('x-offline') }); // letzter Stand aus dem Service Worker
   return j;
 }
+// «Stand von 21:40 Uhr» bzw. an einem anderen Tag «Stand vom 18.11., 21:40 Uhr» (Schweizer Zeit)
+const standText = (iso) => {
+  const d = new Date(iso); if (!Number.isFinite(d.getTime())) return '';
+  const f = (o) => new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', ...o }).format(d);
+  const day = f({ day: 'numeric', month: 'numeric' }), now = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', day: 'numeric', month: 'numeric' }).format(new Date());
+  return day === now ? `Stand von ${f({ hour: '2-digit', minute: '2-digit' })} Uhr` : `Stand vom ${day}, ${f({ hour: '2-digit', minute: '2-digit' })} Uhr`;
+};
+const staleText = (why, iso) => `${why === 'net' ? 'Offline' : 'Datenquelle gerade nicht erreichbar'}. Angezeigt wird der letzte Stand${standText(iso) ? ` (${standText(iso).replace(/^Stand (von|vom) /, '')})` : ''}.`;
+
 
 // Wappen: SBL-Logos von Genius Sports; BVN ohne Logos → Kürzel im Kreis
 // Eigene Wappen für Vereine ohne Logo in der BVN-Quelle (Datei im Ordner basketball/img)
@@ -99,6 +109,8 @@ function groupByDay(list) {
 function gamesView() {
   const parts = [];
   if (!data) return `<p class="notice">${esc(error || 'Lade Spiele …')}</p>`;
+  if (data.stale) parts.push(`<p class="notice">${esc(staleText(data.stale, data.updated))}</p>`);
+  else if (error) parts.push(`<p class="notice">${esc(`${error} Angezeigt wird der letzte Stand.`)}</p>`);
   let games = data.games;
   const mineList = myKeys();
   const favTeam = mineList.length ? (data.table.find((r) => isFav(r.t))?.t || games.flatMap((g) => [g.h, g.a]).find(isFav)) : null;

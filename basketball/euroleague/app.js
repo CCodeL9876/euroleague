@@ -85,6 +85,15 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 let data = null;       // Antwort der Funktion
 let news = null;       // news.json
 let dataError = '';
+// «Stand von 21:40 Uhr» bzw. an einem anderen Tag «Stand vom 18.11., 21:40 Uhr» (Schweizer Zeit)
+const standText = (iso) => {
+  const d = new Date(iso); if (!Number.isFinite(d.getTime())) return '';
+  const f = (o) => new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', ...o }).format(d);
+  const day = f({ day: 'numeric', month: 'numeric' }), now = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', day: 'numeric', month: 'numeric' }).format(new Date());
+  return day === now ? `Stand von ${f({ hour: '2-digit', minute: '2-digit' })} Uhr` : `Stand vom ${day}, ${f({ hour: '2-digit', minute: '2-digit' })} Uhr`;
+};
+const staleText = (why, iso) => `${why === 'net' ? 'Offline' : 'Datenquelle gerade nicht erreichbar'}. Angezeigt wird der letzte Stand${standText(iso) ? ` (${standText(iso).replace(/^Stand (von|vom) /, '')})` : ''}.`;
+
 let sel = FAV.includes(store.get('el-team')) ? store.get('el-team') : FAV[0];
 let tab = ['spiel', 'news', 'teams'].includes(store.get('el-tab')) ? store.get('el-tab') : 'spiel';
 const open = { table: false, next: false, leaders: false };
@@ -1776,7 +1785,7 @@ async function loadData() {
     const d = await res.json().catch(() => null);
     if (!res.ok || !Array.isArray(d?.games)) throw new Error(d?.error || `Fehler ${res.status}`);
     data = d;
-    dataError = res.headers.get('x-offline') ? `Offline – angezeigt wird der Stand von ${zTime(new Date(d.updated))} Uhr.` : '';
+    dataError = res.headers.get('x-offline') ? staleText(res.headers.get('x-offline'), d.updated) : '';
   } catch {
     dataError = data ? 'Live-Daten gerade nicht erreichbar – angezeigt wird der letzte Stand.' : 'Resultate und Spielplan sind gerade nicht erreichbar. Bitte später nochmals öffnen.';
   }
