@@ -1109,7 +1109,7 @@ function renderBox() {
   const rankOf = new Map((tops[boxState.team] || []).map((p, i) => [p, i + 1]));
   const players = team.players.map((p) => { const rk = rankOf.get(p); return `<tr class="${p.on && b.live ? 'on' : ''}${rk ? ` tp${rk}` : ''}">
       <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${rk ? `<span class="tp-rk r${rk}" aria-label="Platz ${rk}">${rk}</span>` : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
-      <td>${esc(p.min || '–')}</td><td class="${!best.length && p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
+      <td>${esc(p.min || '–')}</td><td class="${!rankOf.size && p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`; }).join('');
   setBox(dlg, `${head}${tops.some((l) => l.length) ? topPlayersHtml(m, g, b, tops) : ''}${seg}${quarters}${flowHtml(m, g, b)}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
