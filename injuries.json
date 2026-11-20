@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-19",
+ "updated": "2026-11-20",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -186,13 +186,13 @@
    "id": "",
    "name": "Nikola Mirotic",
    "team": "PAM",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-11-05",
-   "note": "Muskelverletzung",
+   "note": "Verletzung; wieder im Training, Einsatz gegen Virtus kurzfristig entschieden",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
+   "reported": "2026-11-20"
   },
   {
    "id": "",
@@ -308,11 +308,11 @@
    "team": "BAR",
    "status": "out",
    "since": "2026-11-07",
-   "note": "Knöchelverletzung aus dem ACB-Spiel gegen Breogan; fehlt u.a. bei Panathinaikos",
-   "back": "3-6 Wochen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14"
+   "note": "Verstauchung des linken Knöchels",
+   "back": "bis Ende Dezember",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037682/injury-report-round-13-smits-a-scratch-for-tonight/",
+   "reported": "2026-11-20"
   },
   {
    "id": "",
@@ -321,10 +321,10 @@
    "status": "out",
    "since": "2026-11-07",
    "note": "Muskelriss in der schrägen Bauchmuskulatur",
-   "back": "ca. 3 Wochen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14"
+   "back": "bis Anfang Dezember",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037682/injury-report-round-13-smits-a-scratch-for-tonight/",
+   "reported": "2026-11-20"
   },
   {
    "id": "",
@@ -512,11 +512,11 @@
    "team": "BAR",
    "status": "out",
    "since": "2026-11-17",
-   "note": "Bauchmuskelverletzung; fehlte gegen Paris",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
+   "note": "Verletzung in Runde 11",
+   "back": "ca. 3 Wochen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037682/injury-report-round-13-smits-a-scratch-for-tonight/",
+   "reported": "2026-11-20"
   },
   {
    "id": "",
@@ -534,13 +534,13 @@
    "id": "",
    "name": "Bruno Caboclo",
    "team": "HTA",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-11-17",
-   "note": "Wadenverletzung; fehlte bei Baskonia",
+   "note": "Wadenverletzung; Einsatz bei Paris fraglich",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
+   "reported": "2026-11-20"
   },
   {
    "id": "",
@@ -553,6 +553,78 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2036457/euroleague-roundup-kabengele-leads-dubai-past-efes/",
    "reported": "2026-11-18"
+  },
+  {
+   "id": "",
+   "name": "Rolands Smits",
+   "team": "BAS",
+   "status": "out",
+   "since": "2026-11-19",
+   "note": "Virus; fällt in Runde 13 aus",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037682/injury-report-round-13-smits-a-scratch-for-tonight/",
+   "reported": "2026-11-20"
+  },
+  {
+   "id": "",
+   "name": "Dzanan Musa",
+   "team": "DUB",
+   "status": "doubtful",
+   "since": "2026-11-19",
+   "note": "Augenverletzung im Spiel gegen Maccabi, kehrte nicht zurück; Diagnose offen",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2037858/dzanan-musa-suffered-a-severe-eye-injury/",
+   "reported": "2026-11-20"
+  },
+  {
+   "id": "",
+   "name": "Justin Anderson",
+   "team": "DUB",
+   "status": "doubtful",
+   "since": "2026-11-19",
+   "note": "Oberschenkelprobleme (Hamstring); Einsatz fraglich",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
+   "reported": "2026-11-20"
+  },
+  {
+   "id": "",
+   "name": "Vladimir Lucic",
+   "team": "MUN",
+   "status": "doubtful",
+   "since": "2026-11-17",
+   "note": "fehlte in Runde 12; Einsatz gegen Baskonia kurzfristig entschieden",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
+   "reported": "2026-11-20"
+  },
+  {
+   "id": "",
+   "name": "Justus Hollatz",
+   "team": "MUN",
+   "status": "doubtful",
+   "since": "2026-11-17",
+   "note": "fehlte in Runde 12; Einsatz gegen Baskonia kurzfristig entschieden",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
+   "reported": "2026-11-20"
+  },
+  {
+   "id": "",
+   "name": "Austin Wiley",
+   "team": "MUN",
+   "status": "doubtful",
+   "since": "2026-11-17",
+   "note": "Einsatz gegen Baskonia kurzfristig entschieden",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
+   "reported": "2026-11-20"
   }
  ]
 }
