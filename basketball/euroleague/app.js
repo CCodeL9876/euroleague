@@ -1928,7 +1928,7 @@ const podAgo = (iso) => {
 };
 const podLen = (s) => (s >= 3600 ? `${Math.floor(s / 3600)} Std. ${Math.round((s % 3600) / 60)} Min.` : s ? `${Math.round(s / 60)} Min.` : '');
 const podImg = (s, cls = 'pod-cov') => (/^https:\/\/[a-z0-9-]+\.mzstatic\.com\//.test(s.art || '') ? `<img class="${cls}" src="${esc(s.art)}" alt="" loading="lazy">` : `<span class="${cls} none" aria-hidden="true">${esc(s.name.slice(0, 2))}</span>`);
-// Variante D: eine schmale Karte «Zum Hören» (Cover + Anzahl neuer Folgen); aufgeklappt die neuste Folge je Podcast
+// Variante D: eine schmale Karte «EuroLeague Podcasts» (Cover + Anzahl neuer Folgen); aufgeklappt die neuste Folge je Podcast
 let podsOpen = false;
 function renderPods() {
   const box = $('#pods');
@@ -1940,7 +1940,7 @@ function renderPods() {
   const fresh = list.filter((s) => s.ep.at && Date.now() - Date.parse(s.ep.at) < 7 * 864e5 && !podPos(s, s.ep)?.done).length;
   box.innerHTML = `<details class="pods-card" id="podsCard"${podsOpen ? ' open' : ''}><summary>
       <span class="pods-covs" aria-hidden="true">${list.slice(0, 4).map((s) => podImg(s, 'pod-cov xs')).join('')}</span>
-      <span class="pods-sum"><b>Zum Hören</b><small>${fresh ? `${fresh} ${fresh === 1 ? 'neue Folge' : 'neue Folgen'}` : `${list.length} Podcasts`} · zuletzt ${esc(podAgo(list[0].ep.at).replace(/^[A-ZÄÖÜ]/, (c) => c.toLowerCase()))}</small></span>
+      <span class="pods-sum"><b>EuroLeague Podcasts</b><small>${fresh ? `${fresh} ${fresh === 1 ? 'neue Folge' : 'neue Folgen'}` : `${list.length} Podcasts`} · zuletzt ${esc(podAgo(list[0].ep.at).replace(/^[A-ZÄÖÜ]/, (c) => c.toLowerCase()))}</small></span>
       <span class="pods-chev" aria-hidden="true">›</span></summary>
     <div class="pods-list">${list.map((s) => {
       const on = podState.id === s.id && podState.i === 0;
