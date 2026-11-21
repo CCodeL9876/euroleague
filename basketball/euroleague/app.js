@@ -1887,7 +1887,7 @@ function podMini() {
   const cur = podCur(), s = cur?.s, bar = $('#podMini'), a = $('#podAudio');
   if (!s || !bar) { if (bar) bar.hidden = true; return; }
   bar.hidden = false;
-  bar.innerHTML = `${podImg(s, 'pod-cov sm')}<div class="pm-txt"><b>${esc(cur.ep.title)}</b><span><small>${esc(s.name)}</small><small class="num" id="podTime"></small></span>
+  bar.innerHTML = `<button type="button" class="pm-open" data-act="pod-now" aria-label="Player gross öffnen">${podImg(s, 'pod-cov sm')}</button><div class="pm-txt"><b data-act="pod-now">${esc(cur.ep.title)}</b><span><small>${esc(s.name)}</small><small class="num" id="podTime"></small></span>
     <input type="range" id="podSeek" min="0" max="1000" value="0" aria-label="Position"></div>
     <button type="button" class="pm-btn" data-act="pod-skip" data-s="-15" aria-label="15 Sekunden zurück">−15</button>
     <button type="button" class="pm-btn main" data-act="pod-toggle" aria-label="${a.paused ? 'Weiter' : 'Pause'}">${a.paused ? PLAY_SVG : '❚❚'}</button>
@@ -1900,7 +1900,91 @@ function podTick() {
   const d = a.duration || podCur()?.ep.dur || 0;
   if (document.activeElement !== seek) seek.value = d ? Math.round(a.currentTime / d * 1000) : 0;
   if (tm) tm.textContent = `${mmss(Math.floor(a.currentTime))}${d ? ` / ${mmss(Math.floor(d))}` : ''}`;
+  const ns = $('#podNowSeek');
+  if (ns) {
+    if (document.activeElement !== ns) ns.value = d ? Math.round(a.currentTime / d * 1000) : 0;
+    $('#podNowCur').textContent = mmss(Math.floor(a.currentTime));
+    $('#podNowLeft').textContent = d ? `−${mmss(Math.max(0, Math.floor(d - a.currentTime)))}` : '';
+    const sl = $('#podNowSleep'); if (sl && podSleep.until) sl.textContent = podSleepTxt();
+  }
 }
+// ---------- «Jetzt läuft»: grosse Player-Ansicht (Mini-Player antippen) ----------
+// Hintergrund in der Farbe des Covers, Tempo pro Podcast (Gerät), Schlaf-Timer, «Gehört», Teilen, danach automatisch die
+// neuste ungehörte Folge. Alles auf dem Gerät gespeichert (localStorage), nichts geht an den Server.
+const POD_RATES = [1, 1.25, 1.5, 2, 0.8];
+const POD_SLEEP = [0, 15, 30, 60, -1]; // Minuten; -1 = am Ende der Folge
+const podSleep = { m: 0, until: 0, timer: 0 };
+const podJson = (k) => { try { return JSON.parse(store.get(k, '{}')) || {}; } catch { return {}; } };
+const podRateOf = (id) => Number(podJson('el-pod-rate')[id]) || 1;
+const podAuto = () => store.get('el-pod-auto', '1') === '1';
+const podTints = new Map();
+// Mittlere Farbe des Covers (mzstatic erlaubt das Auslesen), etwas abgedunkelt, damit weisse Schrift lesbar bleibt
+function podTint(s) {
+  if (podTints.has(s.id)) return Promise.resolve(podTints.get(s.id));
+  if (!/^https:\/\/[a-z0-9-]+\.mzstatic\.com\//.test(s.art || '')) return Promise.resolve('');
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = c.height = 12;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0, 12, 12);
+        const d = x.getImageData(0, 0, 12, 12).data; let r = 0, g = 0, b = 0;
+        for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+        const n = d.length / 4, k = 0.62;
+        const col = `rgb(${Math.round(r / n * k)}, ${Math.round(g / n * k)}, ${Math.round(b / n * k)})`;
+        podTints.set(s.id, col); resolve(col);
+      } catch { podTints.set(s.id, ''); resolve(''); }
+    };
+    img.onerror = () => { podTints.set(s.id, ''); resolve(''); };
+    img.src = s.art.replace(/\d+x\d+bb\./, '60x60bb.');
+  });
+}
+// Nächste Folge: die neuste noch nicht gehörte über alle Podcasts, ohne die laufende
+function podNext() {
+  const cur = podCur(), list = [];
+  for (const s of pods || []) podEps(s).forEach((e, i) => { if (!(cur && cur.s === s && cur.ep === e) && !podPos(s, e)?.done && e.audio) list.push({ s, e, i }); });
+  return list.sort((a, b) => Date.parse(b.e.at || 0) - Date.parse(a.e.at || 0))[0] || null;
+}
+function podSetSleep(m) {
+  clearTimeout(podSleep.timer);
+  Object.assign(podSleep, { m, until: m > 0 ? Date.now() + m * 60000 : 0, timer: 0 });
+  if (m > 0) podSleep.timer = setTimeout(() => { $('#podAudio').pause(); Object.assign(podSleep, { m: 0, until: 0 }); renderPodNow(); toast('Schlaf-Timer: Wiedergabe angehalten'); }, m * 60000);
+}
+const podSleepTxt = () => (podSleep.m === -1 ? 'Folgenende' : podSleep.until ? `${Math.max(1, Math.ceil((podSleep.until - Date.now()) / 60000))} Min.` : 'Timer');
+function renderPodNow() {
+  const dlg = $('#podNow'), cur = podCur(), a = $('#podAudio');
+  if (!dlg?.open) return;
+  if (!cur) { dlg.close(); return; }
+  const { s, ep } = cur, nx = podNext(), rate = podRateOf(s.id);
+  const icon2 = (p) => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+  dlg.innerHTML = `<div class="pn-in">
+    <div class="pn-top"><button type="button" class="pn-x" data-act="pod-now-close" aria-label="Schliessen">⌄</button><span>Jetzt läuft</span><a href="${esc(s.spotify)}" target="_blank" rel="noopener">Spotify ↗</a></div>
+    ${podImg(s, 'pn-cover')}
+    <div class="pn-ti"><b id="podNowTitle">${esc(ep.title)}</b><small>${esc(s.name)} · ${esc(podAgo(ep.at))}</small></div>
+    <div class="pn-seek"><input type="range" id="podNowSeek" min="0" max="1000" value="0" aria-label="Position"><div class="num"><span id="podNowCur">0:00</span><span id="podNowLeft"></span></div></div>
+    <div class="pn-ctrl"><button type="button" class="pn-sk" data-act="pod-skip" data-s="-15" aria-label="15 Sekunden zurück">${icon2('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>')}<small>15</small></button>
+      <button type="button" class="pn-play" data-act="pod-toggle" aria-label="${a.paused ? 'Weiter' : 'Pause'}">${a.paused ? PLAY_SVG : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>'}</button>
+      <button type="button" class="pn-sk" data-act="pod-skip" data-s="30" aria-label="30 Sekunden vor">${icon2('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>')}<small>30</small></button></div>
+    <div class="pn-strip">
+      <button type="button" data-act="pod-rate" aria-label="Tempo ändern"><b class="num">${String(rate).replace('.', ',')}×</b>Tempo</button>
+      <button type="button" data-act="pod-sleep" class="${podSleep.m ? 'on' : ''}" aria-label="Schlaf-Timer">${icon2('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>')}<span id="podNowSleep">${podSleepTxt()}</span></button>
+      <button type="button" data-act="pod-done" aria-label="Als gehört markieren">${icon2('<path d="M5 12l5 5 9-10"/>')}Gehört</button>
+      <button type="button" data-act="pod-share" aria-label="Folge teilen">${icon2('<path d="M12 3v12M7 8l5-5 5 5M5 14v5h14v-5"/>')}Teilen</button></div>
+    ${nx ? `<div class="pn-next"><button type="button" class="pn-next-ep" data-act="pod-play" data-id="${esc(nx.s.id)}" data-i="${nx.i}" aria-label="Jetzt abspielen: ${esc(nx.e.title)}">${podImg(nx.s, 'pod-cov sm')}<span><small>${podAuto() ? 'Danach automatisch' : 'Als Nächstes'}</small><b>${esc(nx.e.title)}</b></span></button>
+      <label class="pn-auto"><input type="checkbox" id="podAuto"${podAuto() ? ' checked' : ''}><span>Auto</span></label></div>` : ''}
+  </div>`;
+  podTint(s).then((c) => { if (c && podCur()?.s === s) dlg.style.setProperty('--tint', c); else if (!c) dlg.style.removeProperty('--tint'); });
+  podTick();
+}
+function openPodNow() {
+  const dlg = $('#podNow');
+  if (!dlg || !podCur()) return;
+  if (!dlg.open) dlg.showModal();
+  renderPodNow();
+}
+$('#podNow')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+
 function podPlay(id, i = 0) {
   const a = $('#podAudio'), s = (pods || []).find((x) => x.id === id), ep = podEps(s)[i];
   if (!s || !ep) return;
@@ -1910,19 +1994,34 @@ function podPlay(id, i = 0) {
   a.src = ep.audio;
   const saved = podPos(s, ep);
   if (saved && !saved.done && saved.t > 10) a.addEventListener('loadedmetadata', () => { a.currentTime = Math.max(0, saved.t - 3); }, { once: true });
+  a.playbackRate = a.defaultPlaybackRate = podRateOf(id);
   a.play().catch(() => {});
   if ('mediaSession' in navigator) {
     try { navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: s.name, album: 'EuroLeague-Podcasts', artwork: s.art ? [{ src: s.art, sizes: '600x600' }] : [] }); } catch { /* ältere Browser */ }
   }
-  podMini(); renderPods();
+  podMini(); renderPods(); renderPodNow();
 }
 {
   const a = $('#podAudio');
-  ['play', 'pause', 'ended'].forEach((ev) => a.addEventListener(ev, () => { if (ev !== 'play') podSavePos(true); podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); }));
+  // iOS setzt das Tempo bei neuer Quelle zurück: beim Start wieder setzen
+  a.addEventListener('play', () => { const r = podRateOf(podState.id); if (a.playbackRate !== r) a.playbackRate = r; });
+  // Ende: Schlaf-Timer «Folgenende» stoppt; sonst (falls eingeschaltet) die nächste ungehörte Folge
+  a.addEventListener('ended', () => {
+    if (podSleep.m === -1) { podSetSleep(0); return; }
+    if (podAuto()) { const n = podNext(); if (n) setTimeout(() => podPlay(n.s.id, n.i), 600); }
+  });
+  if ('mediaSession' in navigator) {
+    const ms = navigator.mediaSession, set = (k, f) => { try { ms.setActionHandler(k, f); } catch { /* nicht unterstützt */ } };
+    set('seekbackward', () => { a.currentTime = Math.max(0, a.currentTime - 15); });
+    set('seekforward', () => { a.currentTime = Math.min(a.duration || 1e9, a.currentTime + 30); });
+    set('nexttrack', () => { const n = podNext(); if (n) podPlay(n.s.id, n.i); });
+  }
+  ['play', 'pause', 'ended'].forEach((ev) => a.addEventListener(ev, () => { if (ev !== 'play') podSavePos(true); podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); renderPodNow(); }));
   a.addEventListener('timeupdate', () => { podTick(); podSavePos(false); });
   window.addEventListener('pagehide', () => podSavePos(true));
   a.addEventListener('loadedmetadata', podTick);
-  document.addEventListener('input', (e) => { if (e.target.id === 'podSeek' && a.duration) a.currentTime = e.target.value / 1000 * a.duration; });
+  document.addEventListener('input', (e) => { if ((e.target.id === 'podSeek' || e.target.id === 'podNowSeek') && a.duration) a.currentTime = e.target.value / 1000 * a.duration; });
+  document.addEventListener('change', (e) => { if (e.target.id === 'podAuto') { store.set('el-pod-auto', e.target.checked ? '1' : '0'); renderPodNow(); } });
 }
 const videosOf = (code) => (Array.isArray(videos[code]) ? videos[code] : []);
 const mainVideo = (code) => videosOf(code).find((v) => v.k === 'main') || null;
@@ -2048,9 +2147,31 @@ document.addEventListener('click', (e) => {
   else if (act === 'pod-play') podPlay(t.dataset.id, Number(t.dataset.i || 0));
   else if (act === 'pod-open') openPodSheet(t.dataset.id);
   else if (act === 'pod-sheet-close') $('#podDlg').close();
+  else if (act === 'pod-now') openPodNow();
+  else if (act === 'pod-now-close') $('#podNow')?.close();
+  else if (act === 'pod-rate') {
+    const cur = podCur(); if (!cur) return;
+    const all = podJson('el-pod-rate'), r = POD_RATES[(POD_RATES.indexOf(podRateOf(cur.s.id)) + 1) % POD_RATES.length];
+    all[cur.s.id] = r; store.set('el-pod-rate', JSON.stringify(all)); $('#podAudio').playbackRate = r; renderPodNow();
+  } else if (act === 'pod-sleep') {
+    const m = POD_SLEEP[(POD_SLEEP.indexOf(podSleep.m) + 1) % POD_SLEEP.length]; podSetSleep(m); renderPodNow();
+    toast(m === 0 ? 'Schlaf-Timer aus' : m === -1 ? 'Stoppt am Ende der Folge' : `Stoppt in ${m} Minuten`);
+  } else if (act === 'pod-done') {
+    const cur = podCur(), a = $('#podAudio'); if (!cur) return;
+    const all = podPosAll(), d = Math.floor(a.duration || cur.ep.dur || 0);
+    all[podKey(cur.s, cur.ep)] = { t: d, d, done: true, at: Date.now() }; store.set('el-pod-pos', JSON.stringify(all));
+    const n = podAuto() ? podNext() : null;
+    if (n) podPlay(n.s.id, n.i); else { a.pause(); renderPodNow(); renderPods(); }
+    toast('Als gehört markiert');
+  } else if (act === 'pod-share') {
+    const cur = podCur(); if (!cur) return;
+    const url = cur.ep.url || cur.s.link || cur.s.spotify;
+    if (navigator.share) navigator.share({ title: cur.ep.title, text: cur.s.name, url }).catch(() => {});
+    else navigator.clipboard?.writeText(url).then(() => toast('Link kopiert')).catch(() => {});
+  }
   else if (act === 'pod-toggle') { const a = $('#podAudio'); if (a.paused) a.play().catch(() => {}); else a.pause(); }
   else if (act === 'pod-skip') { const a = $('#podAudio'); a.currentTime = Math.max(0, a.currentTime + Number(t.dataset.s)); }
-  else if (act === 'pod-close') { const a = $('#podAudio'); podSavePos(true); a.pause(); a.removeAttribute('src'); a.load(); Object.assign(podState, { id: '', i: 0 }); podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); }
+  else if (act === 'pod-close') { const a = $('#podAudio'); podSavePos(true); a.pause(); a.removeAttribute('src'); a.load(); Object.assign(podState, { id: '', i: 0 }); podSetSleep(0); podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); if ($('#podNow')?.open) $('#podNow').close(); }
   else if (act === 'search') openSearch();
   else if (act === 'search-close') $('#searchDlg').close();
   else if (act === 'search-clear') { searchState.q = ''; searchState.sel = -1; $('#psInput').value = ''; drawSearch(); $('#psInput').focus(); }
