@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-20",
+ "updated": "2026-11-21",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -18,13 +18,13 @@
    "id": "003941",
    "name": "Nikola Milutinov",
    "team": "OLY",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-11-14",
-   "note": "Bruch des Endglieds am rechten Zeigefinger; fehlt gegen Maccabi",
+   "note": "Bruch am Finger; Einsatz gegen Real Madrid kurzfristig entschieden",
    "back": "offen",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2035090/nikola-milutinov-injury-update-olympiacos-euroleague/",
-   "reported": "2026-11-15"
+   "url": "https://www.eurohoops.net/en/euroleague/2038150/euroleague-updates-latest-injury-reports-before-final-round-13-games/",
+   "reported": "2026-11-21"
   },
   {
    "id": "010042",
@@ -66,13 +66,13 @@
    "id": "",
    "name": "Derek Willis",
    "team": "PAR",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-10-31",
-   "note": "Knöchelverletzung; Einsatz gegen Valencia kurzfristig entschieden",
+   "note": "Knöchelverletzung aus Runde 1; fehlte gegen Besiktas",
    "back": "offen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
+   "reported": "2026-11-21"
   },
   {
    "id": "",
@@ -184,18 +184,6 @@
   },
   {
    "id": "",
-   "name": "Nikola Mirotic",
-   "team": "PAM",
-   "status": "doubtful",
-   "since": "2026-11-05",
-   "note": "Verletzung; wieder im Training, Einsatz gegen Virtus kurzfristig entschieden",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
-   "reported": "2026-11-20"
-  },
-  {
-   "id": "",
    "name": "Nate Reuvers",
    "team": "PAM",
    "status": "out",
@@ -224,23 +212,11 @@
    "team": "MAD",
    "status": "out",
    "since": "2026-11-05",
-   "note": "Kreuzbandriss",
-   "back": "",
-   "source": "BasketNews",
-   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
-   "reported": "2026-11-08"
-  },
-  {
-   "id": "",
-   "name": "Kevarrius Hayes",
-   "team": "PAR",
-   "status": "out",
-   "since": "2026-11-06",
-   "note": "Schulterverletzung; fehlt gegen Baskonia",
+   "note": "Achillessehnenverletzung am Final Four im Mai",
    "back": "",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
-   "reported": "2026-11-11"
+   "url": "https://www.eurohoops.net/en/euroleague/2038150/euroleague-updates-latest-injury-reports-before-final-round-13-games/",
+   "reported": "2026-11-21"
   },
   {
    "id": "",
@@ -294,13 +270,13 @@
    "id": "",
    "name": "Luca Vildoza",
    "team": "PAR",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-06",
-   "note": "Unterarmverletzung aus Runde 10; Einsatz gegen Baskonia kurzfristig entschieden",
+   "note": "Knöchelprobleme, mit denen er mehrere Spiele durchspielte; fehlte gegen Besiktas",
    "back": "",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2033031/injury-report-round-11-partizans-vildoza-jekiri-gtd-hayes-out/",
-   "reported": "2026-11-11"
+   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
+   "reported": "2026-11-21"
   },
   {
    "id": "",
@@ -380,11 +356,11 @@
    "team": "PAR",
    "status": "out",
    "since": "2026-11-12",
-   "note": "Hüftverletzung; fehlte gegen Valencia",
+   "note": "Hüftverletzung; fehlte gegen Besiktas",
    "back": "offen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
+   "reported": "2026-11-21"
   },
   {
    "id": "",
@@ -476,11 +452,11 @@
    "team": "ASV",
    "status": "out",
    "since": "2026-11-17",
-   "note": "Nasenbruch; fehlte bei Fenerbahce",
+   "note": "Nasenbruch aus Runde 11; fehlte bei Efes",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
+   "url": "https://sportando.basketball/en/euroleague-injury-report-november-20-absences-and-game-time-calls-for-round-13/",
+   "reported": "2026-11-21"
   },
   {
    "id": "",
@@ -541,18 +517,6 @@
    "source": "Sportando",
    "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
    "reported": "2026-11-20"
-  },
-  {
-   "id": "",
-   "name": "Jared Butler",
-   "team": "RED",
-   "status": "out",
-   "since": "2026-11-17",
-   "note": "Krankheit; fehlte in Mailand",
-   "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2036457/euroleague-roundup-kabengele-leads-dubai-past-efes/",
-   "reported": "2026-11-18"
   },
   {
    "id": "",
@@ -625,6 +589,18 @@
    "source": "Sportando",
    "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
    "reported": "2026-11-20"
+  },
+  {
+   "id": "",
+   "name": "Lamar Stevens",
+   "team": "PAR",
+   "status": "out",
+   "since": "2026-11-20",
+   "note": "Wadenzerrung; fehlte gegen Besiktas",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
+   "reported": "2026-11-21"
   }
  ]
 }

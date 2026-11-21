@@ -1,7 +1,97 @@
 {
- "issue": 50,
- "updated": "20. November 2026 · 07:15 Uhr (CH)",
+ "issue": 51,
+ "updated": "21. November 2026 · 07:15 Uhr (CH)",
  "items": [
+  {
+   "tag": "Resultat · Partizan",
+   "title": "Partizan bezwingt Besiktas 91:87 nach Verlängerung",
+   "text": "Partizan hat Besiktas in der 13. Runde nach Verlängerung 91:87 geschlagen und steht nun bei 7:6 Siegen. Carlik Jones erzielte 21 Punkte, darunter die letzten fünf, Kyle Allman steuerte 18 Punkte bei. Bei Besiktas reichten 22 Punkte von Lonnie Walker sowie 14 Punkte und 10 Assists von Scottie Wilbekin nicht.",
+   "time": "20.11.2026 · 23:23",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/jones-and-allman-lift-partizan-past-besiktas-91-87-in-overtime/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Resultat · Crvena Zvezda",
+   "title": "Carter führt Zvezda mit 31 Punkten zum Sieg in Barcelona",
+   "text": "Crvena Zvezda hat Barcelona nach Verlängerung 103:100 geschlagen. Tyson Carter erzielte einen Karrierebestwert von 31 Punkten und traf sieben Dreier, was den Klubrekord egalisiert. Bei Barcelona kamen Dario Brizuela auf 22 und Justin Robinson auf 21 Punkte.",
+   "time": "20.11.2026 · 23:12",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/carters-career-high-31-lifts-zvezda-past-barcelona-103-100-in-overtime/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Resultat · Olympiacos",
+   "title": "Olympiacos schlägt Real Madrid 92:76",
+   "text": "Olympiacos hat Real Madrid 92:76 besiegt und liegt mit 10:3 Siegen gleichauf mit Valencia an der Tabellenspitze. Tyrique Jones kam auf eine Saisonbestleistung von 22 Punkten und 8 Rebounds, Evan Fournier auf 17 Punkte. Real fällt auf 7:6 zurück, bester Werfer war Theo Maledon mit 17 Punkten.",
+   "time": "20.11.2026 · 22:56",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/jones-posts-22-points-and-8-rebounds-as-olympiacos-completes-a-perfect-double-game-week/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Stimmen · Olympiacos",
+   "title": "Tyrique Jones: \"Ein bisschen Sasha in mir\"",
+   "text": "Tyrique Jones hatte in 111 EuroLeague-Spielen nie einen Dreier versucht, bis er gegen Real Madrid zur Pause von jenseits der Mittellinie traf. \"Ich hatte bei diesem Wurf ein bisschen Sasha in mir\", sagte der Center mit Blick auf Sasha Vezenkov. Ob Dreier künftig Teil seines Spiels werden, müsse Trainer Georgios Bartzokas entscheiden.",
+   "time": "20.11.2026 · 22:34",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038456/tyrique-jones-channels-vezenkov-i-had-a-little-sasha-in-me/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Resultat · Anadolu Efes",
+   "title": "Efes gewinnt deutlich 107:81 gegen ASVEL",
+   "text": "Anadolu Efes hat ASVEL in der 13. Runde 107:81 geschlagen, ohne je in Rückstand zu liegen. Jordan Loyd und Matthew Strazel erzielten je 20 Punkte. Efes steht nun bei 6:7, ASVEL bei 4:9 Siegen.",
+   "time": "20.11.2026 · 20:37",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038308/euroleague-roundup-anadolu-efes-cruises-past-asvel/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Verletzungen · Partizan",
+   "title": "Partizan ohne Stevens und Vildoza, Hayes zurück",
+   "text": "Lamar Stevens (Wadenzerrung) und Luca Vildoza (Knöchelprobleme) fehlten Partizan im Heimspiel gegen Besiktas. Auch Derek Willis und Ethan Thompson bleiben verletzt ausser Gefecht. Center Kevarrius Hayes kehrte nach fünf verpassten Spielen wegen einer Schulterverletzung zurück.",
+   "time": "20.11.2026 · 18:22",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Transfer · Virtus Bologna",
+   "title": "Abass kehrt von Dubai zu Virtus zurück",
+   "text": "Virtus Bologna hat Awudu Abass bis Saisonende verpflichtet, nachdem Dubai den Abgang des italienischen Forwards bekanntgegeben hatte. Abass spielte bereits von 2020 bis 2024 für Virtus und bestritt 183 Partien. Mit dem Klub gewann er unter anderem eine italienische Meisterschaft und den EuroCup.",
+   "time": "20.11.2026 · 12:43",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/virtus-bologna-officially-sign-awudu-abass-through-end-of-season/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Verletzungen · Liga",
+   "title": "Moneke fehlt erneut, Milutinov und Hayes fraglich",
+   "text": "Vor den letzten vier Spielen der 13. Runde hat die Liga ihren Verletzungsbericht aktualisiert. Chima Moneke fehlt Crvena Zvezda auf Entscheid von Trainer Ibon Navarro das zweite Spiel in Folge, David Kramer spielt mit Nasenbruch und Schutzmaske. Bei Real Madrid fallen Jantunen, Campazzo, Deck und Garuba weiter aus.",
+   "time": "20.11.2026 · 11:44",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038150/euroleague-updates-latest-injury-reports-before-final-round-13-games/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Transfergerücht · Partizan",
+   "title": "Olympiacos fragte nach Carlik Jones, Partizan lehnt ab",
+   "text": "Olympiacos hat laut Mozzart Sport bei Partizan wegen Carlik Jones angefragt, aber sofort eine Absage erhalten. Präsident Ostoja Mijailovic bestätigte, Jones habe einen garantierten Vertrag für diese und die nächste Saison ohne Ausstiegsklausel: \"Der Klub ist nicht interessiert, ihn zu verkaufen.\" Olympiacos sucht wegen des langen Ausfalls von Jean Montero Verstärkung.",
+   "time": "20.11.2026 · 11:36",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/carlik-jones-olympiacos-e2-million-speculation-meets-partizan-rejection/",
+   "firstShown": "21.11.2026"
+  },
+  {
+   "tag": "Stimmen · Paris",
+   "title": "Hifi trifft zum dritten Mal in Folge zum Sieg",
+   "text": "Nadir Hifi hat in drei aufeinanderfolgenden EuroLeague-Spielen den entscheidenden Wurf getroffen, zuletzt beim 97:96 gegen Hapoel Tel Aviv mit einem Dreier 17 Sekunden vor Schluss. Paris hat damit sechs Spiele in Folge gewonnen, alle mit höchstens sechs Punkten Differenz. \"Ich brauche einen Kardiologen\", scherzte Trainer Maxime Lefèvre.",
+   "time": "20.11.2026 · 09:41",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/nadir-hifi-hits-third-straight-game-winner-i-need-a-cardiologist-says-paris-coach/",
+   "firstShown": "21.11.2026"
+  },
   {
    "tag": "Resultat · Valencia",
    "title": "Valencia dreht Spiel gegen Virtus und siegt 92:87",
@@ -39,22 +129,13 @@
    "firstShown": "20.11.2026"
   },
   {
-   "tag": "Resultat · Paris",
-   "title": "Hifi entscheidet erneut: Paris schlägt Hapoel 97:96",
-   "text": "Nadir Hifi traf 16 Sekunden vor Schluss den Dreier zum 97:96-Sieg gegen Hapoel Tel Aviv, es ist sein dritter Siegtreffer in Folge. Paris gewann damit das sechste EuroLeague-Spiel in Serie. \"Maybe we're going to break that streak of 10 in a row. We're going to try\", sagte Hifi.",
-   "time": "19.11.2026 · 23:10",
+   "tag": "Stimmen · Olimpia Milano",
+   "title": "Wright: \"Wir haben genug vom Verlieren\"",
+   "text": "Nach zwei Siegen in Folge sieht Center Moses Wright ein verändertes Milano. \"Wir haben genug vom Verlieren. Wir sind so schlecht in die Saison gestartet, und wir wissen, dass das nicht unsere Identität ist\", sagte er nach dem Comeback-Sieg gegen Fenerbahce. Wright kam in diesem Spiel auf 22 Punkte und 11 Rebounds.",
+   "time": "19.11.2026 · 22:47",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2038034/nadir-hifi-keeps-winning-it-for-paris-maybe-well-break-that-streak-of-10/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Transfers · Partizan",
-   "title": "Partizan schliesst Verkauf von Carlik Jones aus",
-   "text": "Partizan-Präsident Ostoja Mijailovic hat Gerüchte über einen Wechsel von Carlik Jones zu Olympiacos zurückgewiesen. Jones habe einen garantierten Vertrag für diese und die nächste Saison ohne Ausstiegsklausel. \"The club is not interested in selling him\", sagte Mijailovic.",
-   "time": "19.11.2026 · 23:03",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2038023/partizan-president-rules-out-carlik-jones-sale/",
-   "firstShown": "20.11.2026"
+   "url": "https://www.eurohoops.net/en/euroleague/2038000/moses-wright-sees-a-different-milan-we-are-tired-of-losing/",
+   "firstShown": "21.11.2026"
   },
   {
    "tag": "Stimmen · Zalgiris",
@@ -63,87 +144,6 @@
    "time": "19.11.2026 · 22:46",
    "source": "BasketNews",
    "url": "https://basketnews.com/news-259873-zalgiris-members-question-referees-after-pao-loss-its-really-strange.html",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Verletzungen · Dubai",
-   "title": "Musa erleidet Augenverletzung beim Sieg gegen Maccabi",
-   "text": "Dzanan Musa wurde beim 80:74-Sieg von Dubai gegen Maccabi im dritten Viertel bei einem Zug zum Korb am Auge getroffen und kehrte nicht mehr aufs Feld zurück. Er sass danach mit abgedecktem Auge auf der Bank, eine Diagnose liegt nicht vor. Dwayne Bacon war mit 18 Punkten bester Werfer von Dubai, das nun bei 9:4 Siegen steht.",
-   "time": "19.11.2026 · 20:32",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037858/dzanan-musa-suffered-a-severe-eye-injury/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Resultat · Dubai",
-   "title": "Dubai dreht Spiel gegen Maccabi und gewinnt 80:74",
-   "text": "Dubai hat in Limassol gegen Maccabi Tel Aviv nach Rückstand 80:74 gewonnen und die Doppelrunde mit zwei Siegen abgeschlossen. Dwayne Bacon war mit 18 Punkten einziger Dubai-Spieler mit zweistelliger Punktzahl, Mfiondu Kabengele holte 11 Rebounds. Bei Maccabi (3:10) erzielte Yam Madar 17 Punkte.",
-   "time": "19.11.2026 · 20:21",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037815/euroleague-roundup-dubai-erases-a-15-point-deficit-and-defeats-maccabi/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Klub · Partizan",
-   "title": "Sani Becirovic wird neuer Direktor von Partizan",
-   "text": "Der Verwaltungsrat von Partizan hat Sani Becirovic zum neuen Klubdirektor ernannt. Becirovic war zuvor bei Panathinaikos und Zenit tätig. Der bisherige Direktor Dule Karavesovic bleibt als Direktor für Entwicklung im Klub.",
-   "time": "19.11.2026 · 19:51",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037837/sani-becirovic-is-the-new-director-of-partizan/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Transfers · Barcelona",
-   "title": "Hayes will mit Barcelona Titel gewinnen",
-   "text": "Killian Hayes ist in Barcelona offiziell vorgestellt worden und soll den geschwächten Aufbau verstärken. \"I want to win. I want to be a winner. And bring championships to this club\", sagte der 25-Jährige. Trainer Aleksander Sekulic sieht ihn neben allen Aufbauspielern des Teams einsetzbar.",
-   "time": "19.11.2026 · 13:30",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037672/killian-hayes-talks-barcelona-move-goals-euroleague/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Verletzungen · Baskonia",
-   "title": "Smits fällt wegen Virus aus",
-   "text": "Baskonia muss in Runde 13 auf Rolands Smits verzichten, der wegen eines Virus ausfällt. Der Lette hatte erst in Runde 12 debütiert. Laut Verletzungsbericht kann Barcelona-Neuzugang Killian Hayes in Runde 13 sein Debüt geben.",
-   "time": "19.11.2026 · 12:33",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037682/injury-report-round-13-smits-a-scratch-for-tonight/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Stimmen · Olympiacos",
-   "title": "Bartzokas: Dorsey nicht im Kader, Milutinov fehlt wohl",
-   "text": "Tyler Dorsey steht gegen Real Madrid nicht im Aufgebot von Olympiacos, obwohl seine Suspendierung beendet ist. \"As long as that is lacking, he cannot be part of the team\", sagte Trainer Georgios Bartzokas mit Blick auf ein geregeltes Training. Center Nikola Milutinov dürfte wegen seines Fingerbruchs zum dritten Mal in Folge fehlen.",
-   "time": "19.11.2026 · 12:21",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037668/tyler-dorsey-nikola-milutinov-updates-olympiacos-euroleague/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Auszeichnung · Olympiacos",
-   "title": "Vezenkov MVP der Runde 12, gleichauf mit Larkin",
-   "text": "Sasha Vezenkov ist zum MVP der Runde 12 gewählt worden, es ist seine 19. Auszeichnung, womit er den Rekord von Shane Larkin einstellt. Beim Sieg in Tel Aviv erzielte er 37 Punkte und eine Effizienz von 41. Mit einem Wurf von der Mittellinie hatte er die Verlängerung erzwungen.",
-   "time": "19.11.2026 · 12:02",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037619/sasha-vezenkov-round-12-mvp-euroleague/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Liga · EuroLeague",
-   "title": "EU-Kommissar fordert Einigkeit im europäischen Basketball",
-   "text": "EU-Sportkommissar Glenn Micallef hat vor einer weiteren Zersplitterung durch das geplante NBA Europe gewarnt. Er hatte zuvor einen Waffenstillstand zwischen Euroleague Basketball und FIBA gefordert. \"This is high time for European basketball to unite and to find solutions together\", sagte Micallef in Brüssel.",
-   "time": "19.11.2026 · 11:33",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037647/eu-commissioner-talks-nba-europe-euroleague-fiba/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Liga · NBA Europe",
-   "title": "Tatum hält an Start von NBA Europe 2027 fest",
-   "text": "NBA-Vizekommissar Mark Tatum hat bekräftigt, dass NBA Europe weiterhin 2027 starten soll, die Gespräche mit Investoren laufen. Geplant sind 12 feste Franchises in den grössten Märkten Europas und vier offene Plätze. Gespielt werden soll nach FIBA-Regeln.",
-   "time": "18.11.2026 · 23:37",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/nba-news/2037489/tatum-on-nba-europe-we-still-plan-on-rolling-out-the-project-in-2027/",
    "firstShown": "20.11.2026"
   }
  ]
