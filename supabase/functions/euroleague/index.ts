@@ -56,6 +56,9 @@
 //   mit dem Secret SUPABASE_SERVICE_ROLE_KEY (Tabelle selbst bleibt per RLS für alle anderen gesperrt).
 //   Einrichtung: README.md.
 //
+//   GET ?podcasts=1 → neuste Folge je Podcast aus PODCASTS: { updated, shows: [{ id, name, by, art, link, spotify, ep: { title, at, dur, audio, url } }] }
+//     Feed-Adresse über die öffentliche Apple-Suche (itunes.apple.com/lookup, einmal pro Tag), dann der RSS-Feed des Podcasts (stündlich).
+//     Kein Spotify-Konto, kein Schlüssel. Weitere Podcasts: Eintrag in PODCASTS mit der Apple-Podcasts-Nummer.
 //   GET ?videos=1 → Videos des offiziellen YouTube-Kanals «EUROLEAGUE BASKETBALL», den Spielen zugeordnet:
 //   → { updated, games: { "86": [{ id, t: Titel, k: 'main'|'last5'|'player'|'pre'|'other', d: Sekunden, at }] } }
 //     Braucht das Secret YOUTUBE_KEY (YouTube Data API v3); ohne Schlüssel { games: {} }. Liest die Uploads-Liste
@@ -843,6 +846,52 @@ async function videoCacheSet(key, data) {
 }
 
 let videoLoading = null;
+// ---------- Podcasts (Leiste «Neu zum Hören» über den News) ----------
+// apple = Nummer aus der Apple-Podcasts-Adresse (…/id1783605539). spotify (optional) = Show-Nummer aus open.spotify.com/show/…
+const PODCASTS = [
+  { id: 'elf', apple: '1783605539', name: 'EuroLeague & Friends', by: 'EuroLeague' },
+  { id: 'urbonus', apple: '1575852310', name: 'URBONUS', by: 'BasketNews' },
+  { id: 'fantasy', apple: '1718246437', name: 'Fantasy Challenge', by: 'EuroLeague' },
+];
+const podMem = new Map();
+const xmlTxt = (s) => String(s || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, '')
+  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+  .replace(/&quot;/g, '"').replace(/&apos;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
+const xmlTag = (s, tag) => { const m = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, 'i').exec(s); return m ? xmlTxt(m[1]) : ''; };
+const xmlAttr = (s, tag, attr) => { const m = new RegExp(`<${tag}\\s[^>]*${attr}="([^"]+)"`, 'i').exec(s); return m ? xmlTxt(m[1]) : ''; };
+// Dauer «3125», «52:05» oder «1:02:05» → Sekunden
+const podDur = (s) => { const p = String(s || '').split(':').map(Number); return p.some((x) => !Number.isFinite(x)) ? 0 : p.reduce((a, b) => a * 60 + b, 0); };
+async function podShow(pc, now) {
+  const hit = podMem.get(pc.id);
+  if (hit && now - hit.at < 60 * 60 * 1000) return hit.data;
+  let meta = hit?.meta;
+  if (!meta || now - hit.metaAt > 24 * 3600 * 1000) {
+    const r = await getJson(`https://itunes.apple.com/lookup?id=${pc.apple}&entity=podcast`);
+    const x = r?.results?.[0] || {};
+    meta = { feed: String(x.feedUrl || ''), art: String(x.artworkUrl600 || x.artworkUrl100 || ''), link: String(x.collectionViewUrl || '').split('?')[0] };
+  }
+  if (!/^https:\/\//.test(meta.feed)) throw new Error('kein Feed');
+  const res = await fetch(meta.feed, { headers: { accept: 'application/rss+xml, application/xml, text/xml' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const xml = await res.text();
+  // Neuste Folge mit Audiodatei (Feeds sind fast immer neu → alt, zur Sicherheit nach Datum)
+  const items = (xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || []).slice(0, 15).map((it) => ({
+    title: xmlTag(it, 'title'), at: Date.parse(xmlTag(it, 'pubDate')) || 0, dur: podDur(xmlTag(it, 'itunes:duration')),
+    audio: xmlAttr(it, 'enclosure', 'url'), url: xmlTag(it, 'link'), img: xmlAttr(it, 'itunes:image', 'href') }))
+    .filter((e) => e.title && /^https:\/\//.test(e.audio)).sort((a, b) => b.at - a.at);
+  const ep = items[0] || null;
+  const data = { id: pc.id, name: pc.name, by: pc.by, art: meta.art, link: meta.link,
+    spotify: pc.spotify ? `https://open.spotify.com/show/${pc.spotify}` : `https://open.spotify.com/search/${encodeURIComponent(pc.name)}/podcasts`,
+    ep: ep ? { title: ep.title, at: ep.at ? new Date(ep.at).toISOString() : '', dur: ep.dur, audio: ep.audio, url: /^https:\/\//.test(ep.url) ? ep.url : '' } : null };
+  podMem.set(pc.id, { at: now, data, meta, metaAt: hit?.meta === meta ? hit.metaAt : now });
+  return data;
+}
+async function podcastsOf(now) {
+  const t = now.getTime();
+  const shows = await Promise.all(PODCASTS.map((pc) => podShow(pc, t).catch(() => podMem.get(pc.id)?.data || null)));
+  return { updated: new Date().toISOString(), shows: shows.filter((s) => s?.ep) };
+}
+
 async function videosOf(season, now) {
   const key = Deno.env.get('YOUTUBE_KEY') || '';
   if (!key) return { updated: now.toISOString(), games: {} };
@@ -1058,6 +1107,14 @@ async function handle(req) {
       return new Response(JSON.stringify(d), { headers: { ...headers, 'Cache-Control': `public, max-age=${d.pending ? 5 : 600}` } });
     } catch {
       return new Response(JSON.stringify({ error: 'Die Teamwerte sind gerade nicht erreichbar.' }), { status: 502, headers });
+    }
+  }
+  if (params.has('podcasts')) {
+    const headers = { ...cors, 'Content-Type': 'application/json' };
+    try {
+      return new Response(JSON.stringify(await podcastsOf(now)), { headers: { ...headers, 'Cache-Control': 'public, max-age=900' } });
+    } catch {
+      return new Response(JSON.stringify({ error: 'Die Podcasts sind gerade nicht erreichbar.' }), { status: 502, headers });
     }
   }
   if (params.has('videos')) {

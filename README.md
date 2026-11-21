@@ -19,6 +19,7 @@ Drei gleichgestellte Bereiche: `/` ist «Mein Sport» (`index.html`, `meinsport/
 | Spielerseite (Antippen eines Spielernamens: Steckbrief, Stationen, Formkurve, Spiel für Spiel, Karriere) | Supabase-Funktion `euroleague` mit `?player=…&team=…` (Personen-, Kader-, Statistik- und Wurfdaten der EuroLeague; alle früheren Vereine aus der englischen Wikipedia, Liga/Land aus Wikidata) | beim Öffnen, höchstens alle 10 Minuten neu |
 | Statistiken & Fakten (Kachel „Fakten“: NBA-Erfahrung, ewige Bestenlisten, Kader-Fakten) | Supabase-Funktion `euroleague` mit `?facts=1` (Kader und ewige Statistik der EuroLeague, Vereinsgeschichten aus Wikipedia/Wikidata) | höchstens alle 12 Stunden neu; der erste Abruf dauert bis ~30 s |
 | Highlights-Videos (Leiste über den Resultaten, ▶ in der Spielzeile, Reiter „Videos“ im Spielbericht) | Supabase-Funktion `euroleague` mit `?videos=1` (Uploads des YouTube-Kanals «EUROLEAGUE BASKETBALL», über die Teamnamen im Titel den Spielen zugeordnet; Secret `YOUTUBE_KEY`) | höchstens alle 30 Minuten neu |
+| Podcasts (Leiste «Neu zum Hören» über den News, eigener Player) | Supabase-Funktion `euroleague` mit `?podcasts=1` (Feed-Adresse über die Apple-Suche, dann der öffentliche RSS-Feed; Liste `PODCASTS` in der Funktion) | stündlich, die Seite fragt alle 30 Minuten |
 | News (16 Meldungen) | `news.json` in diesem Repository | täglich um 07:15 durch eine Claude-Aufgabe |
 | Lieblingsteams | ohne Profil: nur lokal auf dem Gerät (`localStorage`); mit Profil (Name+PIN): Tabelle `el_profiles`, über die Funktion `euroleague` | bei jeder Änderung |
 

@@ -1801,6 +1801,78 @@ async function loadVideos() {
     if (res.ok && d?.games && typeof d.games === 'object') videos = d.games;
   } catch { /* Videos sind nur eine Beigabe */ }
 }
+// ---------- Podcasts: Leiste «Neu zum Hören» über den News, eigener Player (?podcasts=1) ----------
+// Abgespielt wird die Audiodatei aus dem Podcast-Feed; Spotify erst beim Antippen von «Spotify ↗» (kein Tracking beim Öffnen)
+let pods = null, podsAt = 0;
+const POD_POLL_MS = 30 * 60 * 1000;
+const podState = { id: '' };
+async function loadPods() {
+  if (testData) return;
+  podsAt = Date.now();
+  try {
+    const res = await fetch(`${DATA_URL}?podcasts=1`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) });
+    const d = await res.json();
+    if (res.ok && Array.isArray(d?.shows)) { pods = d.shows; renderPods(); }
+  } catch { /* Podcasts sind nur eine Beigabe */ }
+}
+const podAgo = (iso) => {
+  const d = Math.floor((Date.now() - Date.parse(iso)) / 864e5);
+  return !iso ? '' : d <= 0 ? 'Heute' : d === 1 ? 'Gestern' : d < 7 ? `Vor ${d} Tagen` : new Date(iso).toLocaleDateString('de-CH', { day: 'numeric', month: 'numeric' });
+};
+const podLen = (s) => (s >= 3600 ? `${Math.floor(s / 3600)} Std. ${Math.round((s % 3600) / 60)} Min.` : s ? `${Math.round(s / 60)} Min.` : '');
+const podImg = (s, cls = 'pod-cov') => (/^https:\/\/[a-z0-9-]+\.mzstatic\.com\//.test(s.art || '') ? `<img class="${cls}" src="${esc(s.art)}" alt="" loading="lazy">` : `<span class="${cls} none" aria-hidden="true">${esc(s.name.slice(0, 2))}</span>`);
+function renderPods() {
+  const box = $('#pods');
+  if (!box) return;
+  const list = [...(pods || [])].sort((a, b) => Date.parse(b.ep.at || 0) - Date.parse(a.ep.at || 0));
+  box.hidden = !list.length;
+  if (!list.length) return;
+  const audio = $('#podAudio'), playing = audio && !audio.paused;
+  box.innerHTML = `<h2 class="pods-h">Neu zum Hören</h2><div class="pods-strip">${list.map((s) => {
+    const fresh = s.ep.at && Date.now() - Date.parse(s.ep.at) < 3 * 864e5, on = podState.id === s.id;
+    return `<article class="pod${on ? ' on' : ''}">${podImg(s)}<div class="pod-txt"><b title="${esc(s.ep.title)}">${esc(s.ep.title)}</b>
+      <small>${esc(s.name)} · ${esc(s.by)}</small><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(s.ep.at))}${s.ep.dur ? ` · ${podLen(s.ep.dur)}` : ''}</small></div>
+      <div class="pod-acts"><button type="button" class="pod-play" data-act="pod-play" data-id="${esc(s.id)}" aria-label="${on && playing ? 'Pause' : 'Abspielen'}: ${esc(s.ep.title)}">${on && playing ? '❚❚ Pause' : `${PLAY_SVG} Abspielen`}</button>
+      <a class="pod-ext" href="${esc(s.spotify)}" target="_blank" rel="noopener">Spotify ↗</a></div></article>`;
+  }).join('')}</div>`;
+}
+function podMini() {
+  const s = (pods || []).find((x) => x.id === podState.id), bar = $('#podMini'), a = $('#podAudio');
+  if (!s || !bar) { if (bar) bar.hidden = true; return; }
+  bar.hidden = false;
+  bar.innerHTML = `${podImg(s, 'pod-cov sm')}<div class="pm-txt"><b>${esc(s.ep.title)}</b><span><small>${esc(s.name)}</small><small class="num" id="podTime"></small></span>
+    <input type="range" id="podSeek" min="0" max="1000" value="0" aria-label="Position"></div>
+    <button type="button" class="pm-btn" data-act="pod-skip" data-s="-15" aria-label="15 Sekunden zurück">−15</button>
+    <button type="button" class="pm-btn main" data-act="pod-toggle" aria-label="${a.paused ? 'Weiter' : 'Pause'}">${a.paused ? PLAY_SVG : '❚❚'}</button>
+    <button type="button" class="pm-btn" data-act="pod-close" aria-label="Player schliessen">×</button>`;
+  podTick();
+}
+function podTick() {
+  const a = $('#podAudio'), seek = $('#podSeek'), tm = $('#podTime');
+  if (!a || !seek) return;
+  const d = a.duration || (pods || []).find((x) => x.id === podState.id)?.ep.dur || 0;
+  if (document.activeElement !== seek) seek.value = d ? Math.round(a.currentTime / d * 1000) : 0;
+  if (tm) tm.textContent = `${mmss(Math.floor(a.currentTime))}${d ? ` / ${mmss(Math.floor(d))}` : ''}`;
+}
+function podPlay(id) {
+  const a = $('#podAudio'), s = (pods || []).find((x) => x.id === id);
+  if (!s) return;
+  if (podState.id === id) { if (a.paused) a.play().catch(() => {}); else a.pause(); return; }
+  podState.id = id;
+  a.src = s.ep.audio;
+  a.play().catch(() => {});
+  if ('mediaSession' in navigator) {
+    try { navigator.mediaSession.metadata = new MediaMetadata({ title: s.ep.title, artist: s.name, album: 'EuroLeague-Podcasts', artwork: s.art ? [{ src: s.art, sizes: '600x600' }] : [] }); } catch { /* ältere Browser */ }
+  }
+  podMini(); renderPods();
+}
+{
+  const a = $('#podAudio');
+  ['play', 'pause', 'ended'].forEach((ev) => a.addEventListener(ev, () => { podMini(); renderPods(); }));
+  a.addEventListener('timeupdate', podTick);
+  a.addEventListener('loadedmetadata', podTick);
+  document.addEventListener('input', (e) => { if (e.target.id === 'podSeek' && a.duration) a.currentTime = e.target.value / 1000 * a.duration; });
+}
 const videosOf = (code) => (Array.isArray(videos[code]) ? videos[code] : []);
 const mainVideo = (code) => videosOf(code).find((v) => v.k === 'main') || null;
 const ytThumb = (id) => `https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg`;
@@ -1855,7 +1927,7 @@ let dataTimer, newsAt = 0;
 async function refresh({ withNews = false } = {}) {
   clearTimeout(dataTimer);
   const [, newsChanged] = await Promise.all([loadData(), withNews || Date.now() - newsAt > NEWS_POLL_MS ? loadNews() : Promise.resolve(false),
-    Date.now() - videosAt > VIDEO_POLL_MS ? loadVideos() : null]);
+    Date.now() - videosAt > VIDEO_POLL_MS ? loadVideos() : null, Date.now() - podsAt > POD_POLL_MS ? loadPods() : null]);
   if (withNews || newsChanged) { newsAt = Date.now(); renderFeed(); }
   render();
   if ($('#teamDlg').open) renderTeamPage();
@@ -1922,6 +1994,10 @@ document.addEventListener('click', (e) => {
   } else if (act === 'leader-cat') { leaderState.cat = t.dataset.cat; render(); }
   else if (act === 'leader-fav') { leaderState.fav = t.checked; render(); }
   else if (act === 'theme') toggleTheme();
+  else if (act === 'pod-play') podPlay(t.dataset.id);
+  else if (act === 'pod-toggle') { const a = $('#podAudio'); if (a.paused) a.play().catch(() => {}); else a.pause(); }
+  else if (act === 'pod-skip') { const a = $('#podAudio'); a.currentTime = Math.max(0, a.currentTime + Number(t.dataset.s)); }
+  else if (act === 'pod-close') { const a = $('#podAudio'); a.pause(); a.removeAttribute('src'); a.load(); podState.id = ''; podMini(); renderPods(); }
   else if (act === 'search') openSearch();
   else if (act === 'search-close') $('#searchDlg').close();
   else if (act === 'search-clear') { searchState.q = ''; searchState.sel = -1; $('#psInput').value = ''; drawSearch(); $('#psInput').focus(); }
