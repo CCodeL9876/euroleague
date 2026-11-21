@@ -37,12 +37,11 @@
     <main class="col col-center" id="center" aria-label="Spieltag"><p class="notice">Lade Spiele …</p></main>
     <aside class="col col-right" aria-label="News">
       <div class="feed-head" id="feedHead"></div>
-      <section class="pods" id="pods" aria-label="Neu zum Hören" hidden></section>
-      <div class="feed-tools">
+      <div class="feed-tools" id="feedTools" hidden>
         <label class="sr-only" for="newsSearch">News durchsuchen</label>
-        <input id="newsSearch" type="search" placeholder="News durchsuchen …" autocomplete="off">
-        <div class="src" id="src" role="group" aria-label="Quelle"></div>
+        <input id="newsSearch" type="search" placeholder="Spieler, Team, Thema …" autocomplete="off" enterkeyhint="search">
       </div>
+      <section class="pods" id="pods" aria-label="Neu zum Hören" hidden></section>
       <section class="grid" id="feed" aria-label="Meldungen"></section>
       <p class="sources-note">Die Meldungen stammen aus einer festen Auswahl von Basketball-Portalen (Sportando, Eurohoops, BasketNews, RealGM) und werden täglich zusammengefasst. Resultate, Spielplan und Live-Stände kommen direkt von der EuroLeague.</p>
     </aside>
