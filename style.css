@@ -1407,6 +1407,9 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .pod-open:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}
 .pods .pod-txt{cursor:pointer;}
 .pod-dlg{max-width:520px;}
+.pod-prog{display:block;height:3px;margin-top:5px;background:var(--line);border-radius:2px;overflow:hidden;}
+.pod-prog i{display:block;height:100%;background:var(--gold);}
+.pod-txt small.pod-pos{color:var(--dim);}
 .pod-sh{align-items:center;gap:12px;}
 .pod-sh > div{flex:1;min-width:0;}
 .pod-sh h2{margin:0;}

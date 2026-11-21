@@ -1807,6 +1807,29 @@ let pods = null, podsAt = 0;
 const POD_POLL_MS = 30 * 60 * 1000;
 const podState = { id: '', i: 0 };
 const podEps = (s) => (Array.isArray(s?.eps) && s.eps.length ? s.eps : s?.ep ? [s.ep] : []);
+// Weiterhören: Position pro Folge auf diesem Gerät (localStorage), höchstens 60 Folgen; «gehört» ab 60 s vor Schluss
+const podKey = (s, e) => `${s.id}|${e.at || e.title}`;
+const podPosAll = () => { try { return JSON.parse(store.get('el-pod-pos', '{}')) || {}; } catch { return {}; } };
+const podPos = (s, e) => podPosAll()[podKey(s, e)] || null;
+function podSavePos(force) {
+  const cur = podCur(), a = $('#podAudio');
+  if (!cur || !a.src || (!force && Date.now() - (podSavePos.at || 0) < 5000)) return;
+  podSavePos.at = Date.now();
+  const d = a.duration || cur.ep.dur || 0, done = a.ended || (d > 120 && a.currentTime > d - 60);
+  const all = podPosAll(), k = podKey(cur.s, cur.ep);
+  if (a.currentTime < 10 && !done && !all[k]) return;
+  all[k] = { t: Math.floor(a.currentTime), d: Math.floor(d), done: done || !!all[k]?.done, at: Date.now() };
+  const keys = Object.keys(all).sort((x, y) => all[y].at - all[x].at);
+  keys.slice(60).forEach((x) => delete all[x]);
+  store.set('el-pod-pos', JSON.stringify(all));
+}
+// Fortschritt einer Folge: Balken plus «Weiterhören bei …» bzw. «Gehört»
+function podProg(s, e) {
+  const p = podPos(s, e);
+  if (!p) return '';
+  const d = p.d || e.dur || 0, w = p.done ? 100 : d ? Math.min(100, Math.round(p.t / d * 100)) : 0;
+  return `<span class="pod-prog" aria-hidden="true"><i style="width:${w}%"></i></span><small class="pod-pos">${p.done ? '✓ Gehört' : `Weiterhören bei ${mmss(p.t)}`}</small>`;
+}
 const podCur = () => { const s = (pods || []).find((x) => x.id === podState.id); return s ? { s, ep: podEps(s)[podState.i] || s.ep } : null; };
 async function loadPods() {
   if (testData) return;
@@ -1833,7 +1856,7 @@ function renderPods() {
   box.innerHTML = `<h2 class="pods-h">Neu zum Hören</h2><div class="pods-strip">${list.map((s) => {
     const fresh = s.ep.at && Date.now() - Date.parse(s.ep.at) < 3 * 864e5, on = podState.id === s.id && podState.i === 0;
     return `<article class="pod${on ? ' on' : ''}"><button type="button" class="pod-open" data-act="pod-open" data-id="${esc(s.id)}" aria-label="Folgen von ${esc(s.name)} anzeigen">${podImg(s)}</button><div class="pod-txt" data-act="pod-open" data-id="${esc(s.id)}"><b title="${esc(s.ep.title)}">${esc(s.ep.title)}</b>
-      <small>${esc(s.name)} · ${esc(s.by)}</small><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(s.ep.at))}${s.ep.dur ? ` · ${podLen(s.ep.dur)}` : ''}</small></div>
+      <small>${esc(s.name)} · ${esc(s.by)}</small><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(s.ep.at))}${s.ep.dur ? ` · ${podLen(s.ep.dur)}` : ''}</small>${podProg(s, s.ep)}</div>
       <div class="pod-acts"><button type="button" class="pod-play" data-act="pod-play" data-id="${esc(s.id)}" aria-label="${on && playing ? 'Pause' : 'Abspielen'}: ${esc(s.ep.title)}">${on && playing ? '❚❚ Pause' : `${PLAY_SVG} Abspielen`}</button>
       ${podEps(s).length > 1 ? `<button type="button" class="pod-ext" data-act="pod-open" data-id="${esc(s.id)}">Folgen</button>` : ''}<a class="pod-ext" href="${esc(s.spotify)}" target="_blank" rel="noopener">Spotify ↗</a></div></article>`;
   }).join('')}</div>`;
@@ -1849,7 +1872,7 @@ function renderPodSheet() {
     <ol class="pod-eps">${eps.map((e, i) => {
       const on = podState.id === s.id && podState.i === i, playing = on && !a.paused;
       const fresh = e.at && Date.now() - Date.parse(e.at) < 3 * 864e5;
-      return `<li class="${on ? 'on' : ''}"><div class="pod-txt"><b>${esc(e.title)}</b><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(e.at))}${e.dur ? ` · ${podLen(e.dur)}` : ''}</small></div>
+      return `<li class="${on ? 'on' : ''}"><div class="pod-txt"><b>${esc(e.title)}</b><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(e.at))}${e.dur ? ` · ${podLen(e.dur)}` : ''}</small>${podProg(s, e)}</div>
         <button type="button" class="pm-btn${playing ? '' : ' main'}" data-act="pod-play" data-id="${esc(s.id)}" data-i="${i}" aria-label="${playing ? 'Pause' : 'Abspielen'}: ${esc(e.title)}">${playing ? '❚❚' : PLAY_SVG}</button></li>`;
     }).join('')}</ol></div>`;
 }
@@ -1882,8 +1905,11 @@ function podPlay(id, i = 0) {
   const a = $('#podAudio'), s = (pods || []).find((x) => x.id === id), ep = podEps(s)[i];
   if (!s || !ep) return;
   if (podState.id === id && podState.i === i) { if (a.paused) a.play().catch(() => {}); else a.pause(); return; }
+  podSavePos(true);
   Object.assign(podState, { id, i });
   a.src = ep.audio;
+  const saved = podPos(s, ep);
+  if (saved && !saved.done && saved.t > 10) a.addEventListener('loadedmetadata', () => { a.currentTime = Math.max(0, saved.t - 3); }, { once: true });
   a.play().catch(() => {});
   if ('mediaSession' in navigator) {
     try { navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: s.name, album: 'EuroLeague-Podcasts', artwork: s.art ? [{ src: s.art, sizes: '600x600' }] : [] }); } catch { /* ältere Browser */ }
@@ -1892,8 +1918,9 @@ function podPlay(id, i = 0) {
 }
 {
   const a = $('#podAudio');
-  ['play', 'pause', 'ended'].forEach((ev) => a.addEventListener(ev, () => { podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); }));
-  a.addEventListener('timeupdate', podTick);
+  ['play', 'pause', 'ended'].forEach((ev) => a.addEventListener(ev, () => { if (ev !== 'play') podSavePos(true); podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); }));
+  a.addEventListener('timeupdate', () => { podTick(); podSavePos(false); });
+  window.addEventListener('pagehide', () => podSavePos(true));
   a.addEventListener('loadedmetadata', podTick);
   document.addEventListener('input', (e) => { if (e.target.id === 'podSeek' && a.duration) a.currentTime = e.target.value / 1000 * a.duration; });
 }
@@ -2023,7 +2050,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'pod-sheet-close') $('#podDlg').close();
   else if (act === 'pod-toggle') { const a = $('#podAudio'); if (a.paused) a.play().catch(() => {}); else a.pause(); }
   else if (act === 'pod-skip') { const a = $('#podAudio'); a.currentTime = Math.max(0, a.currentTime + Number(t.dataset.s)); }
-  else if (act === 'pod-close') { const a = $('#podAudio'); a.pause(); a.removeAttribute('src'); a.load(); Object.assign(podState, { id: '', i: 0 }); podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); }
+  else if (act === 'pod-close') { const a = $('#podAudio'); podSavePos(true); a.pause(); a.removeAttribute('src'); a.load(); Object.assign(podState, { id: '', i: 0 }); podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); }
   else if (act === 'search') openSearch();
   else if (act === 'search-close') $('#searchDlg').close();
   else if (act === 'search-clear') { searchState.q = ''; searchState.sel = -1; $('#psInput').value = ''; drawSearch(); $('#psInput').focus(); }
