@@ -1083,6 +1083,8 @@ async function handleProfile(body, cors) {
   return new Response(JSON.stringify({ ok: false, error: 'unbekannte Aktion' }), { status: 400, headers });
 }
 
+// Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
+const FN_VERSION = '2026-11-21';
 async function handle(req) {
   const cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -1096,6 +1098,7 @@ async function handle(req) {
   const now = new Date();
   const season = seasonCode(now);
   const params = new URL(req.url).searchParams;
+  if (params.has('version')) return new Response(JSON.stringify({ fn: 'euroleague', version: FN_VERSION }), { headers: { ...cors, 'Content-Type': 'application/json' } });
   if (params.has('players')) {
     const headers = { ...cors, 'Content-Type': 'application/json' };
     try {

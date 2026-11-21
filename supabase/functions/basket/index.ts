@@ -310,12 +310,15 @@ async function bvn(league) {
   });
 }
 
+// Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
+const FN_VERSION = '2026-11-21';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET' }), { status: 405, headers });
   const p = new URL(req.url).searchParams;
+  if (p.has('version')) return new Response(JSON.stringify({ fn: 'basket', version: FN_VERSION }), { headers });
   try {
     if (p.has('sblleaders')) return new Response(JSON.stringify(await sblLeaders()), { headers: { ...headers, 'Cache-Control': 'max-age=600' } });
     if (p.has('sbl')) return new Response(JSON.stringify(await sbl()), { headers: { ...headers, 'Cache-Control': 'max-age=15' } });

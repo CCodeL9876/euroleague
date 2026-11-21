@@ -149,6 +149,8 @@ Dieser Tick prüft nun auch fällige Vor-/Nach-Spiel-Aktualisierungen: Aufstellu
 Statistiken nach Spielende sowie Tabellen und Torschützenlisten nach dem letzten beendeten Spiel der Liga am lokalen Tag.
 Teamstatistiken kommen nach Spielende von Big Balls (dauerhaft im Cache); während des Spiels liefert Sportradar sie für UCL, Premier League und Championship.
 
+Versionsabgleich: Jede Funktion antwortet auf `?version=1` mit `{ fn, version }` (Konstante `FN_VERSION` im Code, bei jeder Änderung erhöhen). So lässt sich prüfen, ob die bei Supabase laufende Version dem Repository entspricht.
+
 Tests der reinen Funktionen (ohne Netz): `/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc -m supabase/functions/tests.mjs`
 Spielpläne werden täglich zwischengespeichert; Live-Spielstände behalten ihre eigenen kürzeren Intervalle.
 

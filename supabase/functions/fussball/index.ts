@@ -1718,6 +1718,8 @@ async function pushMessages(endpoint, now) {
 }
 
 let lastViewMark = 0;
+// Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
+const FN_VERSION = '2026-11-21';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
@@ -1731,6 +1733,7 @@ async function handle(req) {
   }
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET oder POST' }), { status: 405, headers });
   const params = new URL(req.url).searchParams;
+  if (params.has('version')) return new Response(JSON.stringify({ fn: 'fussball', version: FN_VERSION }), { headers });
   if (params.has('usage')) return new Response(JSON.stringify(await usageReport(Date.now())), { headers });
   if (params.has('fbpushtick')) {
     try { return new Response(JSON.stringify(await pushTick(Date.now())), { headers }); }
