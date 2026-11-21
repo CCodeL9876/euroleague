@@ -56,7 +56,8 @@
 //   mit dem Secret SUPABASE_SERVICE_ROLE_KEY (Tabelle selbst bleibt per RLS für alle anderen gesperrt).
 //   Einrichtung: README.md.
 //
-//   GET ?podcasts=1 → neuste Folge je Podcast aus PODCASTS: { updated, shows: [{ id, name, by, art, link, spotify, ep: { title, at, dur, audio, url } }] }
+//   GET ?podcasts=1 → neuste Folge je Podcast aus PODCASTS: { updated, shows: [{ id, name, by, art, link, spotify, ep, eps: [bis 4 Folgen, neuste zuerst; ep = eps[0]] }] }
+//     ep/eps: { title, at, dur, audio, url }
 //     Feed-Adresse über die öffentliche Apple-Suche (itunes.apple.com/lookup, einmal pro Tag), dann der RSS-Feed des Podcasts (stündlich).
 //     Kein Spotify-Konto, kein Schlüssel. Weitere Podcasts: Eintrag in PODCASTS mit der Apple-Podcasts-Nummer.
 //   GET ?videos=1 → Videos des offiziellen YouTube-Kanals «EUROLEAGUE BASKETBALL», den Spielen zugeordnet:
@@ -881,10 +882,11 @@ async function podShow(pc, now) {
     title: xmlTag(it, 'title'), at: Date.parse(xmlTag(it, 'pubDate')) || 0, dur: podDur(xmlTag(it, 'itunes:duration')),
     audio: xmlAttr(it, 'enclosure', 'url'), url: xmlTag(it, 'link'), img: xmlAttr(it, 'itunes:image', 'href') }))
     .filter((e) => e.title && /^https:\/\//.test(e.audio)).sort((a, b) => b.at - a.at);
-  const ep = items[0] || null;
+  const epOf = (e) => ({ title: e.title, at: e.at ? new Date(e.at).toISOString() : '', dur: e.dur, audio: e.audio, url: /^https:\/\//.test(e.url) ? e.url : '' });
+  const eps = items.slice(0, 4).map(epOf);
   const data = { id: pc.id, name: pc.name, by: pc.by, art: meta.art, link: meta.link,
     spotify: pc.spotify ? `https://open.spotify.com/show/${pc.spotify}` : `https://open.spotify.com/search/${encodeURIComponent(pc.name)}`,
-    ep: ep ? { title: ep.title, at: ep.at ? new Date(ep.at).toISOString() : '', dur: ep.dur, audio: ep.audio, url: /^https:\/\//.test(ep.url) ? ep.url : '' } : null };
+    ep: eps[0] || null, eps };
   podMem.set(pc.id, { at: now, data, meta, metaAt: hit?.meta === meta ? hit.metaAt : now });
   return data;
 }

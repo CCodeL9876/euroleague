@@ -1402,6 +1402,20 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .pm-btn{width:36px;height:36px;flex:none;border:0;border-radius:50%;background:var(--card);color:var(--text);font:inherit;font-size:0.75rem;font-weight:600;cursor:pointer;display:grid;place-items:center;}
 .pm-btn.main{background:var(--blue);color:var(--on-color);}
 .pm-btn svg{width:14px;height:14px;fill:currentColor;}
+
+.pod-open{all:unset;cursor:pointer;border-radius:12px;}
+.pod-open:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}
+.pods .pod-txt{cursor:pointer;}
+.pod-dlg{max-width:520px;}
+.pod-sh{align-items:center;gap:12px;}
+.pod-sh > div{flex:1;min-width:0;}
+.pod-sh h2{margin:0;}
+.pod-cov.lg{width:64px;height:64px;border-radius:14px;}
+.pod-eps{list-style:none;margin:0;padding:0;}
+.pod-eps li{display:flex;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid var(--line);}
+.pod-eps li.on .pod-txt b{color:var(--blue-hi);}
+.pod-eps .pod-txt{flex:1;}
+.pod-eps .pod-txt b{-webkit-line-clamp:3;}
 @media (max-width:820px){
   .pods{padding:4px 16px 14px;border-bottom:0;}
   .pod-mini{left:max(12px, env(safe-area-inset-left, 0px));right:max(12px, env(safe-area-inset-right, 0px));width:auto;bottom:calc(92px + env(safe-area-inset-bottom, 0px));}

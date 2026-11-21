@@ -1805,7 +1805,9 @@ async function loadVideos() {
 // Abgespielt wird die Audiodatei aus dem Podcast-Feed; Spotify erst beim Antippen von «Spotify ↗» (kein Tracking beim Öffnen)
 let pods = null, podsAt = 0;
 const POD_POLL_MS = 30 * 60 * 1000;
-const podState = { id: '' };
+const podState = { id: '', i: 0 };
+const podEps = (s) => (Array.isArray(s?.eps) && s.eps.length ? s.eps : s?.ep ? [s.ep] : []);
+const podCur = () => { const s = (pods || []).find((x) => x.id === podState.id); return s ? { s, ep: podEps(s)[podState.i] || s.ep } : null; };
 async function loadPods() {
   if (testData) return;
   podsAt = Date.now();
@@ -1829,18 +1831,40 @@ function renderPods() {
   if (!list.length) return;
   const audio = $('#podAudio'), playing = audio && !audio.paused;
   box.innerHTML = `<h2 class="pods-h">Neu zum Hören</h2><div class="pods-strip">${list.map((s) => {
-    const fresh = s.ep.at && Date.now() - Date.parse(s.ep.at) < 3 * 864e5, on = podState.id === s.id;
-    return `<article class="pod${on ? ' on' : ''}">${podImg(s)}<div class="pod-txt"><b title="${esc(s.ep.title)}">${esc(s.ep.title)}</b>
+    const fresh = s.ep.at && Date.now() - Date.parse(s.ep.at) < 3 * 864e5, on = podState.id === s.id && podState.i === 0;
+    return `<article class="pod${on ? ' on' : ''}"><button type="button" class="pod-open" data-act="pod-open" data-id="${esc(s.id)}" aria-label="Folgen von ${esc(s.name)} anzeigen">${podImg(s)}</button><div class="pod-txt" data-act="pod-open" data-id="${esc(s.id)}"><b title="${esc(s.ep.title)}">${esc(s.ep.title)}</b>
       <small>${esc(s.name)} · ${esc(s.by)}</small><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(s.ep.at))}${s.ep.dur ? ` · ${podLen(s.ep.dur)}` : ''}</small></div>
       <div class="pod-acts"><button type="button" class="pod-play" data-act="pod-play" data-id="${esc(s.id)}" aria-label="${on && playing ? 'Pause' : 'Abspielen'}: ${esc(s.ep.title)}">${on && playing ? '❚❚ Pause' : `${PLAY_SVG} Abspielen`}</button>
-      <a class="pod-ext" href="${esc(s.spotify)}" target="_blank" rel="noopener">Spotify ↗</a></div></article>`;
+      ${podEps(s).length > 1 ? `<button type="button" class="pod-ext" data-act="pod-open" data-id="${esc(s.id)}">Folgen</button>` : ''}<a class="pod-ext" href="${esc(s.spotify)}" target="_blank" rel="noopener">Spotify ↗</a></div></article>`;
   }).join('')}</div>`;
 }
+// Blatt mit den letzten Folgen eines Podcasts (Antippen von Cover, Titel oder «Folgen»)
+function renderPodSheet() {
+  const dlg = $('#podDlg'), s = (pods || []).find((x) => x.id === dlg.dataset.id);
+  if (!s) return;
+  const a = $('#podAudio'), eps = podEps(s);
+  dlg.innerHTML = `<div class="box-in"><div class="box-top pod-sh">${podImg(s, 'pod-cov lg')}<div><h2 id="podDlgTitle">${esc(s.name)}</h2><p class="box-note small">${esc(s.by)} · ${eps.length === 1 ? 'neuste Folge' : `${eps.length} letzte Folgen`}</p></div>
+    <button type="button" class="box-close" data-act="pod-sheet-close" aria-label="Schliessen">×</button></div>
+    <div class="pod-acts"><a class="pod-ext" href="${esc(s.spotify)}" target="_blank" rel="noopener">In Spotify öffnen ↗</a>${s.link ? `<a class="pod-ext" href="${esc(s.link)}" target="_blank" rel="noopener">Apple Podcasts ↗</a>` : ''}</div>
+    <ol class="pod-eps">${eps.map((e, i) => {
+      const on = podState.id === s.id && podState.i === i, playing = on && !a.paused;
+      const fresh = e.at && Date.now() - Date.parse(e.at) < 3 * 864e5;
+      return `<li class="${on ? 'on' : ''}"><div class="pod-txt"><b>${esc(e.title)}</b><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(e.at))}${e.dur ? ` · ${podLen(e.dur)}` : ''}</small></div>
+        <button type="button" class="pm-btn${playing ? '' : ' main'}" data-act="pod-play" data-id="${esc(s.id)}" data-i="${i}" aria-label="${playing ? 'Pause' : 'Abspielen'}: ${esc(e.title)}">${playing ? '❚❚' : PLAY_SVG}</button></li>`;
+    }).join('')}</ol></div>`;
+}
+function openPodSheet(id) {
+  const dlg = $('#podDlg');
+  dlg.dataset.id = id;
+  renderPodSheet();
+  if (!dlg.open) dlg.showModal();
+}
+$('#podDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 function podMini() {
-  const s = (pods || []).find((x) => x.id === podState.id), bar = $('#podMini'), a = $('#podAudio');
+  const cur = podCur(), s = cur?.s, bar = $('#podMini'), a = $('#podAudio');
   if (!s || !bar) { if (bar) bar.hidden = true; return; }
   bar.hidden = false;
-  bar.innerHTML = `${podImg(s, 'pod-cov sm')}<div class="pm-txt"><b>${esc(s.ep.title)}</b><span><small>${esc(s.name)}</small><small class="num" id="podTime"></small></span>
+  bar.innerHTML = `${podImg(s, 'pod-cov sm')}<div class="pm-txt"><b>${esc(cur.ep.title)}</b><span><small>${esc(s.name)}</small><small class="num" id="podTime"></small></span>
     <input type="range" id="podSeek" min="0" max="1000" value="0" aria-label="Position"></div>
     <button type="button" class="pm-btn" data-act="pod-skip" data-s="-15" aria-label="15 Sekunden zurück">−15</button>
     <button type="button" class="pm-btn main" data-act="pod-toggle" aria-label="${a.paused ? 'Weiter' : 'Pause'}">${a.paused ? PLAY_SVG : '❚❚'}</button>
@@ -1850,25 +1874,25 @@ function podMini() {
 function podTick() {
   const a = $('#podAudio'), seek = $('#podSeek'), tm = $('#podTime');
   if (!a || !seek) return;
-  const d = a.duration || (pods || []).find((x) => x.id === podState.id)?.ep.dur || 0;
+  const d = a.duration || podCur()?.ep.dur || 0;
   if (document.activeElement !== seek) seek.value = d ? Math.round(a.currentTime / d * 1000) : 0;
   if (tm) tm.textContent = `${mmss(Math.floor(a.currentTime))}${d ? ` / ${mmss(Math.floor(d))}` : ''}`;
 }
-function podPlay(id) {
-  const a = $('#podAudio'), s = (pods || []).find((x) => x.id === id);
-  if (!s) return;
-  if (podState.id === id) { if (a.paused) a.play().catch(() => {}); else a.pause(); return; }
-  podState.id = id;
-  a.src = s.ep.audio;
+function podPlay(id, i = 0) {
+  const a = $('#podAudio'), s = (pods || []).find((x) => x.id === id), ep = podEps(s)[i];
+  if (!s || !ep) return;
+  if (podState.id === id && podState.i === i) { if (a.paused) a.play().catch(() => {}); else a.pause(); return; }
+  Object.assign(podState, { id, i });
+  a.src = ep.audio;
   a.play().catch(() => {});
   if ('mediaSession' in navigator) {
-    try { navigator.mediaSession.metadata = new MediaMetadata({ title: s.ep.title, artist: s.name, album: 'EuroLeague-Podcasts', artwork: s.art ? [{ src: s.art, sizes: '600x600' }] : [] }); } catch { /* ältere Browser */ }
+    try { navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: s.name, album: 'EuroLeague-Podcasts', artwork: s.art ? [{ src: s.art, sizes: '600x600' }] : [] }); } catch { /* ältere Browser */ }
   }
   podMini(); renderPods();
 }
 {
   const a = $('#podAudio');
-  ['play', 'pause', 'ended'].forEach((ev) => a.addEventListener(ev, () => { podMini(); renderPods(); }));
+  ['play', 'pause', 'ended'].forEach((ev) => a.addEventListener(ev, () => { podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); }));
   a.addEventListener('timeupdate', podTick);
   a.addEventListener('loadedmetadata', podTick);
   document.addEventListener('input', (e) => { if (e.target.id === 'podSeek' && a.duration) a.currentTime = e.target.value / 1000 * a.duration; });
@@ -1994,10 +2018,12 @@ document.addEventListener('click', (e) => {
   } else if (act === 'leader-cat') { leaderState.cat = t.dataset.cat; render(); }
   else if (act === 'leader-fav') { leaderState.fav = t.checked; render(); }
   else if (act === 'theme') toggleTheme();
-  else if (act === 'pod-play') podPlay(t.dataset.id);
+  else if (act === 'pod-play') podPlay(t.dataset.id, Number(t.dataset.i || 0));
+  else if (act === 'pod-open') openPodSheet(t.dataset.id);
+  else if (act === 'pod-sheet-close') $('#podDlg').close();
   else if (act === 'pod-toggle') { const a = $('#podAudio'); if (a.paused) a.play().catch(() => {}); else a.pause(); }
   else if (act === 'pod-skip') { const a = $('#podAudio'); a.currentTime = Math.max(0, a.currentTime + Number(t.dataset.s)); }
-  else if (act === 'pod-close') { const a = $('#podAudio'); a.pause(); a.removeAttribute('src'); a.load(); podState.id = ''; podMini(); renderPods(); }
+  else if (act === 'pod-close') { const a = $('#podAudio'); a.pause(); a.removeAttribute('src'); a.load(); Object.assign(podState, { id: '', i: 0 }); podMini(); renderPods(); if ($('#podDlg').open) renderPodSheet(); }
   else if (act === 'search') openSearch();
   else if (act === 'search-close') $('#searchDlg').close();
   else if (act === 'search-clear') { searchState.q = ''; searchState.sel = -1; $('#psInput').value = ''; drawSearch(); $('#psInput').focus(); }
@@ -2199,7 +2225,7 @@ function setupPullToRefresh() {
   };
   const reset = () => { ind.style.transform = ''; ind.style.opacity = ''; ind.classList.remove('is-ready'); };
   window.addEventListener('touchstart', (e) => {
-    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open || $('#searchDlg').open) return;
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || favEdit || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open || $('#searchDlg').open || $('#podDlg').open) return;
     startY = e.touches[0].clientY; startX = e.touches[0].clientX; dy = 0;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
@@ -2274,7 +2300,7 @@ function setupInstallHint() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const shareIcon = '<svg class="ins-ico" viewBox="0 0 24 24" aria-label="Teilen"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
   setTimeout(() => {
-    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open || $('#searchDlg').open) return;
+    if ((standalone() && !force) || $('#box').open || $('#teamDlg').open || $('#playerDlg').open || $('#factsDlg').open || $('#statsDlg').open || $('#infoDlg').open || $('#searchDlg').open || $('#podDlg').open) return;
     const howto = ios
       ? `Tippe in Safari auf ${shareIcon} <b>Teilen</b> (bei neueren iPhones im Menü <b>«…»</b>) und dann auf <b>«Zum Home-Bildschirm»</b>. Danach öffnet sich die Seite wie eine App – ohne Adresszeile.`
       : installEvent ? 'Mit einem Tipp auf «Installieren» liegt die Seite wie eine App auf deinem Startbildschirm.'
