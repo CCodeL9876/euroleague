@@ -852,7 +852,7 @@ let videoLoading = null;
 const PODCASTS = [
   { id: 'elf', apple: '1783605539', name: 'EuroLeague & Friends', by: 'EuroLeague' },
   { id: 'urbonus', apple: '1575852310', name: 'URBONUS', by: 'BasketNews', spotify: '67Qozfzo6tbAg8KOppRSP9' },
-  { id: 'fantasy', apple: '1718246437', name: 'Fantasy Challenge', by: 'EuroLeague' },
+  { id: 'fantasy', apple: '1718246437', name: 'Fantasy Challenge', by: 'EuroLeague', spotify: '0yyAMe3GurZaEZZiGX3F2R' },
   { id: 'bbde', apple: '1042941282', name: '#BasketballDeutschland', by: 'MagentaSport', spotify: '6zXZbwojTZCBdDVCG7VvTA' },
   { id: 'coast', apple: '1830461736', name: 'Coast To Coast', by: 'BasketNews' },
 ];
