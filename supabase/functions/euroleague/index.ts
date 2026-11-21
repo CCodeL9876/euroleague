@@ -853,6 +853,7 @@ const PODCASTS = [
   { id: 'urbonus', apple: '1575852310', name: 'URBONUS', by: 'BasketNews' },
   { id: 'fantasy', apple: '1718246437', name: 'Fantasy Challenge', by: 'EuroLeague' },
   { id: 'bbde', apple: '1042941282', name: '#BasketballDeutschland', by: 'MagentaSport', spotify: '6zXZbwojTZCBdDVCG7VvTA' },
+  { id: 'coast', apple: '1830461736', name: 'Coast To Coast', by: 'BasketNews' },
 ];
 const podMem = new Map();
 const xmlTxt = (s) => String(s || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, '')
