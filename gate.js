@@ -46,9 +46,9 @@ async function verify(key, code) {
       signal: AbortSignal.timeout(10000),
     });
     const data = await res.json().catch(() => null);
-    return Boolean(data?.ok);
+    return { ok: Boolean(data?.ok), locked: Boolean(data?.locked) };
   } catch {
-    return false;
+    return { ok: false, locked: false };
   }
 }
 
@@ -97,6 +97,7 @@ function showPrompt(key) {
   const linkInput = gate.querySelector('#gateLink');
   const btn = gate.querySelector('#gateGo');
   const err = gate.querySelector('#gateErr');
+  const errText = err.textContent;
   (linkInput || input).focus();
 
   form.addEventListener('submit', async (e) => {
@@ -106,7 +107,7 @@ function showPrompt(key) {
     if (!code || !key) return;
     btn.disabled = true;
     btn.textContent = 'Prüfe …';
-    const ok = await verify(key, code);
+    const { ok, locked } = await verify(key, code);
     if (ok) {
       remember(key);
       cleanUrl();
@@ -116,6 +117,7 @@ function showPrompt(key) {
     }
     btn.disabled = false;
     btn.textContent = 'Weiter';
+    err.textContent = locked ? 'Zu viele Fehlversuche. Bitte in 15 Minuten nochmals versuchen.' : errText;
     err.hidden = false;
     input.value = '';
     input.focus();

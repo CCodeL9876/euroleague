@@ -957,13 +957,25 @@ function sameString(a, b) {
   return diff === 0;
 }
 
-function handleGate(body, cors) {
+// Sperre gegen Durchprobieren: 5 Fehlversuche pro IP-Adresse, dann 15 Min. gesperrt. Gespeichert wird nur eine
+// Prüfsumme der Adresse (el_fb_cache «gatefail:<Hash>»), nicht die Adresse selbst.
+const GATE_TRIES = 5, GATE_LOCK_MS = 15 * 60 * 1000;
+async function handleGate(body, cors, req) {
   const headers = { ...cors, 'Content-Type': 'application/json' };
   const gateKey = Deno.env.get('GATE_KEY') || '';
   const gateCode = Deno.env.get('GATE_CODE') || '';
   const key = String(body?.key ?? '');
   const code = String(body?.code ?? '');
+  const ip = String(req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || '').split(',')[0].trim() || 'unbekannt';
+  const fk = `gatefail:${(await sha256Hex(`gate:${ip}`)).slice(0, 24)}`;
+  const f = await videoCacheGet(fk).catch(() => null);
+  if (f?.until && Date.now() < f.until) return new Response(JSON.stringify({ ok: false, locked: true, until: f.until }), { status: 429, headers });
   const ok = Boolean(gateKey) && Boolean(gateCode) && sameString(key, gateKey) && sameString(code, gateCode);
+  if (ok) { if (f?.n) await videoCacheSet(fk, { n: 0, until: 0 }).catch(() => {}); }
+  else {
+    const n = (f?.n || 0) + 1;
+    await videoCacheSet(fk, n >= GATE_TRIES ? { n: 0, until: Date.now() + GATE_LOCK_MS } : { n, until: 0 }).catch(() => {});
+  }
   return new Response(JSON.stringify({ ok }), { status: ok ? 200 : 401, headers });
 }
 
@@ -1084,7 +1096,7 @@ async function handleProfile(body, cors) {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-21';
+const FN_VERSION = '2026-11-21b';
 async function handle(req) {
   const cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -1092,7 +1104,7 @@ async function handle(req) {
     let body;
     try { body = await req.json(); } catch { return new Response(JSON.stringify({ ok: false }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }); }
     if (body && typeof body.kind === 'string' && body.kind.startsWith('profile-')) return handleProfile(body, cors);
-    return handleGate(body, cors);
+    return handleGate(body, cors, req);
   }
   if (req.method !== 'GET') return new Response(JSON.stringify({ error: 'nur GET oder POST' }), { status: 405, headers: { ...cors, 'Content-Type': 'application/json' } });
   const now = new Date();
