@@ -1971,23 +1971,24 @@ function openPodSheet(id) {
   if (!dlg.open) dlg.showModal();
 }
 $('#podDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+// Mini-Leiste (Variante 3): Farbe des Covers, Fortschritt als Ring um Pause/Weiter, 30 s vor. Antippen öffnet das Blatt.
+const POD_RING = 2 * Math.PI * 19;
 function podMini() {
   const cur = podCur(), s = cur?.s, bar = $('#podMini'), a = $('#podAudio');
-  if (!s || !bar) { if (bar) bar.hidden = true; return; }
-  bar.hidden = false;
-  bar.innerHTML = `<button type="button" class="pm-open" data-act="pod-now" aria-label="Player gross öffnen">${podImg(s, 'pod-cov sm')}</button><div class="pm-txt"><b data-act="pod-now">${esc(cur.ep.title)}</b><span><small>${esc(s.name)}</small><small class="num" id="podTime"></small></span>
-    <input type="range" id="podSeek" min="0" max="1000" value="0" aria-label="Position"></div>
-    <button type="button" class="pm-btn" data-act="pod-skip" data-s="-15" aria-label="15 Sekunden zurück">−15</button>
-    <button type="button" class="pm-btn main" data-act="pod-toggle" aria-label="${a.paused ? 'Weiter' : 'Pause'}">${a.paused ? PLAY_SVG : '❚❚'}</button>
-    <button type="button" class="pm-btn" data-act="pod-close" aria-label="Player schliessen">×</button>`;
+  if (!s || !bar) { if (bar) bar.hidden = true; document.body.classList.remove('pod-on'); return; }
+  bar.hidden = false; document.body.classList.add('pod-on');
+  bar.innerHTML = `<button type="button" class="pm-open" data-act="pod-now" aria-label="Player öffnen: ${esc(cur.ep.title)}">${podImg(s, 'pod-cov sm')}<span class="pm-txt"><b>${esc(cur.ep.title)}</b><small>${esc(s.name)}</small></span></button>
+    <button type="button" class="pm-skip" data-act="pod-skip" data-s="30" aria-label="30 Sekunden vor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg><small>30</small></button>
+    <span class="pm-ring"><svg viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="19" class="bg"/><circle cx="21" cy="21" r="19" class="fg" id="podRing" stroke-dasharray="${POD_RING.toFixed(1)}" stroke-dashoffset="${POD_RING.toFixed(1)}"/></svg>
+      <button type="button" data-act="pod-toggle" aria-label="${a.paused ? 'Weiter' : 'Pause'}">${a.paused ? PLAY_SVG : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>'}</button></span>`;
+  podTint(s).then((c) => { if (podCur()?.s === s) { if (c) bar.style.setProperty('--tint', c); else bar.style.removeProperty('--tint'); } });
   podTick();
 }
 function podTick() {
-  const a = $('#podAudio'), seek = $('#podSeek'), tm = $('#podTime');
-  if (!a || !seek) return;
-  const d = a.duration || podCur()?.ep.dur || 0;
-  if (document.activeElement !== seek) seek.value = d ? Math.round(a.currentTime / d * 1000) : 0;
-  if (tm) tm.textContent = `${mmss(Math.floor(a.currentTime))}${d ? ` / ${mmss(Math.floor(d))}` : ''}`;
+  const a = $('#podAudio');
+  if (!a) return;
+  const d = a.duration || podCur()?.ep.dur || 0, ring = $('#podRing');
+  if (ring) ring.setAttribute('stroke-dashoffset', (POD_RING * (1 - (d ? Math.min(1, a.currentTime / d) : 0))).toFixed(1));
   const ns = $('#podNowSeek');
   if (ns) {
     if (document.activeElement !== ns) ns.value = d ? Math.round(a.currentTime / d * 1000) : 0;
@@ -2029,40 +2030,41 @@ function podTint(s) {
   });
 }
 // Nächste Folge: die neuste noch nicht gehörte über alle Podcasts, ohne die laufende
-function podNext() {
+function podQueue(n = 3) {
   const cur = podCur(), list = [];
   for (const s of pods || []) podEps(s).forEach((e, i) => { if (!(cur && cur.s === s && cur.ep === e) && !podPos(s, e)?.done && e.audio) list.push({ s, e, i }); });
-  return list.sort((a, b) => Date.parse(b.e.at || 0) - Date.parse(a.e.at || 0))[0] || null;
+  return list.sort((a, b) => Date.parse(b.e.at || 0) - Date.parse(a.e.at || 0)).slice(0, n);
 }
+const podNext = () => podQueue(1)[0] || null;
 function podSetSleep(m) {
   clearTimeout(podSleep.timer);
   Object.assign(podSleep, { m, until: m > 0 ? Date.now() + m * 60000 : 0, timer: 0 });
   if (m > 0) podSleep.timer = setTimeout(() => { $('#podAudio').pause(); Object.assign(podSleep, { m: 0, until: 0 }); renderPodNow(); toast('Schlaf-Timer: Wiedergabe angehalten'); }, m * 60000);
 }
 const podSleepTxt = () => (podSleep.m === -1 ? 'Folgenende' : podSleep.until ? `${Math.max(1, Math.ceil((podSleep.until - Date.now()) / 60000))} Min.` : 'Timer');
+// Grosse Ansicht (Variante C): halbes Blatt über der App. Kopf, Zeitleiste, Steuerung, Optionen in einer Reihe, «Danach»
 function renderPodNow() {
   const dlg = $('#podNow'), cur = podCur(), a = $('#podAudio');
   if (!dlg?.open) return;
   if (!cur) { dlg.close(); return; }
-  const { s, ep } = cur, nx = podNext(), rate = podRateOf(s.id);
-  const icon2 = (p) => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
-  dlg.innerHTML = `<div class="pn-in">
-    <div class="pn-top"><button type="button" class="pn-x" data-act="pod-now-close" aria-label="Schliessen">⌄</button><span>Jetzt läuft</span><a href="${esc(s.spotify)}" target="_blank" rel="noopener">Spotify ↗</a></div>
-    ${podImg(s, 'pn-cover')}
-    <div class="pn-ti"><b id="podNowTitle">${esc(ep.title)}</b><small>${esc(s.name)} · ${esc(podAgo(ep.at))}</small></div>
+  const { s, ep } = cur, rate = podRateOf(s.id), q = podQueue(3);
+  const svg = (p, cls = '') => `<svg viewBox="0 0 24 24" aria-hidden="true"${cls ? ` class="${cls}"` : ''}>${p}</svg>`;
+  dlg.innerHTML = `<div class="pn-in"><span class="pn-grab" aria-hidden="true"></span>
+    <div class="pn-hd">${podImg(s, 'pn-cov')}<div class="pn-ti"><b id="podNowTitle">${esc(ep.title)}</b><small>${esc(s.name)}, ${esc(podAgo(ep.at).replace(/^[A-ZÄÖÜ]/, (c) => c.toLowerCase()))}</small></div>
+      <button type="button" class="pn-x" data-act="pod-now-close" aria-label="Schliessen">${svg('<path d="M6 9l6 6 6-6"/>')}</button></div>
     <div class="pn-seek"><input type="range" id="podNowSeek" min="0" max="1000" value="0" aria-label="Position"><div class="num"><span id="podNowCur">0:00</span><span id="podNowLeft"></span></div></div>
-    <div class="pn-ctrl"><button type="button" class="pn-sk" data-act="pod-skip" data-s="-15" aria-label="15 Sekunden zurück">${icon2('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>')}<small>15</small></button>
-      <button type="button" class="pn-play" data-act="pod-toggle" aria-label="${a.paused ? 'Weiter' : 'Pause'}">${a.paused ? PLAY_SVG : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>'}</button>
-      <button type="button" class="pn-sk" data-act="pod-skip" data-s="30" aria-label="30 Sekunden vor">${icon2('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>')}<small>30</small></button></div>
-    <div class="pn-strip">
-      <button type="button" data-act="pod-rate" aria-label="Tempo ändern"><b class="num">${String(rate).replace('.', ',')}×</b>Tempo</button>
-      <button type="button" data-act="pod-sleep" class="${podSleep.m ? 'on' : ''}" aria-label="Schlaf-Timer">${icon2('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>')}<span id="podNowSleep">${podSleepTxt()}</span></button>
-      <button type="button" data-act="pod-done" aria-label="Als gehört markieren">${icon2('<path d="M5 12l5 5 9-10"/>')}Gehört</button>
-      <button type="button" data-act="pod-share" aria-label="Folge teilen">${icon2('<path d="M12 3v12M7 8l5-5 5 5M5 14v5h14v-5"/>')}Teilen</button></div>
-    ${nx ? `<div class="pn-next"><button type="button" class="pn-next-ep" data-act="pod-play" data-id="${esc(nx.s.id)}" data-i="${nx.i}" aria-label="Jetzt abspielen: ${esc(nx.e.title)}">${podImg(nx.s, 'pod-cov sm')}<span><small>${podAuto() ? 'Danach automatisch' : 'Als Nächstes'}</small><b>${esc(nx.e.title)}</b></span></button>
-      <label class="pn-auto"><input type="checkbox" id="podAuto"${podAuto() ? ' checked' : ''}><span>Auto</span></label></div>` : ''}
+    <div class="pn-ctrl"><button type="button" class="pn-sk" data-act="pod-skip" data-s="-15" aria-label="15 Sekunden zurück">${svg('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>')}<small>15</small></button>
+      <button type="button" class="pn-play" data-act="pod-toggle" aria-label="${a.paused ? 'Weiter' : 'Pause'}">${a.paused ? PLAY_SVG : svg('<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>', 'f')}</button>
+      <button type="button" class="pn-sk" data-act="pod-skip" data-s="30" aria-label="30 Sekunden vor">${svg('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>')}<small>30</small></button></div>
+    <div class="pn-opts">
+      <button type="button" data-act="pod-rate" aria-label="Tempo ändern">${String(rate).replace('.', ',')}×</button>
+      <button type="button" data-act="pod-sleep" class="${podSleep.m ? 'on' : ''}" aria-label="Schlaf-Timer">${svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>')}<span id="podNowSleep">${podSleepTxt()}</span></button>
+      <button type="button" data-act="pod-done" aria-label="Als gehört markieren">${svg('<path d="M5 12l5 5 9-10"/>')}Gehört</button>
+      <button type="button" data-act="pod-share" aria-label="Folge teilen">${svg('<path d="M12 3v12M7 8l5-5 5 5M5 14v5h14v-5"/>')}</button></div>
+    ${q.length ? `<div class="pn-queue"><div class="pn-qh"><b>Danach</b><label><input type="checkbox" id="podAuto"${podAuto() ? ' checked' : ''}> automatisch</label></div>
+      ${q.map((x) => `<button type="button" class="pn-q" data-act="pod-play" data-id="${esc(x.s.id)}" data-i="${x.i}" aria-label="Abspielen: ${esc(x.e.title)}">${podImg(x.s, 'pod-cov sm')}<span><b>${esc(x.e.title)}</b><small>${esc(x.s.name)}${x.e.dur ? `, ${podLen(x.e.dur)}` : ''}</small></span></button>`).join('')}</div>` : ''}
+    <div class="pn-foot"><a href="${esc(s.spotify)}" target="_blank" rel="noopener">In Spotify öffnen</a><button type="button" data-act="pod-close">Player schliessen</button></div>
   </div>`;
-  podTint(s).then((c) => { if (c && podCur()?.s === s) dlg.style.setProperty('--tint', c); else if (!c) dlg.style.removeProperty('--tint'); });
   podTick();
 }
 function openPodNow() {
