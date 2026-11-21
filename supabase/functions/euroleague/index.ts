@@ -850,7 +850,7 @@ let videoLoading = null;
 // apple = Nummer aus der Apple-Podcasts-Adresse (…/id1783605539). spotify (optional) = Show-Nummer aus open.spotify.com/show/…
 const PODCASTS = [
   { id: 'elf', apple: '1783605539', name: 'EuroLeague & Friends', by: 'EuroLeague' },
-  { id: 'urbonus', apple: '1575852310', name: 'URBONUS', by: 'BasketNews' },
+  { id: 'urbonus', apple: '1575852310', name: 'URBONUS', by: 'BasketNews', spotify: '67Qozfzo6tbAg8KOppRSP9' },
   { id: 'fantasy', apple: '1718246437', name: 'Fantasy Challenge', by: 'EuroLeague' },
   { id: 'bbde', apple: '1042941282', name: '#BasketballDeutschland', by: 'MagentaSport', spotify: '6zXZbwojTZCBdDVCG7VvTA' },
   { id: 'coast', apple: '1830461736', name: 'Coast To Coast', by: 'BasketNews' },
@@ -883,7 +883,7 @@ async function podShow(pc, now) {
     .filter((e) => e.title && /^https:\/\//.test(e.audio)).sort((a, b) => b.at - a.at);
   const ep = items[0] || null;
   const data = { id: pc.id, name: pc.name, by: pc.by, art: meta.art, link: meta.link,
-    spotify: pc.spotify ? `https://open.spotify.com/show/${pc.spotify}` : `https://open.spotify.com/search/${encodeURIComponent(pc.name)}/podcasts`,
+    spotify: pc.spotify ? `https://open.spotify.com/show/${pc.spotify}` : `https://open.spotify.com/search/${encodeURIComponent(pc.name)}`,
     ep: ep ? { title: ep.title, at: ep.at ? new Date(ep.at).toISOString() : '', dur: ep.dur, audio: ep.audio, url: /^https:\/\//.test(ep.url) ? ep.url : '' } : null };
   podMem.set(pc.id, { at: now, data, meta, metaAt: hit?.meta === meta ? hit.metaAt : now });
   return data;
