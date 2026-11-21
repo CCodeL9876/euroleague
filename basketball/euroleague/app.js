@@ -883,12 +883,12 @@ const NEWS_ICON = {
   cup: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 3M16 6h3a3 3 0 0 1-3 3M12 13v4M9 20h6"/>',
   money: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.3 0-2.4-.5-3-1.5M12 6.5v11"/>', globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
 };
-const NEWS_CAT = { Verletzung: ['coral', 'inj'], Transfer: ['blue-hi', 'tr'], Zitat: ['violet-hi', 'q'], Resultat: ['green', 'res'], Spielbericht: ['green', 'res'],
+const NEWS_CAT = { Verletzung: ['coral', 'inj'], Verletzungen: ['coral', 'inj'], Transfer: ['blue-hi', 'tr'], Transfergerücht: ['blue-hi', 'tr'], Zitat: ['violet-hi', 'q'], Resultat: ['green', 'res'], Spielbericht: ['green', 'res'],
   Serie: ['gold', 'ser'], Rekord: ['gold', 'ser'], Spielplan: ['orange', 'cal'], Vorschau: ['blue-hi', 'eye'],
   // Themen, die die News-Aufgabe tatsächlich schreibt
   Liga: ['violet-hi', 'globe'], Stimmen: ['gold', 'q'], Trainer: ['gold', 'q'], Finanzen: ['green', 'money'], Pokal: ['orange', 'cup'] };
 // Filter: Schlüssel → Themen, die dazugehören («Stimmen» schreibt die News-Aufgabe als «Stimmen» oder «Trainer», älter als «Zitat»)
-const NEWS_FILTERS = [['', 'Alle', []], ['fav', '★ Meine Teams', []], ['Verletzung', 'Verletzungen', ['Verletzung']], ['Transfer', 'Transfers', ['Transfer']], ['Stimmen', 'Stimmen', ['Stimmen', 'Trainer', 'Zitat']]];
+const NEWS_FILTERS = [['', 'Alle', []], ['fav', '★ Meine Teams', []], ['Verletzung', 'Verletzungen', ['Verletzung', 'Verletzungen']], ['Transfer', 'Transfers', ['Transfer', 'Transfergerücht']], ['Stimmen', 'Stimmen', ['Stimmen', 'Trainer', 'Zitat']]];
 const filterCats = (k) => NEWS_FILTERS.find((f) => f[0] === k)?.[2] || [];
 
 function newsInfo(it) {
@@ -905,6 +905,92 @@ const newsWhen = (it, todayCH) => { const [d, t] = String(it.time || '').split('
 const newsActs = (it, i) => `<span class="nf-acts"><button type="button" class="share-btn" data-act="share" data-i="${i}" aria-label="Meldung teilen: ${esc(it.title)}">${icon('share', '')}Teilen</button>
   <a href="${esc(/^https:\/\//.test(it.url) ? it.url : '#')}" target="_blank" rel="noopener">${esc(it.source)} ↗</a></span>`;
 
+// ---------- Neu seit dem letzten Besuch (auf dem Gerät) ----------
+// Gesehen = aufgeklappt, vorgelesen oder «Alle gelesen». Beim allerersten Öffnen gilt alles Vorhandene als gelesen.
+const newsKey = (it) => String(it.url || it.title || '');
+let newsSeen = null;
+function newsSeenSet() {
+  if (newsSeen) return newsSeen;
+  try { const v = JSON.parse(store.get('el-news-seen', 'null')); newsSeen = Array.isArray(v) ? new Set(v) : null; } catch { newsSeen = null; }
+  if (!newsSeen && news?.items?.length) { newsSeen = new Set(news.items.map(newsKey)); newsSaveSeen(true); }
+  return newsSeen || new Set();
+}
+function newsSaveSeen(stamp) {
+  const keep = new Set((news?.items || []).map(newsKey));
+  const arr = [...(newsSeen || [])].filter((k) => keep.has(k)).slice(-300);
+  store.set('el-news-seen', JSON.stringify(arr));
+  if (stamp) store.set('el-news-seen-at', String(Date.now()));
+}
+function newsMarkRead(keys, stamp = false) { const set = newsSeenSet(); keys.forEach((k) => set.add(k)); newsSaveSeen(stamp); }
+const newsUnread = (it) => !newsSeenSet().has(newsKey(it));
+
+// ---------- Highlights der EuroLeague als eigene Punkte in der Zeitleiste (letzte 2 Tage) ----------
+function highlightItems() {
+  const m = model(), out = [];
+  for (const [code, list] of Object.entries(videos || {})) {
+    const v = (list || []).find((x) => x.k === 'main');
+    if (!v?.at || Date.now() - Date.parse(v.at) > 2 * 864e5) continue;
+    const g = m.games.find((x) => x.code === Number(code));
+    if (!g) continue;
+    const z = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(v.at));
+    const P = Object.fromEntries(z.map((x) => [x.type, x.value])), d = `${P.day}.${P.month}.${P.year}`;
+    out.push({ vid: true, v, g, it: { firstShown: d, time: `${d} · ${P.hour}:${P.minute}`, title: `${name(m, g.home)} – ${name(m, g.away)}` } });
+  }
+  return out;
+}
+
+// ---------- «Heute in N Minuten»: Meldungen vorlesen (Stimme des Geräts, Web Speech) ----------
+const BRIEF_RATES = [1, 1.2, 1.4, 0.9];
+const brief = { on: false, i: 0, list: [], token: 0, rate: Number(store.get('el-brief-rate', '1')) || 1 };
+const canSpeak = () => typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined';
+function briefItems() {
+  const items = news?.items || [];
+  const unread = items.filter(newsUnread);
+  if (unread.length) return unread.slice(0, 12);
+  const newest = items.map((i) => i.firstShown).sort((a, b) => dkey(b).localeCompare(dkey(a)))[0];
+  return items.filter((i) => i.firstShown === newest).slice(0, 12);
+}
+function briefVoice() {
+  const vs = speechSynthesis.getVoices();
+  return vs.find((v) => /de-CH/i.test(v.lang)) || vs.find((v) => /^de/i.test(v.lang) && /premium|enhanced|anna|petra|markus/i.test(v.name)) || vs.find((v) => /^de/i.test(v.lang)) || null;
+}
+function briefSpeak() {
+  const it = brief.list[brief.i];
+  if (!it) { briefStop(); return; }
+  const tok = ++brief.token;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(`${it.title}. ${it.text || ''}`);
+  u.lang = 'de-DE'; const v = briefVoice(); if (v) u.voice = v; u.rate = brief.rate;
+  u.onend = () => { if (tok !== brief.token || !brief.on) return; newsMarkRead([newsKey(it)]); brief.i += 1; if (brief.i < brief.list.length) briefSpeak(); else briefStop(true); };
+  speechSynthesis.speak(u);
+  renderFeed();
+}
+function briefStart() {
+  if (!canSpeak()) return;
+  const a = $('#podAudio'); if (a && !a.paused) a.pause();
+  if (!brief.list.length || brief.i >= brief.list.length) Object.assign(brief, { list: briefItems(), i: 0 });
+  brief.on = true; briefSpeak();
+}
+function briefStop(done = false) {
+  brief.token += 1; brief.on = false;
+  if (canSpeak()) speechSynthesis.cancel();
+  if (done) { brief.list = []; brief.i = 0; toast('Alle Meldungen vorgelesen'); }
+  renderFeed();
+}
+function briefHtml() {
+  if (!canSpeak()) return '';
+  const list = brief.list.length ? brief.list : briefItems();
+  if (!list.length) return '';
+  const words = list.reduce((n, it) => n + `${it.title} ${it.text || ''}`.split(/\s+/).length, 0);
+  const min = Math.max(1, Math.round(words / 150 / brief.rate));
+  const unread = (news?.items || []).filter(newsUnread).length;
+  const sub = brief.on ? `läuft · Meldung ${brief.i + 1} von ${list.length}` : brief.list.length ? `pausiert · Meldung ${brief.i + 1} von ${list.length}` : `${list.length} ${unread ? 'neue ' : ''}${list.length === 1 ? 'Meldung' : 'Meldungen'} zum Anhören`;
+  return `<div class="brief${brief.on ? ' on' : ''}"><button type="button" class="brief-main" data-act="${brief.on ? 'brief-pause' : 'brief-play'}" aria-label="${brief.on ? 'Vorlesen anhalten' : 'Meldungen vorlesen'}">${brief.on ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>' : PLAY_SVG}</button>
+    <span class="brief-txt"><b>${brief.on || brief.list.length ? 'Vorlesen' : `Heute in ${min} ${min === 1 ? 'Minute' : 'Minuten'}`}</b><small>${esc(sub)}</small></span>
+    ${brief.on || brief.list.length ? `<button type="button" class="brief-btn" data-act="brief-prev" aria-label="Vorherige Meldung">⏮</button><button type="button" class="brief-btn" data-act="brief-next" aria-label="Nächste Meldung">⏭</button>` : ''}
+    <button type="button" class="brief-btn rate" data-act="brief-rate" aria-label="Tempo">${String(brief.rate).replace('.', ',')}×</button></div>`;
+}
+
 function renderFeed() {
   const items = news?.items || [];
   const newest = items.map((i) => i.firstShown).sort((a, b) => dkey(b).localeCompare(dkey(a)))[0] || '';
@@ -917,10 +1003,16 @@ function renderFeed() {
   const all = items.map((it, i) => ({ it, i, n: newsInfo(it) }));
   const counts = { fav: all.filter((x) => FAV.includes(x.n.team)).length };
   for (const [k, , cats] of NEWS_FILTERS) if (cats.length) counts[k] = all.filter((x) => cats.includes(x.n.cat)).length;
-  const chips = `<div class="nf-chips" role="group" aria-label="Thema">${NEWS_FILTERS.map(([k, l]) => `<button type="button" data-act="news-cat" data-cat="${k}" aria-pressed="${feedState.cat === k}">${l} <i class="num">${k ? counts[k] : items.length}</i></button>`).join('')}</div>`;
-  const list = all.filter(({ it, n }) => (!feedState.src || it.source === feedState.src)
+  const hl = highlightItems();
+  const chipList = [...NEWS_FILTERS.slice(0, 2).map(([k, l]) => [k, l, k ? counts[k] : items.length]), ['vid', '▶ Highlights', hl.length], ...NEWS_FILTERS.slice(2).map(([k, l]) => [k, l, counts[k]])].filter(([k, , n]) => k !== 'vid' || n);
+  const chips = `<div class="nf-chips" role="group" aria-label="Thema">${chipList.map(([k, l, n]) => `<button type="button" data-act="news-cat" data-cat="${k}" aria-pressed="${feedState.cat === k}">${l} <i class="num">${n}</i></button>`).join('')}</div>`;
+  const list = feedState.cat === 'vid' ? [] : all.filter(({ it, n }) => (!feedState.src || it.source === feedState.src)
     && (!feedState.cat || (feedState.cat === 'fav' ? FAV.includes(n.team) : filterCats(feedState.cat).includes(n.cat)))
     && (!q || `${it.tag} ${it.title} ${it.text}`.toLowerCase().includes(q)));
+  // Highlights: bei «Alle» und «▶ Highlights», bei «Meine Teams» nur Spiele deiner Teams; nicht bei Quellen- oder Themenfilter
+  if (!feedState.src && (!feedState.cat || feedState.cat === 'vid' || feedState.cat === 'fav')) {
+    for (const x of hl) if ((feedState.cat !== 'fav' || FAV.includes(x.g.home) || FAV.includes(x.g.away)) && (!q || x.it.title.toLowerCase().includes(q))) list.push(x);
+  }
 
   // Gruppen = Tag, an dem die Meldung in der App erschien; darin nach Veröffentlichung, neuste zuoberst.
   // Erschien die Meldung schon früher, steht ihr Datum klein unter der Uhrzeit.
@@ -929,10 +1021,17 @@ function renderFeed() {
   const pub = (it) => { const [d = '', t = ''] = String(it.time || '').split(' · '); return { d, t, k: dkey(d) + t }; };
   const groups = new Map();
   for (const x of list) { const g = x.it.firstShown || ''; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(x); }
-  const item = ({ it, i, n }, shown) => {
-    const open = feedState.expanded.has(i), p = pub(it);
+  const item = (x, shown) => {
+    const { it, i, n } = x, p = pub(it);
+    if (x.vid) {
+      const v = x.v, g = x.g;
+      return `<li class="nf-tl-i nf-vid" style="--c:var(--orange)"><time class="num">${esc(p.t)}</time><span class="nf-dot" aria-hidden="true"></span>
+        <div class="nf-tl-main"><span class="nf-cat">▶ Highlights · Spieltag ${g.round}</span><button type="button" class="nf-vcard" data-act="box-video" data-code="${g.code}" aria-label="Highlights ansehen: ${esc(it.title)}">
+          <span class="nf-vthumb"><img src="${ytThumb(v.id)}" alt="" loading="lazy"><i aria-hidden="true">${PLAY_SVG}</i><small class="num">${mmss(v.d || 0)}</small></span><span class="nf-vtxt"><b>${esc(it.title)}</b><small>${g.hs}:${g.as} · EuroLeague auf YouTube</small></span></button></div></li>`;
+    }
+    const open = feedState.expanded.has(i), unread = newsUnread(it);
     const early = p.d && p.d !== shown ? `<small>${esc(p.d.replace(/^0?(\d+)\.0?(\d+)\..*$/, '$1.$2.'))}</small>` : '';
-    return `<li class="nf-tl-i${open ? ' is-open' : ''}${FAV.includes(n.team) ? ' fav' : ''}" id="news-${i}" style="--c:var(--${n.color})">
+    return `<li class="nf-tl-i${open ? ' is-open' : ''}${FAV.includes(n.team) ? ' fav' : ''}${unread ? ' unread' : ''}" id="news-${i}" style="--c:var(--${n.color})">
       <time class="num">${esc(p.t)}${early}</time><span class="nf-dot" aria-hidden="true"></span>
       <div class="nf-tl-main">${newsCat(n)}<button type="button" class="nf-tl-t" data-act="more" data-i="${i}" aria-expanded="${open}">${esc(it.title)}</button>
         ${open ? `<p>${esc(it.text)}</p><span class="nf-meta"><b>${esc(it.source)}</b><i aria-hidden="true"></i><span class="num">${esc(newsWhen(it, todayCH))}</span></span>${newsActs(it, i)}` : ''}</div></li>`;
@@ -940,9 +1039,12 @@ function renderFeed() {
   const html = !list.length ? '<p class="feed-empty">Keine Meldung passt zur Suche.</p>'
     : [...groups].sort((a, b) => dkey(b[0]).localeCompare(dkey(a[0]))).map(([d, xs]) => `<h3 class="feed-divider">${dayLabel(d)} · ${xs.length}</h3>
       <ol class="nf-tl">${xs.sort((a, b) => pub(b.it).k.localeCompare(pub(a.it).k)).map((x) => item(x, d)).join('')}</ol>`).join('');
-  $('#feed').innerHTML = chips + html;
+  const nUnread = items.filter(newsUnread).length, seenAt = Number(store.get('el-news-seen-at', '0'));
+  const since = seenAt ? new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(seenAt)).replace('.', '') : '';
+  const newbar = nUnread ? `<div class="nf-newbar"><span class="nf-unread" aria-hidden="true"></span><span><b>${nUnread} neu</b>${since ? ` seit ${esc(since)}` : ''}</span><button type="button" data-act="news-allread">Alle gelesen</button></div>` : '';
+  $('#feed').innerHTML = briefHtml() + newbar + chips + html;
   const badge = $('#newsBadge');
-  if (badge) { badge.textContent = nNew; badge.hidden = !nNew; badge.setAttribute('aria-label', `${nNew} neue Meldungen`); }
+  if (badge) { badge.textContent = nUnread; badge.hidden = !nUnread; badge.setAttribute('aria-label', `${nUnread} neue Meldungen`); }
 }
 
 // ---------- Zeichnen ----------
@@ -1798,7 +1900,7 @@ async function loadVideos() {
   try {
     const res = await fetch(`${DATA_URL}?videos=1`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(20000) });
     const d = await res.json();
-    if (res.ok && d?.games && typeof d.games === 'object') videos = d.games;
+    if (res.ok && d?.games && typeof d.games === 'object') { videos = d.games; if (news) renderFeed(); }
   } catch { /* Videos sind nur eine Beigabe */ }
 }
 // ---------- Podcasts: Leiste «Neu zum Hören» über den News, eigener Player (?podcasts=1) ----------
@@ -1846,6 +1948,8 @@ const podAgo = (iso) => {
 };
 const podLen = (s) => (s >= 3600 ? `${Math.floor(s / 3600)} Std. ${Math.round((s % 3600) / 60)} Min.` : s ? `${Math.round(s / 60)} Min.` : '');
 const podImg = (s, cls = 'pod-cov') => (/^https:\/\/[a-z0-9-]+\.mzstatic\.com\//.test(s.art || '') ? `<img class="${cls}" src="${esc(s.art)}" alt="" loading="lazy">` : `<span class="${cls} none" aria-hidden="true">${esc(s.name.slice(0, 2))}</span>`);
+// Variante D: eine schmale Karte «Zum Hören» (Cover + Anzahl neuer Folgen); aufgeklappt die neuste Folge je Podcast
+let podsOpen = false;
 function renderPods() {
   const box = $('#pods');
   if (!box) return;
@@ -1853,13 +1957,17 @@ function renderPods() {
   box.hidden = !list.length;
   if (!list.length) return;
   const audio = $('#podAudio'), playing = audio && !audio.paused;
-  box.innerHTML = `<h2 class="pods-h">Neu zum Hören</h2><div class="pods-strip">${list.map((s) => {
-    const fresh = s.ep.at && Date.now() - Date.parse(s.ep.at) < 3 * 864e5, on = podState.id === s.id && podState.i === 0;
-    return `<article class="pod${on ? ' on' : ''}"><button type="button" class="pod-open" data-act="pod-open" data-id="${esc(s.id)}" aria-label="Folgen von ${esc(s.name)} anzeigen">${podImg(s)}</button><div class="pod-txt" data-act="pod-open" data-id="${esc(s.id)}"><b title="${esc(s.ep.title)}">${esc(s.ep.title)}</b>
-      <small>${esc(s.name)} · ${esc(s.by)}</small><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(s.ep.at))}${s.ep.dur ? ` · ${podLen(s.ep.dur)}` : ''}</small>${podProg(s, s.ep)}</div>
-      <div class="pod-acts"><button type="button" class="pod-play" data-act="pod-play" data-id="${esc(s.id)}" aria-label="${on && playing ? 'Pause' : 'Abspielen'}: ${esc(s.ep.title)}">${on && playing ? '❚❚ Pause' : `${PLAY_SVG} Abspielen`}</button>
-      ${podEps(s).length > 1 ? `<button type="button" class="pod-ext" data-act="pod-open" data-id="${esc(s.id)}">Folgen</button>` : ''}<a class="pod-ext" href="${esc(s.spotify)}" target="_blank" rel="noopener">Spotify ↗</a></div></article>`;
-  }).join('')}</div>`;
+  const fresh = list.filter((s) => s.ep.at && Date.now() - Date.parse(s.ep.at) < 7 * 864e5 && !podPos(s, s.ep)?.done).length;
+  box.innerHTML = `<details class="pods-card" id="podsCard"${podsOpen ? ' open' : ''}><summary>
+      <span class="pods-covs" aria-hidden="true">${list.slice(0, 4).map((s) => podImg(s, 'pod-cov xs')).join('')}</span>
+      <span class="pods-sum"><b>Zum Hören</b><small>${fresh ? `${fresh} ${fresh === 1 ? 'neue Folge' : 'neue Folgen'}` : `${list.length} Podcasts`} · zuletzt ${esc(podAgo(list[0].ep.at).toLowerCase())}</small></span>
+      <span class="pods-chev" aria-hidden="true">›</span></summary>
+    <div class="pods-list">${list.map((s) => {
+      const on = podState.id === s.id && podState.i === 0;
+      return `<div class="pod-row${on ? ' on' : ''}"><button type="button" class="pod-open" data-act="pod-open" data-id="${esc(s.id)}" aria-label="Folgen von ${esc(s.name)} anzeigen">${podImg(s, 'pod-cov sm')}</button>
+        <div class="pod-txt" data-act="pod-open" data-id="${esc(s.id)}"><b title="${esc(s.ep.title)}">${esc(s.ep.title)}</b><small>${esc(s.name)} · ${esc(podAgo(s.ep.at))}${s.ep.dur ? ` · ${podLen(s.ep.dur)}` : ''}</small>${podProg(s, s.ep)}</div>
+        <button type="button" class="pm-btn main" data-act="pod-play" data-id="${esc(s.id)}" aria-label="${on && playing ? 'Pause' : 'Abspielen'}: ${esc(s.ep.title)}">${on && playing ? '❚❚' : PLAY_SVG}</button></div>`;
+    }).join('')}</div></details>`;
 }
 // Blatt mit den letzten Folgen eines Podcasts (Antippen von Cover, Titel oder «Folgen»)
 function renderPodSheet() {
@@ -1990,6 +2098,7 @@ function podPlay(id, i = 0) {
   if (!s || !ep) return;
   if (podState.id === id && podState.i === i) { if (a.paused) a.play().catch(() => {}); else a.pause(); return; }
   podSavePos(true);
+  if (brief.on) briefStop();
   Object.assign(podState, { id, i });
   a.src = ep.audio;
   const saved = podPos(s, ep);
@@ -2105,9 +2214,15 @@ document.addEventListener('click', (e) => {
   } else if (act === 'round') { roundSel = Number(t.dataset.r); const id = t.id; render(); const b = document.getElementById(id); (b && !b.disabled ? b : $('.round-btn:not(:disabled)'))?.focus({ preventScroll: true }); }
   else if (act === 'show-news') showNews(Number(t.dataset.i));
   else if (act === 'news-cat') { feedState.cat = t.dataset.cat; renderFeed(); }
+  else if (act === 'news-allread') { newsMarkRead((news?.items || []).map(newsKey), true); renderFeed(); }
+  else if (act === 'brief-play') briefStart();
+  else if (act === 'brief-pause') briefStop();
+  else if (act === 'brief-next') { if (brief.list.length) { brief.i = Math.min(brief.list.length - 1, brief.i + 1); if (brief.on) briefSpeak(); else renderFeed(); } }
+  else if (act === 'brief-prev') { if (brief.list.length) { brief.i = Math.max(0, brief.i - 1); if (brief.on) briefSpeak(); else renderFeed(); } }
+  else if (act === 'brief-rate') { brief.rate = BRIEF_RATES[(BRIEF_RATES.indexOf(brief.rate) + 1) % BRIEF_RATES.length]; store.set('el-brief-rate', String(brief.rate)); if (brief.on) briefSpeak(); else renderFeed(); }
   else if (act === 'more') {
     const i = Number(t.dataset.i);
-    if (feedState.expanded.has(i)) feedState.expanded.delete(i); else feedState.expanded.add(i);
+    if (feedState.expanded.has(i)) feedState.expanded.delete(i); else { feedState.expanded.add(i); const it = news?.items?.[i]; if (it) newsMarkRead([newsKey(it)]); }
     renderFeed();
   } else if (act === 'share') share(Number(t.dataset.i));
   else if (act === 'box') openBox(Number(t.dataset.code));
@@ -2231,7 +2346,7 @@ document.addEventListener('change', (e) => {
   boxState.shooter = e.target.value;
   refreshShots();
 });
-document.addEventListener('toggle', (e) => { if (e.target.id === 'topBox') boxState.topOpen = e.target.open; }, true);
+document.addEventListener('toggle', (e) => { if (e.target.id === 'topBox') boxState.topOpen = e.target.open; if (e.target.id === 'podsCard') podsOpen = e.target.open; }, true);
 document.addEventListener('submit', (e) => { if (e.target.id === 'profileForm') e.preventDefault(); });
 document.addEventListener('input', (e) => {
   if (e.target.id === 'profName') profileDraft.name = e.target.value;
