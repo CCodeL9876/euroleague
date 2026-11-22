@@ -148,6 +148,11 @@ const bbDailyMax = () => Number(Deno.env.get('BIGBALLS_DAILY')) || 230;
 // Sparsam: 2 Min. nur, solange jemand die Seite offen hat (Abruf ?fb=1 in den letzten 10 Min.) oder ein Lieblingsteam eines
 // Mitteilungs-Abos spielt; sonst 5 Min. (liveEager setzt der Abruf bzw. pushTick)
 let liveEager = true;
+// Lieblingsteams der Mitteilungs-Abos (setzt pushTick). Bei ihren Spielen fragen Super League und Challenge League jede Minute ab,
+// die Premier League (FPL) alle 25 Sek. – von kurz vor dem Anpfiff bis Spielende
+let liveFavs = new Set();
+const isFavGame = (m, now) => (liveFavs.has(String(m.h).toLowerCase()) || liveFavs.has(String(m.a).toLowerCase()))
+  && m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) - now < 2 * 60 * 1000 && now - Date.parse(m.utc) < 3 * 3600e3;
 const BB_LIVE_MS_FN = () => (bbDailyMax() >= 1000 && liveEager ? 2 : 5) * 60 * 1000;
 // Tagesgrenze erreicht: Zeitpunkt merken, damit die Seite «Live-Stände pausiert» zeigen kann statt still alte Stände
 let bbPausedAt = 0;
@@ -312,7 +317,7 @@ async function fplBoot(now) {
 async function fplFixtures(ev, now, live) {
   const ck = `fplfx:${ev}`;
   const hit = await cacheGet(ck);
-  if (hit && now - hit.at < (live ? 60 * 1000 : 15 * 60 * 1000)) return hit.data;
+  if (hit && now - hit.at < (live ? (typeof live === 'number' ? live : 60 * 1000) : 15 * 60 * 1000)) return hit.data;
   try { const d = await fplJson(`fixtures/?event=${ev}`); const data = Array.isArray(d) ? d : []; await cacheSet(ck, data); return data; }
   // Bei einem FPL-Ausfall nur ganz frische Daten weiterverwenden, sonst übernehmen die anderen Quellen
   catch { return hit && now - hit.at < 3 * 60 * 1000 ? hit.data : []; }
@@ -351,7 +356,7 @@ async function fplApply(list, res, now, open) {
   if (!boot?.events?.length) return { done, ft };
   const evOf = (t) => boot.events.filter((e) => Date.parse(e.dl) <= t).at(-1)?.id;
   const evs = [...new Set(todo.map(([m]) => evOf(Date.parse(m.utc))).filter(Boolean))];
-  const fx = (await Promise.all(evs.map((e) => fplFixtures(e, now, true)))).flat();
+  const fx = (await Promise.all(evs.map((e) => fplFixtures(e, now, todo.some(([m]) => isFavGame(m, now)) ? 25 * 1000 : 60 * 1000)))).flat();
   for (const [m, j] of todo) {
     const t = Date.parse(m.utc);
     const f = fx.find((x) => x.kickoff_time && Math.abs(Date.parse(x.kickoff_time) - t) < 40 * 60 * 1000 && (fplSame(boot.teams[x.team_h], m.h) && fplSame(boot.teams[x.team_a], m.a)));
@@ -1634,7 +1639,7 @@ async function elPushTick(now, subs, profs) {
   return { events: events.length, sent, live: busy };
 }
 // Jede Minute: Cache-Zeitplan ausführen und Tore seit dem letzten Lauf für Push erkennen
-async function pushTick(now) {
+async function pushTick(now, again = false) {
   // Abos und ihre Lieblingsteams zuerst (nur eigene Datenbank, kein API-Kontingent): bestimmen, was vorgewärmt wird und wie oft live
   const subs = Deno.env.get('VAPID_PRIVATE') ? await fetch(`${PUSH_URL}?select=endpoint,profile_key`, { headers: serviceHeaders() }).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [];
   const keys = [...new Set(subs.map((x) => x.profile_key))];
@@ -1642,11 +1647,11 @@ async function pushTick(now) {
   const fav = new Map(profs.map((p) => [p.key, new Set((Array.isArray(p.fb_favorites) ? p.fb_favorites : []).map((n) => String(n).toLowerCase()))]));
   const favs = new Set([...fav.values()].flatMap((x) => [...x]));
   // EuroLeague zuerst und unabhängig vom Fussball: ein Fehler dort hält die Tor-Mitteilungen nicht auf
-  const el = await elPushTick(now, subs, profs).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
+  const el = again ? null : await elPushTick(now, subs, profs).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
   // Läuft ein EuroLeague-Spiel eines Lieblingsteams: nach 30 Sekunden im Hintergrund ein zweites Mal prüfen, so kommen die
   // Viertel-Mitteilungen etwa eine halbe Minute schneller, ohne den Zeitplan (jede Minute) zu ändern. Die Funktion
   // «euroleague» hält Live-Stände 20 Sekunden, der zweite Durchlauf sieht also einen neuen Stand.
-  if (el?.live && globalThis.EdgeRuntime?.waitUntil) {
+  if (!again && el?.live && globalThis.EdgeRuntime?.waitUntil) {
     globalThis.EdgeRuntime.waitUntil(new Promise((r) => setTimeout(r, 30 * 1000)).then(() => elPushTick(Date.now(), subs, profs)).catch(() => {}));
   }
   // Fussball-Teil wie die EuroLeague: schläft bis 100 Minuten vor dem nächsten Spiel eines Lieblingsteams (Aufstellung ab
@@ -1655,7 +1660,8 @@ async function pushTick(now) {
   // Daten selbst; Tabellen fremder Ligen werden dann beim Öffnen frisch geholt statt vorgewärmt.
   const favKey = [...favs].sort().join('|');
   const gate = (await cacheGet('fbtick'))?.data;
-  if (gate?.next && now < gate.next && gate.favs === favKey) return { el, wait: new Date(gate.next).toISOString() };
+  if (!again && gate?.next && now < gate.next && gate.favs === favKey) return { el, wait: new Date(gate.next).toISOString() };
+  liveFavs = favs;
   const viewer = await cacheGet('fbview');
   const cached = (await cacheGet('fbov:last'))?.data?.matches || [];
   liveEager = Boolean(viewer && now - viewer.at < 10 * 60 * 1000) || cached.some((m) => (m.st === 'live' || m.st === 'ht') && (favs.has(String(m.h).toLowerCase()) || favs.has(String(m.a).toLowerCase())));
@@ -1667,7 +1673,12 @@ async function pushTick(now) {
     || (m.st === 'ft' && now - Date.parse(m.utc) < 150 * 60 * 1000)));
   const nextFav = Math.min(...ov.matches.filter((m) => isFav(m) && m.st === 'pre' && Date.parse(m.utc) > now).map((m) => Date.parse(m.utc) - 100 * 60 * 1000));
   const next = busy ? 0 : Math.max(now + 60 * 1000, Math.min(now + 3 * 3600e3, nextFav));
-  if (next || gate?.next || gate?.favs !== favKey) await cacheSet('fbtick', { next, favs: favKey });
+  if (!again && (next || gate?.next || gate?.favs !== favKey)) await cacheSet('fbtick', { next, favs: favKey });
+  // Premier-League-Spiel eines Lieblingsteams läuft: nach 30 Sek. im Hintergrund ein zweites Mal prüfen (wie bei der EuroLeague),
+  // Tor-Mitteilungen kommen so etwa eine halbe Minute früher. FPL ist gratis; die App selbst bleibt beim Minuten-Abruf
+  if (!again && globalThis.EdgeRuntime?.waitUntil && ov.matches.some((m) => m.l === 'pl' && isFav(m) && (m.st === 'live' || m.st === 'ht'))) {
+    globalThis.EdgeRuntime.waitUntil(new Promise((r) => setTimeout(r, 30 * 1000)).then(() => pushTick(Date.now(), true)).catch(() => {}));
+  }
   const refresh = await refreshAroundMatches(now, ov, favs);
   const prev = (await cacheGet('push:scores'))?.data || {};
   const cur = {}, events = [], scoreChanges = [];
@@ -1835,8 +1846,9 @@ async function goalLeague(lg, now) {
   if (!Deno.env.get('GOAL_KEY')) return { status: 'nokey', message: 'GOAL-Schlüssel fehlt', matches: [] };
   const ck = `gl:${lg.key}`, hit = await cacheGet(ck), names = await goalNames(lg);
   let data = hit?.data;
-  // Spielplan: 3 Wochen zurück bis 5 Wochen voraus (mehr zeigt die App nicht), alle 6 Std.; bei Fehlern nach 30 Min.
-  if (!data || now - hit.at > (data.status === 'ok' && !data.stale ? 6 * 3600 * 1000 : 30 * 60 * 1000)) {
+  // Spielplan: 3 Wochen zurück bis 5 Wochen voraus (mehr zeigt die App nicht), 1-mal pro Tag; bei Fehlern nach 30 Min.
+  // Verschiebungen am Spieltag selbst bringt die Live-Abfrage von heute mit
+  if (!data || now - hit.at > (data.status === 'ok' && !data.stale ? 24 * 3600 * 1000 : 30 * 60 * 1000)) {
     try {
       const all = [], seen = new Set(), day = (ms) => new Date(ms).toISOString().slice(0, 10);
       for (let off = 0; off < 400; off += 100) {
@@ -1858,7 +1870,9 @@ async function goalLeague(lg, now) {
   // Heute: Live-Stand und Tore, solange ein Spiel läuft oder bald beginnt
   if (liveWindow(data.matches, now)) {
     const lk = `gllive:${lg.key}`, lh = await cacheGet(lk);
-    const ttl = liveEager ? 2 * 60 * 1000 : 5 * 60 * 1000;
+    // Spiel eines Lieblingsteams: jede Minute (55 Sek., damit der Minuten-Takt des Zeitplans nicht knapp danebenliegt);
+    // sonst 2 Min., solange jemand zuschaut, oder 5 Min.
+    const ttl = data.matches.some((m) => isFavGame(m, now)) ? 55 * 1000 : liveEager ? 2 * 60 * 1000 : 5 * 60 * 1000;
     let today = lh?.data;
     if (!lh || now - lh.at > ttl) {
       try {
@@ -1975,7 +1989,7 @@ async function goalProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22f';
+const FN_VERSION = '2026-11-22g';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
