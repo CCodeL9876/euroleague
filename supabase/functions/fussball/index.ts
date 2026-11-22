@@ -1991,6 +1991,26 @@ async function goalProbe() {
 // ?capprobe=1: prüft, welche Zusatzdaten die Quellen wirklich liefern (Konzept «drei Ligen, ein Takt»): GOAL Aufstellung,
 // Statistik und Torschützenliste der Super League; Big Balls Aufstellung (CL, PL), Statistik und Torschützenliste der CL.
 // Nimmt das letzte beendete Spiel aus dem Speicher und, falls eines läuft, zusätzlich ein Live-Spiel. Höchstens 9 Abfragen, 30 Min. gespeichert
+// ?capprobe=1&id=gl-…|bb-…: nur dieses Spiel (Aufstellung + Statistik, 2 Abfragen), 2 Min. gespeichert – z. B. vor dem Anpfiff oder live
+async function capProbeOne(id) {
+  if (!/^(gl|bb)-[\w-]{6,40}$/.test(id)) return { ok: false, error: 'ungültige ID' };
+  const ck = `capprobe1:${id}`, hit = await cacheGet(ck);
+  if (hit && Date.now() - hit.at < 2 * 60 * 1000) return { ...hit.data, cached: true };
+  const sum = (d) => ({ size: JSON.stringify(d ?? null).length, sample: JSON.stringify(d ?? null).slice(0, 600) });
+  const out = { id, at: new Date().toISOString() };
+  const run = async (fn) => { try { return { ok: true, ...sum(await fn()) }; } catch (e) { return { ok: false, error: String(e?.message || e).slice(0, 160) }; } };
+  if (id.startsWith('gl-')) {
+    const fid = id.slice(3);
+    out.lineups = await run(async () => (await goalGet(`/fixtures/${fid}/lineups`)).d);
+    out.statistics = await run(async () => (await goalGet(`/fixtures/${fid}/statistics`)).d);
+  } else {
+    const u = id.slice(3);
+    out.lineups = await run(() => bbGet(`stored/matches/${u}/lineups`));
+    out.statistics = await run(() => bbGet(`matches/${u}/statistics`));
+  }
+  await cacheSet(ck, out);
+  return out;
+}
 async function capProbe() {
   const hit = await cacheGet('capprobe');
   if (hit && Date.now() - hit.at < 30 * 60 * 1000) return { ...hit.data, cached: true };
@@ -2029,7 +2049,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22h';
+const FN_VERSION = '2026-11-22i';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
@@ -2066,7 +2086,7 @@ async function handle(req) {
     catch (err) { return new Response(JSON.stringify({ ok: false, error: String(err?.message || err).slice(0, 200) }), { status: 502, headers }); }
   }
   if (params.has('capprobe')) {
-    try { return new Response(JSON.stringify(await capProbe()), { headers }); }
+    try { return new Response(JSON.stringify(params.get('id') ? await capProbeOne(String(params.get('id'))) : await capProbe()), { headers }); }
     catch (err) { return new Response(JSON.stringify({ ok: false, error: String(err?.message || err).slice(0, 200) }), { status: 502, headers }); }
   }
   if (params.has('afprobe')) {
