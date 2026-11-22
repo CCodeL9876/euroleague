@@ -1876,8 +1876,9 @@ async function goalLeague(lg, now) {
   }
   // Torschützen: kommen nicht mit dem Spielplan. Laufende und in den letzten 3 Tagen beendete Spiele einzeln holen
   // (laufend alle 2 Min., beendet einmal und dann dauerhaft gespeichert); höchstens 8 pro Durchgang
-  const need = data.matches.filter((m) => (m.st === 'live' || m.st === 'ht' || (m.st === 'ft' && now - Date.parse(m.utc) < 3 * 864e5))
-    && !(m.st === 'ft' && m.goalsDone) && (m.hs || m.as)).slice(0, 8);
+  // Laufend nur, wenn der Stand mehr Tore zeigt als bekannt sind (spart Abfragen: etwa eine pro Tor statt alle 2 Min.)
+  const need = data.matches.filter((m) => (m.hs || m.as) && (((m.st === 'live' || m.st === 'ht') && (m.hs + m.as) !== (m.goals?.length || 0))
+    || (m.st === 'ft' && now - Date.parse(m.utc) < 3 * 864e5 && !m.goalsDone))).slice(0, 8);
   if (need.length) {
     const got = new Map();
     for (const m of need) { const g = await goalGame(m.id).catch(() => null); if (g) got.set(m.id, g); }
@@ -1974,7 +1975,7 @@ async function goalProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22e';
+const FN_VERSION = '2026-11-22f';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
