@@ -1779,9 +1779,9 @@ async function pushTick(now, again = false) {
       const hs = m.hs ?? 0, as = m.as ?? 0, sc = `${m.h} ${hs}:${as} ${m.a}`;
       const goals = (m.goals || []).map((g) => `${g.n}${g.m ? ` ${g.m}'` : ''}`).join(', ');
       const diff = favT === m.h ? hs - as : as - hs;
-      const msg = ph === 'k' ? { title: `▶️ Anpfiff: ${m.h} – ${m.a}`, body: `${lg} · Los geht's!` }
-        : ph === 'h' ? { title: `⏸️ Halbzeit: ${sc}`, body: goals || 'Noch keine Tore' }
-        : { title: `🏁 Schluss: ${sc}`, body: `${diff > 0 ? `Sieg für ${favT}` : diff < 0 ? `Niederlage für ${favT}` : 'Unentschieden'}${goals ? ` · ${goals}` : ''}` };
+      const msg = ph === 'k' ? { title: `🟢 Anpfiff: ${m.h} – ${m.a}`, body: `${lg} · Los geht's!` }
+        : ph === 'h' ? { title: `🟡 Halbzeit: ${sc}`, body: goals || 'Noch keine Tore' }
+        : { title: `🔴 Schluss: ${sc}`, body: `${diff > 0 ? `Sieg für ${favT}` : diff < 0 ? `Niederlage für ${favT}` : 'Unentschieden'}${goals ? ` · ${goals}` : ''}` };
       return { id: m.id, kind: 'phase', tag: `${m.id}-${ph}`, at: now, url: `fussball/?m=${encodeURIComponent(m.id)}`, ...msg };
     });
     if (!mine.length && !luMsgs.length && !phMsgs.length) continue;
@@ -2195,7 +2195,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22o';
+const FN_VERSION = '2026-11-22p';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
