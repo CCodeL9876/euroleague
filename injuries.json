@@ -1,18 +1,18 @@
 {
- "updated": "2026-11-21",
+ "updated": "2026-11-22",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
    "id": "007982",
    "name": "Nigel Williams-Goss",
    "team": "ZAL",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-10-01",
    "note": "Oberschenkelverletzung (Hamstring) in Runde 6 erneut verschlimmert",
    "back": "bis Runde 14",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "003941",
@@ -138,25 +138,25 @@
    "id": "",
    "name": "Tadas Sedekerskis",
    "team": "BAS",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-11-05",
-   "note": "Verletzung am rechten Oberschenkel",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-5-booker-out-bolmaro-expected-against-valencia/",
-   "reported": "2026-11-06"
+   "note": "Muskelverletzung am rechten Oberschenkel aus Runde 7",
+   "back": "Ende November",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "",
    "name": "Márcio Santos",
    "team": "BAS",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-11-05",
-   "note": "Wadenprobleme links; wird untersucht",
+   "note": "Riss in der linken Wade",
    "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "",
@@ -164,11 +164,11 @@
    "team": "HTA",
    "status": "out",
    "since": "2026-11-05",
-   "note": "Achillessehnenverletzung",
+   "note": "Achillessehnenriss vom Januar 2026; trainiert seit dem 19. November wieder",
    "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "",
@@ -294,13 +294,13 @@
    "id": "",
    "name": "Tosan Evbuomwan",
    "team": "BAR",
-   "status": "out",
+   "status": "doubtful",
    "since": "2026-11-07",
    "note": "Muskelriss in der schrägen Bauchmuskulatur",
-   "back": "bis Anfang Dezember",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037682/injury-report-round-13-smits-a-scratch-for-tonight/",
-   "reported": "2026-11-20"
+   "back": "ca. Runde 14",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "",
@@ -345,10 +345,10 @@
    "status": "out",
    "since": "2026-11-12",
    "note": "Schienbeinkopfbruch",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14"
+   "back": "ca. 8 Wochen, frühestens Runde 21",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "",
@@ -361,18 +361,6 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
    "reported": "2026-11-21"
-  },
-  {
-   "id": "",
-   "status": "out",
-   "since": "2026-11-13",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-13-round-11-absences-and-returns/",
-   "reported": "2026-11-14",
-   "name": "Eleftherios Mantzoukas",
-   "team": "PAN",
-   "note": "fällt gegen Barcelona aus, Grund nicht genannt"
   },
   {
    "id": "",
@@ -452,11 +440,11 @@
    "team": "ASV",
    "status": "out",
    "since": "2026-11-17",
-   "note": "Nasenbruch aus Runde 11; fehlte bei Efes",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-20-absences-and-game-time-calls-for-round-13/",
-   "reported": "2026-11-21"
+   "note": "Nasenbruch aus Runde 11; verpasste die Runden 12 und 13",
+   "back": "mindestens 10 Tage",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "",
@@ -512,11 +500,11 @@
    "team": "HTA",
    "status": "doubtful",
    "since": "2026-11-17",
-   "note": "Wadenverletzung; Einsatz bei Paris fraglich",
+   "note": "kleiner Riss in der Wade; verpasste die Runden 11 bis 13",
    "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
-   "reported": "2026-11-20"
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "",
@@ -548,11 +536,11 @@
    "team": "DUB",
    "status": "doubtful",
    "since": "2026-11-19",
-   "note": "Oberschenkelprobleme (Hamstring); Einsatz fraglich",
+   "note": "Oberschenkelprobleme (Hamstring), verpasste die Runden 1 bis 13; darf den Klub verlassen",
    "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-19-absences-and-game-time-decisions-for-round-13/",
-   "reported": "2026-11-20"
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22"
   },
   {
    "id": "",
@@ -601,6 +589,30 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
    "reported": "2026-11-21"
+  },
+  {
+   "id": "",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22",
+   "name": "Nikos Rogkavopoulos",
+   "team": "PAN",
+   "status": "doubtful",
+   "since": "2026-11-21",
+   "note": "Oberschenkelverletzung (Hamstring); verpasste die Runden 7 bis 13",
+   "back": ""
+  },
+  {
+   "id": "",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
+   "reported": "2026-11-22",
+   "name": "Gur Lavi",
+   "team": "TEL",
+   "status": "out",
+   "since": "2026-11-21",
+   "note": "nicht näher bezeichnete Verletzung; verpasste die Runden 1 bis 13",
+   "back": ""
   }
  ]
 }

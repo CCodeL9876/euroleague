@@ -1,7 +1,88 @@
 {
- "issue": 51,
- "updated": "21. November 2026 · 07:15 Uhr (CH)",
+ "issue": 52,
+ "updated": "22. November 2026 · 07:15 Uhr (CH)",
  "items": [
+  {
+   "tag": "Transfer · Besiktas",
+   "title": "Besiktas einigt sich mit Reggie Perry",
+   "text": "Besiktas hat sich laut BasketNews mit dem 26-jährigen amerikanischen Big Man Reggie Perry von Bosna Sarajevo geeinigt. Perry erzielt im EuroCup in acht Spielen im Schnitt 16,4 Punkte und 6,6 Rebounds. In der NBA bestritt er 36 Partien für Brooklyn, Portland und Indiana.",
+   "time": "21.11.2026 · 17:59",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-259982-besiktas-set-to-add-eurocup-standout-reggie-perry.html",
+   "firstShown": "22.11.2026"
+  },
+  {
+   "tag": "Klub · Partizan",
+   "title": "Partizan ernennt Sani Becirovic zum Direktor",
+   "text": "Partizan-Präsident Ostoja Mijailovic hat die Ernennung von Sani Becirovic zum neuen Direktor als geplanten, strategischen Schritt bezeichnet. Zur Verlängerung mit Joan Penarroya sagte er, diese sei erst kürzlich vereinbart worden. Den Saisonstart lobte er: 7:6 sei die beste Bilanz in dieser Phase seit der Rückkehr in die EuroLeague.",
+   "time": "21.11.2026 · 16:18",
+   "source": "BasketNews",
+   "url": "https://basketnews.com/news-259977-partizan-president-elaborates-penarroya-extension-arrival-of-new-director.html",
+   "firstShown": "22.11.2026"
+  },
+  {
+   "tag": "Stimmen · Panathinaikos",
+   "title": "Sylvain Francisco stellt sich kritischen Fragen",
+   "text": "Panathinaikos-Guard Sylvain Francisco war Gast der Eurohoops-Interviewreihe \"Feeling Awkward\". Der 29-jährige Franzose äusserte sich zu seinen vielen Klubwechseln, zu Gerüchten um seinen kurzen Aufenthalt bei ASVEL und dazu, warum er auf dem Feld keinen Druck verspüre.",
+   "time": "21.11.2026 · 13:09",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/trademarks/2038722/sylvain-francisco-feeling-awkard-interview-panathinaikos-euroleague/",
+   "firstShown": "22.11.2026"
+  },
+  {
+   "tag": "MVP · Olimpia Milano",
+   "title": "Moses Wright ist MVP der 13. Runde",
+   "text": "Milanos Moses Wright ist mit einer Effizienz von 36 zum MVP der 13. Runde gewählt worden. Beim 78:70-Heimsieg gegen Fenerbahce kam er auf 22 Punkte und 11 Rebounds. Es ist seine dritte Runden-Auszeichnung, die erste im Trikot von Milano.",
+   "time": "21.11.2026 · 12:00",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038672/moses-wright-round-13-mvp-euroleague/",
+   "firstShown": "22.11.2026"
+  },
+  {
+   "tag": "Transfergerücht · Partizan",
+   "title": "Carlik Jones weist Olympiacos-Gerüchte zurück",
+   "text": "Partizan-Aufbauspieler Carlik Jones hat nach dem 91:87-Sieg nach Verlängerung gegen Besiktas auf Berichte griechischer Medien über einen Wechsel zu Olympiacos reagiert. \"Ich achte nicht auf solche Dinge\", sagte Jones. Er sei glücklich in Belgrad und voll auf seine aktuelle Aufgabe konzentriert.",
+   "time": "21.11.2026 · 11:53",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/carlik-jones-dismisses-olympiacos-rumors-i-dont-pay-attention-to-these-things/",
+   "firstShown": "22.11.2026"
+  },
+  {
+   "tag": "Hintergrund · Olimpia Milano",
+   "title": "Corriere: Milano unter Banchi wiederbelebt",
+   "text": "Laut Corriere della Sera zeigt Olimpia Milano nach vier Spielen unter dem neuen Trainer Luca Banchi Fortschritte, vor allem in der Verteidigung. Herausgehoben werden Bolmaro, Wright und Guduric. Die Play-in-Plätze gelten aber noch als fernes Ziel; am Dienstag folgt das EuroLeague-Spiel gegen ASVEL.",
+   "time": "21.11.2026 · 10:37",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/corriere-della-sera-banchis-impact-on-olimpia-a-team-brought-back-to-life/",
+   "firstShown": "22.11.2026"
+  },
+  {
+   "tag": "Vertrag · Partizan",
+   "title": "Partizan verlängert mit Penarroya bis 2029",
+   "text": "Partizan hat den Vertrag mit Cheftrainer Joan Penarroya bis Ende der Saison 2028/29 verlängert. Der 57-jährige Spanier hatte im Dezember 2025 die Nachfolge von Zeljko Obradovic angetreten. In der EuroLeague steht Partizan bei 7:6 Siegen.",
+   "time": "21.11.2026 · 10:25",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038682/joan-penarroya-signs-contract-extension-partizan-euroleague/",
+   "firstShown": "22.11.2026"
+  },
+  {
+   "tag": "Transfer · Virtus Bologna",
+   "title": "Abass bei Virtus registriert und spielberechtigt",
+   "text": "Virtus Bologna hat Rückkehrer Awudu Abass registriert, er steht Trainer Alex Mumbru ab sofort zur Verfügung. Der Flügelspieler kommt von Dubai und hat einen Vertrag bis Saisonende; von 2020 bis 2024 bestritt er 183 Spiele für Virtus. Auch Achille Lonati ist für die EuroLeague gemeldet.",
+   "time": "21.11.2026 · 09:25",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/virtus-welcome-back-awudu-abass-available-for-tomorrows-game/",
+   "firstShown": "22.11.2026"
+  },
+  {
+   "tag": "Porträt · Crvena Zvezda",
+   "title": "Carters Comeback erreicht in Barcelona neuen Höhepunkt",
+   "text": "Tyson Carter stellte beim 103:100-Sieg nach Verlängerung in Barcelona mit 31 Punkten, 7 von 10 Dreiern und einer Effizienz von 30 drei EuroLeague-Karrierebestwerte auf. Im Oktober 2025 war er wegen einer Lungenembolie drei Wochen im Spital und fehlte fast fünf Monate.",
+   "time": "20.11.2026 · 23:35",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2038539/tyson-carters-comeback-reaches-new-heights-in-barcelona/",
+   "firstShown": "22.11.2026"
+  },
   {
    "tag": "Resultat · Partizan",
    "title": "Partizan bezwingt Besiktas 91:87 nach Verlängerung",
@@ -57,15 +138,6 @@
    "firstShown": "21.11.2026"
   },
   {
-   "tag": "Transfer · Virtus Bologna",
-   "title": "Abass kehrt von Dubai zu Virtus zurück",
-   "text": "Virtus Bologna hat Awudu Abass bis Saisonende verpflichtet, nachdem Dubai den Abgang des italienischen Forwards bekanntgegeben hatte. Abass spielte bereits von 2020 bis 2024 für Virtus und bestritt 183 Partien. Mit dem Klub gewann er unter anderem eine italienische Meisterschaft und den EuroCup.",
-   "time": "20.11.2026 · 12:43",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/virtus-bologna-officially-sign-awudu-abass-through-end-of-season/",
-   "firstShown": "21.11.2026"
-  },
-  {
    "tag": "Verletzungen · Liga",
    "title": "Moneke fehlt erneut, Milutinov und Hayes fraglich",
    "text": "Vor den letzten vier Spielen der 13. Runde hat die Liga ihren Verletzungsbericht aktualisiert. Chima Moneke fehlt Crvena Zvezda auf Entscheid von Trainer Ibon Navarro das zweite Spiel in Folge, David Kramer spielt mit Nasenbruch und Schutzmaske. Bei Real Madrid fallen Jantunen, Campazzo, Deck und Garuba weiter aus.",
@@ -73,78 +145,6 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2038150/euroleague-updates-latest-injury-reports-before-final-round-13-games/",
    "firstShown": "21.11.2026"
-  },
-  {
-   "tag": "Transfergerücht · Partizan",
-   "title": "Olympiacos fragte nach Carlik Jones, Partizan lehnt ab",
-   "text": "Olympiacos hat laut Mozzart Sport bei Partizan wegen Carlik Jones angefragt, aber sofort eine Absage erhalten. Präsident Ostoja Mijailovic bestätigte, Jones habe einen garantierten Vertrag für diese und die nächste Saison ohne Ausstiegsklausel: \"Der Klub ist nicht interessiert, ihn zu verkaufen.\" Olympiacos sucht wegen des langen Ausfalls von Jean Montero Verstärkung.",
-   "time": "20.11.2026 · 11:36",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/carlik-jones-olympiacos-e2-million-speculation-meets-partizan-rejection/",
-   "firstShown": "21.11.2026"
-  },
-  {
-   "tag": "Stimmen · Paris",
-   "title": "Hifi trifft zum dritten Mal in Folge zum Sieg",
-   "text": "Nadir Hifi hat in drei aufeinanderfolgenden EuroLeague-Spielen den entscheidenden Wurf getroffen, zuletzt beim 97:96 gegen Hapoel Tel Aviv mit einem Dreier 17 Sekunden vor Schluss. Paris hat damit sechs Spiele in Folge gewonnen, alle mit höchstens sechs Punkten Differenz. \"Ich brauche einen Kardiologen\", scherzte Trainer Maxime Lefèvre.",
-   "time": "20.11.2026 · 09:41",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/nadir-hifi-hits-third-straight-game-winner-i-need-a-cardiologist-says-paris-coach/",
-   "firstShown": "21.11.2026"
-  },
-  {
-   "tag": "Resultat · Valencia",
-   "title": "Valencia dreht Spiel gegen Virtus und siegt 92:87",
-   "text": "Valencia lag im Schlussviertel gegen Virtus Bologna mit 67:77 zurück und gewann nach einem 17:3-Lauf noch 92:87. Neal Sako (20 Punkte, 11 Rebounds) und TJ Shorts (20) waren die besten Werfer, die 28 Offensivrebounds bedeuten den dritthöchsten Wert der Wettbewerbsgeschichte. Valencia steht mit 10:3 Siegen vorerst allein an der Spitze.",
-   "time": "20.11.2026 · 00:25",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/valencia-rallies-past-virtus-92-87-to-claim-tenth-euroleague-win/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Resultat · Milano",
-   "title": "Milano holt gegen Fenerbahce elf Punkte Rückstand auf",
-   "text": "Olimpia Milano lag gegen Fenerbahce im Schlussviertel 55:66 zurück und gewann nach einem 23:4-Lauf in den letzten 6:34 Minuten noch 78:70. Moses Wright (22 Punkte, 11 Rebounds), Leandro Bolmaro (19) und Marko Guduric (16) führten Milano zum zweiten Sieg der Doppelrunde. Bei Fenerbahce erzielte Talen Horton-Tucker 17 Punkte.",
-   "time": "20.11.2026 · 00:23",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/milan-storms-back-from-11-down-to-beat-fenerbahce-78-70/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Resultat · Bayern",
-   "title": "Bayern feiert mit 100:81 gegen Baskonia ersten Heimsieg",
-   "text": "Bayern München hat gegen Baskonia mit 100:81 den ersten Heimsieg der EuroLeague-Saison geholt und steht bei 4:9 Siegen. Duane Washington erzielte 23 Punkte und 7 Rebounds, Johannes Thiemann kam auf 15 Punkte. Für Baskonia (1:12) war es die zehnte Niederlage in Folge.",
-   "time": "20.11.2026 · 00:21",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/bayern-beats-baskonia-100-81-for-first-euroleague-home-win/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Resultat · Panathinaikos",
-   "title": "Panathinaikos beendet Zalgiris-Serie mit 87:72",
-   "text": "Panathinaikos hat in Kaunas 87:72 gewonnen und die Serie von sechs Zalgiris-Siegen in Folge beendet. Kendrick Nunn erzielte 22 Punkte, Nigel Hayes-Davis 21. Ein 11:0-Lauf um Jonas Valanciunas brachte Zalgiris im dritten Viertel kurz in Führung, das Schlussviertel ging aber mit 28:17 an die Gäste.",
-   "time": "20.11.2026 · 00:19",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/panathinaikos-ends-zalgiris-winning-streak-with-87-72-road-victory/",
-   "firstShown": "20.11.2026"
-  },
-  {
-   "tag": "Stimmen · Olimpia Milano",
-   "title": "Wright: \"Wir haben genug vom Verlieren\"",
-   "text": "Nach zwei Siegen in Folge sieht Center Moses Wright ein verändertes Milano. \"Wir haben genug vom Verlieren. Wir sind so schlecht in die Saison gestartet, und wir wissen, dass das nicht unsere Identität ist\", sagte er nach dem Comeback-Sieg gegen Fenerbahce. Wright kam in diesem Spiel auf 22 Punkte und 11 Rebounds.",
-   "time": "19.11.2026 · 22:47",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2038000/moses-wright-sees-a-different-milan-we-are-tired-of-losing/",
-   "firstShown": "21.11.2026"
-  },
-  {
-   "tag": "Stimmen · Zalgiris",
-   "title": "Zalgiris kritisiert Schiedsrichter nach Niederlage",
-   "text": "Zalgiris-Trainer Tomas Masiulis hat die Leitung der Partie gegen Panathinaikos als seltsam bezeichnet. Seine Mannschaft kam auf sieben Freiwürfe, Panathinaikos auf 25. \"Every 50-50 call today went against us\", sagte Masiulis.",
-   "time": "19.11.2026 · 22:46",
-   "source": "BasketNews",
-   "url": "https://basketnews.com/news-259873-zalgiris-members-question-referees-after-pao-loss-its-really-strange.html",
-   "firstShown": "20.11.2026"
   }
  ]
 }
