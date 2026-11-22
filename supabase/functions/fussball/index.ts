@@ -41,6 +41,7 @@ function serviceHeaders() {
   return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
 }
 async function getJson(url) {
+  if (url.startsWith('https://api.openligadb.de/')) countUse('oldb', url.slice(26));
   const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -302,6 +303,7 @@ const sameTeam = (a, b) => { const x = nameTok(a), y = new Set(nameTok(b)); retu
 const FPL = 'https://fantasy.premierleague.com/api';
 const FPL_UA = 'SportPWA/1.0 (private, non-commercial)';
 async function fplJson(path) {
+  countUse('fpl', path);
   const r = await fetch(`${FPL}/${path}`, { headers: { accept: 'application/json', 'user-agent': FPL_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!r.ok) throw new Error(`FPL HTTP ${r.status}`);
   return r.json();
@@ -1018,6 +1020,19 @@ const lgOfKey = (k) => FB_LEAGUES.find((l) => l.key === k || l.sr === k)?.id || 
   || Object.entries(BB_TABLE).find(([, v]) => v.key === k || v.scorers === k || v.sr === k)?.[0] || '';
 function useTag(src, path, params, el) {
   const m = (re) => (re.exec(path) || [])[1];
+  if (src === 'goal') {
+    if (path === '/fixtures') return [params.from && params.from === params.to ? 'Live-Stand' : 'Spielplan', lgOfKey(params.leagueId) || 'alle'];
+    let id = m(/^\/fixtures\/([^/]+)/);
+    if (id && id !== 'live') return [/lineups$/.test(path) ? 'Aufstellung' : /statistics$/.test(path) ? 'Statistik' : 'Tore & Torschützen', MATCH_LG.get(`gl-${id}`) || ''];
+    id = m(/^\/standings\/([^/]+)/); if (id) return ['Tabelle', lgOfKey(id)];
+    id = m(/^\/leagues\/([^/]+)\/top-scorers/); if (id) return ['Torschützenliste', lgOfKey(id)];
+    return ['Sonstiges', 'alle'];
+  }
+  if (src === 'fpl') return [/^fixtures/.test(path) ? 'Live-Stand' : 'Stammdaten', 'pl'];
+  if (src === 'oldb') {
+    const [kind, key] = path.split('/');
+    return [/goalgetters/.test(kind) ? 'Torschützenliste' : /table/.test(kind) ? 'Tabelle' : 'Spielplan & Live-Stand', lgOfKey(key) || ''];
+  }
   if (src === 'bb') {
     if (path === 'matches') return ['Spielplan', lgOfKey(params.league)];
     if (path === 'scores') return [params.date ? 'Tagesliste (Endstände)' : 'Live-Feed', 'alle'];
@@ -1057,10 +1072,10 @@ async function usageReport(now) {
   const out = [];
   for (const d of days) {
     const u = (await cacheGet(`use:${d}`))?.data || {};
-    out.push({ day: d, bb: (await cacheGet(`bbcount:${d}`))?.data ?? null, sr: (await cacheGet(`srcount:${d}`))?.data ?? null,
+    out.push({ day: d, bb: (await cacheGet(`bbcount:${d}`))?.data ?? null, sr: (await cacheGet(`srcount:${d}`))?.data ?? null, goal: (await cacheGet(`goalcount:${d}`))?.data ?? null,
       rows: Object.entries(u).map(([k, n]) => { const [src, el, lg] = k.split('|'); return { src, el, lg, n }; }).sort((a, b) => b.n - a.n) });
   }
-  return { leagues: FB_LEAGUES.map((l) => ({ id: l.id, name: l.name, short: l.short, color: l.color })), max: { bb: bbDailyMax(), sr: srDailyMax() }, days: out };
+  return { leagues: FB_LEAGUES.map((l) => ({ id: l.id, name: l.name, short: l.short, color: l.color })), max: { bb: bbDailyMax(), sr: srDailyMax(), goal: goalDailyMax() }, days: out };
 }
 const srId = (urn) => `sr-${String(urn || '').split(':').pop()}`;
 const srUrn = (id) => `sr:sport_event:${String(id).replace(/^sr-/, '')}`;
@@ -2091,6 +2106,7 @@ async function goalGet(path, q = {}) {
   const key = Deno.env.get('GOAL_KEY');
   if (!key) throw new Error('Secret GOAL_KEY fehlt');
   const qs = new URLSearchParams(q).toString();
+  countUse('goal', path, q);
   let last = '';
   for (const base of goalBase ? [goalBase] : GOAL_BASES) {
     try {
@@ -2195,7 +2211,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22p';
+const FN_VERSION = '2026-11-22q';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };

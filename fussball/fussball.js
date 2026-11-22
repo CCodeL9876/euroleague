@@ -661,7 +661,7 @@ async function loadUsage() {
   } catch { usage = { error: 'Verbrauch gerade nicht erreichbar.' }; }
   if (sheet?.id === 'usage') renderSheet();
 }
-const SRC_NAME = { bb: 'Big Balls', sr: 'Sportradar' };
+const SRC_NAME = { bb: 'Big Balls', sr: 'Sportradar', goal: 'GOAL', fpl: 'FPL', oldb: 'OpenLigaDB' };
 function usageSheetHtml() {
   const head = `<div class="fb-sheet-dim" data-act="fb-sheet-close"></div>
     <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
@@ -693,9 +693,10 @@ function usageSheetHtml() {
   return `${head}
       <div class="fb-seg fb-use-days" role="tablist">${usage.days.map((d, i) => `<button type="button" role="tab" data-act="fb-use-day" data-i="${i}" aria-selected="${i === usageDay}">${esc(label(d.day, i))}</button>`).join('')}</div>
       <div class="fb-sheet-body">
-        <div class="fb-use-top">${meter('bb', tot('bb'))}${meter('sr', tot('sr'))}</div>
+        <div class="fb-use-top">${meter('bb', tot('bb'))}${meter('sr', tot('sr'))}${usage.max.goal ? meter('goal', tot('goal')) : ''}</div>
+        <p class="fb-use-free"><b>Gratis, ohne feste Grenze:</b> FPL ${esc(tot('fpl'))} · OpenLigaDB ${esc(tot('oldb'))}</p>
         ${day.rows.length ? order.map(card).join('') : '<p class="fb-x-note">Für diesen Tag noch keine gezählten Abfragen.</p>'}
-        <p class="fb-x-src">Gezählt pro Abfrage an Big Balls und Sportradar (Tag nach UTC). OpenLigaDB (2. Bundesliga), FPL (Premier League live), Wikipedia und Wikidata sind frei und nicht gezählt.</p>
+        <p class="fb-x-src">Gezählt pro Abfrage an Big Balls, Sportradar, GOAL (Schweizer Ligen), FPL (Premier League live) und OpenLigaDB (Bundesliga). Tag nach UTC, also ab 01:00 Schweizer Zeit. Wikipedia und Wikidata sind frei und nicht gezählt.</p>
       </div></section>`;
 }
 function orderSheetHtml() {
