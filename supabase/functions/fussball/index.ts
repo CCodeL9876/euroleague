@@ -1741,8 +1741,39 @@ async function pushMessages(endpoint, now) {
 }
 
 let lastViewMark = 0;
+// ---------- API-Football (api-sports.io), Test vor dem Umbau ----------
+// Secret APIFOOTBALL_KEY. ?afprobe=1 prüft Konto und ob Super League (207), Challenge League (208) und Championship (40)
+// in der laufenden Saison geliefert werden. 3 Abfragen, Ergebnis 30 Min. gemerkt (die Gratisstufe hat 100 pro Tag).
+const AF_BASE = 'https://v3.football.api-sports.io';
+const AF_LEAGUES = [['chsl', 207, 'Super League'], ['chcl', 208, 'Challenge League'], ['efl', 40, 'Championship']];
+async function afGet(path, q = {}) {
+  const key = Deno.env.get('APIFOOTBALL_KEY');
+  if (!key) throw new Error('Secret APIFOOTBALL_KEY fehlt');
+  const res = await fetch(`${AF_BASE}/${path}?${new URLSearchParams(q)}`, { headers: { 'x-apisports-key': key }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
+  const d = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return d;
+}
+async function afProbe() {
+  const hit = await cacheGet('afprobe');
+  if (hit && Date.now() - hit.at < 30 * 60 * 1000) return { ...hit.data, cached: true };
+  const st = await afGet('status');
+  const acc = st?.response || {};
+  const year = new Date().getUTCMonth() >= 6 ? new Date().getUTCFullYear() : new Date().getUTCFullYear() - 1;
+  const leagues = [];
+  for (const [id, lg, name] of AF_LEAGUES) {
+    const d = await afGet('fixtures', { league: String(lg), season: String(year), next: '3' }).catch((e) => ({ errors: { fetch: String(e.message) } }));
+    const errs = d?.errors && (Array.isArray(d.errors) ? d.errors : Object.values(d.errors));
+    leagues.push({ id, name, season: year, ok: !errs?.length && (d?.response || []).length > 0, errors: errs || [],
+      next: (d?.response || []).map((f) => `${f.fixture?.date?.slice(0, 16)} ${f.teams?.home?.name} – ${f.teams?.away?.name}`) });
+  }
+  const out = { ok: leagues.every((l) => l.ok), plan: acc.subscription?.plan || '', requests: acc.requests || null, leagues };
+  await cacheSet('afprobe', out);
+  return out;
+}
+
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22';
+const FN_VERSION = '2026-11-22b';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
@@ -1773,6 +1804,10 @@ async function handle(req) {
   if (params.has('fbdetail')) {
     try { return new Response(JSON.stringify(await fbDetail(String(params.get('fbdetail')), params.get('kind') === 'stats' ? 'stats' : 'lineup')), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
+  }
+  if (params.has('afprobe')) {
+    try { return new Response(JSON.stringify(await afProbe()), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ ok: false, error: String(err?.message || err).slice(0, 200) }), { status: 502, headers }); }
   }
   if (params.has('livedebug')) {
     // Diagnose Live-Stände: Zähler, Sportradar-Spielplan der Champions League, Live-Liste, Zuordnung der heutigen CL-Spiele
