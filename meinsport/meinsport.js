@@ -352,8 +352,45 @@ function livePoster(g, rk) {
     <span class="live-hero msx-board">${row1}${row2}<span class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(stateTxt)}</span>${right}</span></span>
     ${det ? `<span class="msx-det">${det}</span>` : ''}</a>`;
 }
+// ---------- Beendet: Ticket mit Abriss (Endstand), darunter der Verlauf ----------
+// Fussball: Tore auf der Zeitachse (Heim oben, Gast unten). Basketball (EuroLeague): Vorsprung über die Spielzeit aus dem Spielverlauf.
+const goalMin = (m) => { const [a, b] = String(m ?? '').split('+').map((x) => parseInt(x, 10)); return Number.isFinite(a) ? a + (Number.isFinite(b) ? Math.min(b, 9) * 0.5 : 0) : null; };
+function flowHtml(g) {
+  if (g.sport === 'f') {
+    const goals = (g.goals || []).map((x) => ({ ...x, t: goalMin(x.m) })).filter((x) => x.t != null);
+    if (!goals.length) return '';
+    const end = Math.max(95, ...goals.map((x) => x.t + 2)), pos = (t) => Math.max(2, Math.min(98, (t / end) * 100));
+    return `<div class="msx-tl" aria-label="Torfolge">${'<span class="ax"></span>'}<span class="ht" style="left:${pos(45)}%"></span>
+      ${goals.map((x) => `<span class="g ${x.s === 1 ? 'up' : 'dn'}" style="left:${pos(x.t).toFixed(1)}%" title="${esc(`${x.n || ''} ${x.m}'`)}">${crest(x.s === 1 ? g.hl : g.al, '', x.s === 1 ? g.hab : g.aab)}<small class="num">${esc(x.m)}'</small></span>`).join('')}
+      <span class="lab" style="left:0">0'</span><span class="lab" style="left:${pos(45)}%;transform:translateX(-50%)">HZ</span><span class="lab" style="right:0">${end > 100 ? '120' : '90'}'</span></div>`;
+  }
+  const ev = flows.get(g.id)?.ev;
+  if (g.sport !== 'b' || !ev?.length) return '';
+  const end = Math.max(2400, ev.at(-1)[0]), max = Math.max(6, ...ev.map((e) => Math.abs(e[1] - e[2])));
+  const pts = [[0, 0], ...ev.map((e) => [e[0], e[1] - e[2]])].map(([t, d]) => `${((t / end) * 300).toFixed(1)} ${(30 - (d / max) * 26).toFixed(1)}`);
+  const lines = [600, 1200, 1800, ...(end > 2400 ? [2400] : [])].map((t) => `<line x1="${(t / end) * 300}" y1="2" x2="${(t / end) * 300}" y2="58" class="q"/>`).join('');
+  return `<div class="msx-spark"><svg viewBox="0 0 300 60" preserveAspectRatio="none" role="img" aria-label="Vorsprung im Spielverlauf"><line x1="0" y1="30" x2="300" y2="30" class="mid"/>${lines}<path d="M${pts.join(' L')}"/></svg>
+    <span class="msx-spark-l"><span>▲ ${esc(g.h)} vorne</span><span>▼ ${esc(g.a)} vorne</span></span></div>`;
+}
+function ticketPoster(g) {
+  const [fh, fa] = favSide(g), both = fh && fa, home = fh || !fa;
+  const us = home ? g.hs : g.as, them = home ? g.as : g.hs;
+  const res = both ? ['', 'Endstand'] : us > them ? ['w', 'Sieg'] : us < them ? ['l', 'Niederlage'] : ['d', 'Unentschieden'];
+  const hw = g.hs > g.as, aw = g.as > g.hs;
+  const d = zone(new Date(g.at), { weekday: 'short', day: 'numeric', month: 'numeric' });
+  const date = `${(d.weekday || '').replace('.', '')} ${d.day}.${d.month}. · ${hhmm(g.at)}`;
+  const row = (h) => `<span class="trow${(h ? aw : hw) ? ' lose' : ''}">${crest(h ? g.hl : g.al, '', h ? g.hab : g.aab)}<b>${esc(h ? g.h : g.a)}${(h ? fh : fa) ? ' <i class="star">★</i>' : ''}</b><em class="num">${esc(h ? g.hs : g.as)}</em></span>`;
+  const sc = g.sport === 'f' && g.goals?.length ? g.goals.map((x) => { const n = String(x.n || ''), own = /\(Eigentor\)/.test(n), pen = /\(Pen\.\)/.test(n);
+    return `${esc(n.replace(/\s*\(.*\)\s*$/, '').split(' ').pop() || (x.s === 1 ? g.h : g.a))}${own ? ' (ET)' : pen ? ' (P)' : ''} ${esc(x.m)}'`; }).join(' · ') : '';
+  const flow = flowHtml(g);
+  return `<a class="msx-fin" href="${esc(g.href)}" style="--tc:${tintOf(g)}" aria-label="${esc(`Endstand ${g.h} ${g.hs}, ${g.a} ${g.as}${res[0] ? `, ${res[1]}` : ''}`)}">
+    <span class="msx-ticket"><span class="main"><span class="tline"><span>${esc(g.lg)}</span><span>${esc(date)}</span></span>${row(true)}${row(false)}${sc ? `<span class="tline sc">${sc}</span>` : ''}</span>
+      <span class="stub"><small>Endstand</small><b class="num">${esc(g.hs)}:${esc(g.as)}</b>${res[0] ? `<small class="r ${res[0]}">${res[1]}</small>` : ''}</span></span>
+    ${flow ? `<span class="msx-flow"><span class="h">So lief das Spiel</span>${flow}</span>` : ''}</a>`;
+}
 function heroCard(g, rk) {
   if (g.st === 'live') return livePoster(g, rk);
+  if (g.st === 'ft') return ticketPoster(g);
   const live = false, pre = g.st === 'pre';
   const left = live ? `<i class="ms-dot"></i>${esc(g.label)}` : pre ? esc(whenText(g.at)) : 'Endstand';
   const cd = pre ? cdText(g.at) : '';

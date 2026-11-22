@@ -262,3 +262,43 @@ a.msx-w:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}
 .msx-chips span{font-size:0.74rem;color:var(--dim);background:var(--card);border-radius:9px;padding:4px 8px;}
 .msx-chips b{color:var(--text);font-weight:600;}
 @media (max-width:420px){ .msx-board .flap-row .flap{width:30px;height:44px;font-size:1.8rem;} .msx-board .flap-name{font-size:0.84rem;padding:9px 8px;} }
+
+/* Beendet: Ticket mit Abriss (Endstand), darunter der Verlauf (Tore auf der Zeitachse bzw. Vorsprung im Basketball) */
+.msx-fin{flex:0 0 100%;scroll-snap-align:center;display:flex;flex-direction:column;gap:10px;color:var(--text);text-decoration:none;}
+.msx-fin:focus-visible{outline:2px solid var(--blue-hi);outline-offset:3px;border-radius:18px;}
+.msx-ticket{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 104px;border-radius:18px;overflow:hidden;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);}
+.msx-ticket::before,.msx-ticket::after{content:"";position:absolute;right:94px;width:20px;height:20px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line);}
+.msx-ticket::before{top:-10px;} .msx-ticket::after{bottom:-10px;}
+.msx-ticket .main{display:flex;flex-direction:column;gap:9px;padding:13px 14px;min-width:0;}
+.msx-ticket .tline{display:flex;justify-content:space-between;gap:8px;font:600 0.7rem var(--mono);letter-spacing:0.06em;text-transform:uppercase;color:var(--faint);}
+.msx-ticket .tline span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.msx-ticket .tline.sc{text-transform:none;letter-spacing:0.02em;color:var(--dim);white-space:normal;}
+.msx-ticket .trow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:center;}
+.msx-ticket .trow .ms-logo{width:28px;height:28px;}
+.msx-ticket .trow b{font-weight:600;font-size:0.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.msx-ticket .trow .star{font-style:normal;color:var(--gold);font-size:0.8rem;}
+.msx-ticket .trow em{font:700 1.45rem/1 var(--mono);font-style:normal;}
+.msx-ticket .trow.lose{opacity:0.5;}
+.msx-ticket .stub{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:12px 6px;text-align:center;border-left:2px dashed var(--line);
+  background:color-mix(in srgb, var(--tc) 30%, var(--card));}
+.msx-ticket .stub small{font:600 0.62rem var(--mono);letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);}
+.msx-ticket .stub b{font:800 1.7rem/1 var(--mono);letter-spacing:-0.03em;}
+.msx-ticket .stub .r{font-size:0.66rem;padding:3px 7px;border-radius:6px;}
+.msx-ticket .stub .r.w{color:var(--green);background:color-mix(in srgb, var(--green) 18%, transparent);}
+.msx-ticket .stub .r.l{color:var(--coral);background:color-mix(in srgb, var(--coral) 18%, transparent);}
+.msx-ticket .stub .r.d{color:var(--text);background:color-mix(in srgb, var(--text) 12%, transparent);}
+.msx-flow{display:flex;flex-direction:column;gap:6px;background:var(--panel);border-radius:16px;padding:10px 12px 12px;}
+.msx-flow .h{font-size:0.72rem;font-weight:600;color:var(--dim);}
+.msx-tl{position:relative;height:74px;margin:0 8px;}
+.msx-tl .ax{position:absolute;left:0;right:0;top:36px;height:2px;border-radius:1px;background:var(--line);}
+.msx-tl .ht{position:absolute;top:28px;width:1px;height:18px;background:var(--faint);}
+.msx-tl .g{position:absolute;display:flex;flex-direction:column;align-items:center;gap:1px;transform:translateX(-50%);}
+.msx-tl .g.up{bottom:40px;} .msx-tl .g.dn{top:40px;flex-direction:column-reverse;}
+.msx-tl .g .ms-logo{width:18px;height:18px;}
+.msx-tl .g small{font:600 0.62rem var(--mono);color:var(--dim);}
+.msx-tl .lab{position:absolute;top:30px;font:600 0.58rem var(--mono);color:var(--faint);background:var(--panel);padding:0 2px;}
+.msx-spark svg{display:block;width:100%;height:60px;}
+.msx-spark .mid{stroke:var(--line);stroke-width:1;}
+.msx-spark .q{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3;}
+.msx-spark path{fill:none;stroke:var(--tc);stroke-width:2.5;stroke-linejoin:round;vector-effect:non-scaling-stroke;}
+.msx-spark-l{display:flex;justify-content:space-between;font-size:0.68rem;color:var(--faint);}
