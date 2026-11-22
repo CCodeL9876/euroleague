@@ -1988,8 +1988,48 @@ async function goalProbe() {
   return out;
 }
 
+// ?capprobe=1: prüft, welche Zusatzdaten die Quellen wirklich liefern (Konzept «drei Ligen, ein Takt»): GOAL Aufstellung,
+// Statistik und Torschützenliste der Super League; Big Balls Aufstellung (CL, PL), Statistik und Torschützenliste der CL.
+// Nimmt das letzte beendete Spiel aus dem Speicher und, falls eines läuft, zusätzlich ein Live-Spiel. Höchstens 9 Abfragen, 30 Min. gespeichert
+async function capProbe() {
+  const hit = await cacheGet('capprobe');
+  if (hit && Date.now() - hit.at < 30 * 60 * 1000) return { ...hit.data, cached: true };
+  const now = Date.now();
+  const sum = (d) => {
+    const x = d?.data ?? d;
+    const keys = x && typeof x === 'object' ? Object.keys(Array.isArray(x) ? (x[0] || {}) : x).slice(0, 15) : [];
+    return { keys, size: JSON.stringify(d ?? null).length, sample: JSON.stringify(d ?? null).slice(0, 400) };
+  };
+  const tryGoal = async (path, q) => { try { const { d } = await goalGet(path, q); return { ok: true, ...sum(d) }; } catch (e) { return { ok: false, error: String(e?.message || e).slice(0, 160) }; } };
+  const tryBb = async (path) => { try { return { ok: true, ...sum(await bbGet(path)) }; } catch (e) { return { ok: false, error: String(e?.message || e).slice(0, 160) }; } };
+  const pick = (ms, st) => (ms || []).filter((m) => (st === 'ft' ? m.st === 'ft' : m.st === 'live' || m.st === 'ht') && Date.parse(m.utc) < now).sort((a, b) => Date.parse(b.utc) - Date.parse(a.utc))[0];
+  const out = { at: new Date(now).toISOString(), goal: {}, bb: {} };
+  const sl = FB_LEAGUES.find((l) => l.id === 'chsl');
+  const gms = (await cacheGet(`gl:${sl.key}`))?.data?.matches || [];
+  const gft = pick(gms, 'ft'), glive = pick(gms, 'live');
+  if (gft) {
+    const fid = gft.id.replace(/^gl-/, '');
+    out.goal.match = `${gft.h} – ${gft.a} (${gft.utc})`;
+    out.goal.lineups = await tryGoal(`/fixtures/${fid}/lineups`);
+    out.goal.statistics = await tryGoal(`/fixtures/${fid}/statistics`);
+  } else out.goal.match = 'kein beendetes Spiel im Speicher';
+  out.goal.topScorers = await tryGoal(`/leagues/${sl.key}/top-scorers`, { limit: '10' });
+  if (glive) { out.goal.liveMatch = `${glive.h} – ${glive.a}`; out.goal.liveStatistics = await tryGoal(`/fixtures/${glive.id.replace(/^gl-/, '')}/statistics`); }
+  for (const [id, key] of [['ucl', 'ucl'], ['pl', 'epl']]) {
+    const ms = ((await cacheGet(`bb2:${key}`))?.data?.matches || []).filter((m) => m.id.startsWith('bb-'));
+    const ft = pick(ms, 'ft'), live = pick(ms, 'live'), r = {};
+    if (ft) { const u = ft.id.replace(/^bb-/, ''); r.match = `${ft.h} – ${ft.a} (${ft.utc})`; r.lineups = await tryBb(`stored/matches/${u}/lineups`); if (id === 'ucl') r.statistics = await tryBb(`matches/${u}/statistics`); }
+    else r.match = 'kein beendetes Spiel im Speicher';
+    if (live) { r.liveMatch = `${live.h} – ${live.a}`; r.liveStatistics = await tryBb(`matches/${live.id.replace(/^bb-/, '')}/statistics`); }
+    out.bb[id] = r;
+  }
+  out.bb.uclTopScorers = await tryBb('leagues/ucl/top-scorers');
+  await cacheSet('capprobe', out);
+  return out;
+}
+
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22g';
+const FN_VERSION = '2026-11-22h';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
@@ -2023,6 +2063,10 @@ async function handle(req) {
   }
   if (params.has('goalprobe')) {
     try { return new Response(JSON.stringify(await goalProbe()), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ ok: false, error: String(err?.message || err).slice(0, 200) }), { status: 502, headers }); }
+  }
+  if (params.has('capprobe')) {
+    try { return new Response(JSON.stringify(await capProbe()), { headers }); }
     catch (err) { return new Response(JSON.stringify({ ok: false, error: String(err?.message || err).slice(0, 200) }), { status: 502, headers }); }
   }
   if (params.has('afprobe')) {
