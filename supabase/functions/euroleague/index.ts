@@ -855,6 +855,8 @@ const PODCASTS = [
   { id: 'fantasy', apple: '1718246437', name: 'Fantasy Challenge', by: 'EuroLeague', spotify: '0yyAMe3GurZaEZZiGX3F2R' },
   { id: 'bbde', apple: '1042941282', name: '#BasketballDeutschland', by: 'MagentaSport', spotify: '6zXZbwojTZCBdDVCG7VvTA' },
   { id: 'coast', apple: '1830461736', name: 'Coast To Coast', by: 'BasketNews' },
+  // Nur auf YouTube und Spotify (kein Audio-Feed): öffentlicher YouTube-Kanal-Feed, ganze Folgen ohne Shorts; Abspielen in YouTube
+  { id: 'euroins', yt: 'UC1xu2s58RjMNmOBRFyc_EDg', handle: 'EUROINSIDERS', name: 'EURO INSIDERS', by: 'YouTube', spotify: '1ECyd5p6VubjlbWOAzUsks' },
 ];
 const podMem = new Map();
 const xmlTxt = (s) => String(s || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, '')
@@ -864,9 +866,24 @@ const xmlTag = (s, tag) => { const m = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S
 const xmlAttr = (s, tag, attr) => { const m = new RegExp(`<${tag}\\s[^>]*${attr}="([^"]+)"`, 'i').exec(s); return m ? xmlTxt(m[1]) : ''; };
 // Dauer «3125», «52:05» oder «1:02:05» → Sekunden
 const podDur = (s) => { const p = String(s || '').split(':').map(Number); return p.some((x) => !Number.isFinite(x)) ? 0 : p.reduce((a, b) => a * 60 + b, 0); };
+// YouTube-Kanal: Feed youtube.com/feeds/videos.xml (offiziell, ohne Schlüssel, die 15 neusten Videos). Kurze Clips (/shorts/) weg.
+async function ytShow(pc, now) {
+  const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${pc.yt}`, { headers: { accept: 'application/atom+xml, application/xml' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const xml = await res.text();
+  const items = (xml.match(/<entry>[\s\S]*?<\/entry>/gi) || []).map((it) => ({
+    title: xmlTag(it, 'title'), at: Date.parse(xmlTag(it, 'published')) || 0, url: xmlAttr(it, 'link', 'href'), vid: xmlTag(it, 'yt:videoId') }))
+    .filter((e) => e.title && /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{6,20}$/.test(e.url) && /^[\w-]{6,20}$/.test(e.vid)).sort((a, b) => b.at - a.at);
+  const eps = items.slice(0, 4).map((e) => ({ title: e.title, at: e.at ? new Date(e.at).toISOString() : '', dur: 0, audio: '', url: e.url, yt: true }));
+  const data = { id: pc.id, name: pc.name, by: pc.by, yt: true, art: items[0] ? `https://i.ytimg.com/vi/${items[0].vid}/hqdefault.jpg` : '',
+    link: `https://www.youtube.com/@${pc.handle}`, spotify: `https://open.spotify.com/show/${pc.spotify}`, ep: eps[0] || null, eps };
+  podMem.set(pc.id, { at: now, data });
+  return data;
+}
 async function podShow(pc, now) {
   const hit = podMem.get(pc.id);
   if (hit && now - hit.at < 60 * 60 * 1000) return hit.data;
+  if (pc.yt) return ytShow(pc, now);
   let meta = hit?.meta;
   if (!meta || now - hit.metaAt > 24 * 3600 * 1000) {
     const r = await getJson(`https://itunes.apple.com/lookup?id=${pc.apple}&entity=podcast`);
@@ -1096,7 +1113,7 @@ async function handleProfile(body, cors) {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-21b';
+const FN_VERSION = '2026-11-22';
 async function handle(req) {
   const cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });

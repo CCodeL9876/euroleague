@@ -1927,7 +1927,10 @@ const podAgo = (iso) => {
   return !iso ? '' : d <= 0 ? 'Heute' : d === 1 ? 'Gestern' : d < 7 ? `Vor ${d} Tagen` : new Date(iso).toLocaleDateString('de-CH', { day: 'numeric', month: 'numeric' });
 };
 const podLen = (s) => (s >= 3600 ? `${Math.floor(s / 3600)} Std. ${Math.round((s % 3600) / 60)} Min.` : s ? `${Math.round(s / 60)} Min.` : '');
-const podImg = (s, cls = 'pod-cov') => (/^https:\/\/[a-z0-9-]+\.mzstatic\.com\//.test(s.art || '') ? `<img class="${cls}" src="${esc(s.art)}" alt="" loading="lazy">` : `<span class="${cls} none" aria-hidden="true">${esc(s.name.slice(0, 2))}</span>`);
+// YouTube-Podcasts (ohne Audio-Feed, z. B. EURO INSIDERS): Knopf öffnet die Folge in YouTube statt im eigenen Player
+const YT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>';
+const ytBtn = (s, e, main = true) => `<a class="pm-btn${main ? ' main' : ''} pm-yt" href="${esc(e.url)}" target="_blank" rel="noopener" aria-label="In YouTube ansehen: ${esc(e.title)}">${YT_SVG}</a>`;
+const podImg = (s, cls = 'pod-cov') => (/^https:\/\/([a-z0-9-]+\.mzstatic\.com|i\.ytimg\.com\/vi)\//.test(s.art || '') ? `<img class="${cls}" src="${esc(s.art)}" alt="" loading="lazy">` : `<span class="${cls} none" aria-hidden="true">${esc(s.name.slice(0, 2))}</span>`);
 // Variante D: eine schmale Karte «EuroLeague Podcasts» (Cover + Anzahl neuer Folgen); aufgeklappt die neuste Folge je Podcast
 let podsOpen = false;
 function renderPods() {
@@ -1946,7 +1949,7 @@ function renderPods() {
       const on = podState.id === s.id && podState.i === 0;
       return `<div class="pod-row${on ? ' on' : ''}"><button type="button" class="pod-open" data-act="pod-open" data-id="${esc(s.id)}" aria-label="Folgen von ${esc(s.name)} anzeigen">${podImg(s, 'pod-cov sm')}</button>
         <div class="pod-txt" data-act="pod-open" data-id="${esc(s.id)}"><b title="${esc(s.ep.title)}">${esc(s.ep.title)}</b><small>${esc(s.name)} · ${esc(podAgo(s.ep.at))}${s.ep.dur ? ` · ${podLen(s.ep.dur)}` : ''}</small>${podProg(s, s.ep)}</div>
-        <button type="button" class="pm-btn main" data-act="pod-play" data-id="${esc(s.id)}" aria-label="${on && playing ? 'Pause' : 'Abspielen'}: ${esc(s.ep.title)}">${on && playing ? '❚❚' : PLAY_SVG}</button></div>`;
+        ${s.yt ? ytBtn(s, s.ep) : `<button type="button" class="pm-btn main" data-act="pod-play" data-id="${esc(s.id)}" aria-label="${on && playing ? 'Pause' : 'Abspielen'}: ${esc(s.ep.title)}">${on && playing ? '❚❚' : PLAY_SVG}</button>`}</div>`;
     }).join('')}</div></details>`;
 }
 // Blatt mit den letzten Folgen eines Podcasts (Antippen von Cover, Titel oder «Folgen»)
@@ -1956,12 +1959,12 @@ function renderPodSheet() {
   const a = $('#podAudio'), eps = podEps(s);
   dlg.innerHTML = `<div class="box-in"><div class="box-top pod-sh">${podImg(s, 'pod-cov lg')}<div><h2 id="podDlgTitle">${esc(s.name)}</h2><p class="box-note small">${esc(s.by)} · ${eps.length === 1 ? 'neuste Folge' : `${eps.length} letzte Folgen`}</p></div>
     <button type="button" class="box-close" data-act="pod-sheet-close" aria-label="Schliessen">×</button></div>
-    <div class="pod-acts"><a class="pod-ext" href="${esc(s.spotify)}" target="_blank" rel="noopener">In Spotify öffnen ↗</a>${s.link ? `<a class="pod-ext" href="${esc(s.link)}" target="_blank" rel="noopener">Apple Podcasts ↗</a>` : ''}</div>
+    <div class="pod-acts"><a class="pod-ext" href="${esc(s.spotify)}" target="_blank" rel="noopener">In Spotify öffnen ↗</a>${s.link ? `<a class="pod-ext" href="${esc(s.link)}" target="_blank" rel="noopener">${s.yt ? 'YouTube' : 'Apple Podcasts'} ↗</a>` : ''}</div>
     <ol class="pod-eps">${eps.map((e, i) => {
       const on = podState.id === s.id && podState.i === i, playing = on && !a.paused;
       const fresh = e.at && Date.now() - Date.parse(e.at) < 3 * 864e5;
       return `<li class="${on ? 'on' : ''}"><div class="pod-txt"><b>${esc(e.title)}</b><small>${fresh ? '<span class="pod-new">Neu</span> · ' : ''}${esc(podAgo(e.at))}${e.dur ? ` · ${podLen(e.dur)}` : ''}</small>${podProg(s, e)}</div>
-        <button type="button" class="pm-btn${playing ? '' : ' main'}" data-act="pod-play" data-id="${esc(s.id)}" data-i="${i}" aria-label="${playing ? 'Pause' : 'Abspielen'}: ${esc(e.title)}">${playing ? '❚❚' : PLAY_SVG}</button></li>`;
+        ${s.yt ? ytBtn(s, e) : `<button type="button" class="pm-btn${playing ? '' : ' main'}" data-act="pod-play" data-id="${esc(s.id)}" data-i="${i}" aria-label="${playing ? 'Pause' : 'Abspielen'}: ${esc(e.title)}">${playing ? '❚❚' : PLAY_SVG}</button>`}</li>`;
     }).join('')}</ol></div>`;
 }
 function openPodSheet(id) {
@@ -2077,7 +2080,7 @@ $('#podNow')?.addEventListener('click', (e) => { if (e.target === e.currentTarge
 
 function podPlay(id, i = 0) {
   const a = $('#podAudio'), s = (pods || []).find((x) => x.id === id), ep = podEps(s)[i];
-  if (!s || !ep) return;
+  if (!s || !ep || !ep.audio) return;
   if (podState.id === id && podState.i === i) { if (a.paused) a.play().catch(() => {}); else a.pause(); return; }
   podSavePos(true);
   if (brief.on) briefStop();
