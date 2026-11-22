@@ -288,8 +288,73 @@ function heroGames(list) {
   const rankSt = (g) => (g.st === 'live' ? 0 : g.st === 'pre' ? 1 : 2);
   return out.sort((x, y) => rankSt(x) - rankSt(y) || (x.st === 'ft' ? y.at - x.at : x.at - y.at));
 }
+// ---------- Live: Fallblatt-Tafel im Plakat (wie in den Bereichen), darunter Details der Sportart ----------
+const lastFlaps = new Map(); // letzter Stand pro Spiel: geänderte Blätter klappen um
+const liveStats = new Map(); // Fussball-Spiel → { at, d } Statistik der Funktion (Ballbesitz, Schüsse)
+const STAT_LG = new Set(['pl', 'ucl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1', 'chsl', 'chcl']);
+async function loadLiveStats(list) {
+  const need = list.filter((g) => g.sport === 'f' && g.fav && g.st === 'live' && STAT_LG.has(g.l) && (!liveStats.has(g.id) || Date.now() - liveStats.get(g.id).at > 2 * 60e3));
+  if (!need.length) return false;
+  await Promise.all(need.map(async (g) => { const d = await getJson(`${FB_URL}?fbdetail=${encodeURIComponent(g.id)}&kind=stats`, 15000).catch(() => null); liveStats.set(g.id, { at: Date.now(), d }); }));
+  return true;
+}
+// Viertel-Resultate aus dem Spielverlauf (ev: [Sekunde, Heim, Gast] fortlaufend); das laufende Viertel bis zum aktuellen Stand
+function quarters(g) {
+  const ev = flows.get(g.id)?.ev, n = Number((/\d+/.exec(g.period || '') || [])[0]) || 0;
+  if (!ev?.length || !n) return null;
+  const endOf = (q) => (q <= 4 ? q * 600 : 2400 + (q - 4) * 300);
+  const at = (t) => { const e = ev.filter((x) => x[0] <= t).at(-1); return e ? [e[1], e[2]] : [0, 0]; };
+  const list = [];
+  let prev = [0, 0];
+  for (let q = 1; q <= Math.max(4, n); q++) {
+    if (q > n) { list.push({ q, s: null, cur: false }); continue; }
+    const c = q === n ? [g.hs ?? 0, g.as ?? 0] : at(endOf(q));
+    list.push({ q, s: [c[0] - prev[0], c[1] - prev[1]], cur: q === n });
+    prev = c;
+  }
+  return { list };
+}
+function livePoster(g, rk) {
+  const bk = g.sport !== 'f';
+  const n = Number((/\d+/.exec(g.period || '') || [])[0]);
+  const running = bk && n >= 1 && /^\d{1,2}:\d\d$/.test(g.clock || '') && g.clock !== '00:00';
+  const clock = running ? g.clock.replace(/^0(?=\d:)/, '') : '';
+  const hs = String(g.hs ?? 0), as = String(g.as ?? 0), key = gkey(g);
+  const chars = [...hs.padStart(3), ...as.padStart(3), ...clock], before = lastFlaps.get(key) || [];
+  lastFlaps.set(key, chars);
+  let i = 0;
+  const tiles = (str, pad) => { const p = pad ? str.padStart(pad) : str; return `<span class="flaps">${[...p].map((ch) => { const flip = before.length && before[i] !== ch; i += 1;
+    return ch === ' ' ? '' : `<span class="flap${ch === ':' ? ' sep' : ''}${flip ? ' flip' : ''}">${esc(ch)}</span>`; }).join('')}</span>`; };
+  const row1 = `<span class="flap-row">${crest(g.hl, 'flag', g.hab)}<span class="flap-name">${esc(g.h)}</span>${tiles(hs, 3)}</span>`;
+  const row2 = `<span class="flap-row">${crest(g.al, 'flag', g.aab)}<span class="flap-name">${esc(g.a)}</span>${tiles(as, 3)}</span>`;
+  const last = (g.goals || []).at(-1);
+  const goal = !bk && last ? `Tor ${last.n || (last.s === 1 ? g.h : g.a)}${last.m !== '' && last.m != null ? ` ${last.m}'` : ''}` : '';
+  const right = clock ? `<span class="flap-clock">${tiles(clock)}</span>` : goal ? `<span class="msx-goal">${esc(goal)}</span>` : '';
+  const stateTxt = bk ? (running ? (n > 4 ? 'Verlängerung' : `${n}. Viertel`) : g.label) : g.label;
+  // Details: Basketball die Viertel, Fussball Torschützen, Ballbesitz, Schüsse, Live-Tabellenplatz
+  let det = '';
+  if (g.sport === 'b') {
+    const qs = quarters(g);
+    if (qs) det = `<span class="msx-qs">${qs.list.map((x) => `<span class="${x.cur ? 'cur' : ''}">${x.q <= 4 ? `Q${x.q}` : `V${x.q - 4}`}<b class="num">${x.s ? `${x.s[0]}:${x.s[1]}` : '–'}</b></span>`).join('')}</span>`;
+  } else if (!bk) {
+    const sc = (s) => (g.goals || []).filter((x) => x.s === s).map((x) => `<b>${esc(String(x.n || '').replace(/\s*\(Pen\.\)$/, ' (P)'))}</b>${x.m !== '' && x.m != null ? ` ${esc(x.m)}'` : ''}`).join(', ') || '–';
+    const st = liveStats.get(g.id)?.d, hm = st?.available ? st.home : null, aw = st?.available ? st.away : null;
+    const [fh, fa] = favSide(g), r = rk(g, fh || !fa);
+    const chips = [hm?.shots != null && aw?.shots != null ? `Schüsse <b class="num">${esc(hm.shots)}:${esc(aw.shots)}</b>` : '',
+      hm?.on != null && aw?.on != null ? `aufs Tor <b class="num">${esc(hm.on)}:${esc(aw.on)}</b>` : '',
+      r ? `Live-Tabelle <b>${esc(fh || !fa ? g.h : g.a)} ${esc(r.rank)}.${r.mv ? ` ${r.mv > 0 ? '▲' : '▼'}` : ''}</b>` : ''].filter(Boolean);
+    det = `<span class="msx-scorers"><span>${sc(1)}</span><span>${sc(2)}</span></span>
+      ${hm?.poss != null && aw?.poss != null ? `<span class="msx-poss"><span class="num">${esc(hm.poss)}%</span><span class="bar"><i style="width:${Math.max(0, Math.min(100, Number(hm.poss)))}%"></i></span><span class="num">${esc(aw.poss)}%</span></span><span class="msx-poss-l">Ballbesitz</span>` : ''}
+      ${chips.length ? `<span class="msx-chips">${chips.map((c) => `<span>${c}</span>`).join('')}</span>` : ''}`;
+  }
+  return `<a class="msx-poster ${g.sport}" href="${esc(g.href)}" style="--tc:${tintOf(g)}" aria-label="${esc(`${g.h} ${g.hs ?? 0}, ${g.a} ${g.as ?? 0}, ${stateTxt}`)}">
+    <span class="msx-k"><span><i class="ms-dot"></i>Live</span><span>${esc(g.lg)}${g.sport === 'b' ? ` · Spieltag ${esc(g.round)}` : ''} ★</span></span>
+    <span class="live-hero msx-board">${row1}${row2}<span class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(stateTxt)}</span>${right}</span></span>
+    ${det ? `<span class="msx-det">${det}</span>` : ''}</a>`;
+}
 function heroCard(g, rk) {
-  const live = g.st === 'live', pre = g.st === 'pre';
+  if (g.st === 'live') return livePoster(g, rk);
+  const live = false, pre = g.st === 'pre';
   const left = live ? `<i class="ms-dot"></i>${esc(g.label)}` : pre ? esc(whenText(g.at)) : 'Endstand';
   const cd = pre ? cdText(g.at) : '';
   const mid = pre ? (cd ? `<span class="msx-cd" data-cd="${g.at}">${flapsHtml(cd)}</span>` : '<span class="msx-vs">vs</span>') : `<span class="msx-sc num">${esc(g.hs ?? 0)}:${esc(g.as ?? 0)}</span>`;
@@ -470,7 +535,7 @@ async function load() {
   if (b.status === 'fulfilled' && Array.isArray(b.value.matches)) { fb = b.value; if (!b.value.stale) trackGoals(); }
   fbFailed = !okv(b);
   render();
-  await Promise.all([loadFlows(), loadTables(games())]);
+  await Promise.all([loadFlows(), loadTables(games()), loadLiveStats(games())]);
   render();
   const now = Date.now();
   const soon = games().some((g) => g.st === 'live' || (g.st === 'pre' && Math.abs(g.at - now) < 20 * 60 * 1000));

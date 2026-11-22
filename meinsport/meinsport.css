@@ -234,3 +234,31 @@ a.msx-w:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}
 .msx-row span:last-child{font-family:var(--mono);font-weight:600;font-size:0.82rem;}
 .msx-w .ms-feed{margin:0;}
 @media (min-width:700px){ .msx-grid{grid-template-columns:repeat(4,minmax(0,1fr));} .msx-w.wide{grid-column:span 2;} .msx-w.fill{grid-column:auto;} }
+
+/* Live: Fallblatt-Tafel (Farben aus style.css .live-hero) im Plakat der Vereinsfarbe, darunter Details */
+.msx-poster{flex:0 0 100%;scroll-snap-align:center;display:flex;flex-direction:column;gap:10px;padding:10px 10px 12px;border-radius:24px;color:var(--text);text-decoration:none;
+  background:linear-gradient(160deg, color-mix(in srgb, var(--tc) 52%, var(--card)) 0%, var(--card) 85%);box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--tc) 30%, transparent);}
+.msx-poster:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px;}
+.msx-poster .msx-k{padding:4px 6px 0;}
+.msx-poster .msx-k span:first-child{color:var(--live);}
+.msx-board{cursor:inherit;padding:14px;border-radius:18px;border-color:color-mix(in srgb, var(--tc) 35%, var(--line));}
+.msx-board .flap-row .flap{width:36px;height:52px;font-size:2.2rem;}
+.msx-board .ms-logo.flag{width:42px;height:42px;}
+.msx-board .flap-name{font-size:0.95rem;padding:11px 10px;}
+.msx-goal{font:600 0.72rem var(--mono);letter-spacing:0.05em;text-transform:uppercase;color:var(--flap-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.msx-det{display:flex;flex-direction:column;gap:8px;padding:0 6px;}
+.msx-qs{display:grid;grid-template-columns:repeat(auto-fit,minmax(56px,1fr));gap:5px;}
+.msx-qs span{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--card);border-radius:9px;padding:6px 0;font:600 0.7rem var(--mono);color:var(--dim);}
+.msx-qs span b{font-size:0.86rem;color:var(--text);}
+.msx-qs span.cur{box-shadow:inset 0 0 0 1px var(--live);color:var(--live);}
+.msx-scorers{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:0.8rem;color:var(--dim);}
+.msx-scorers span:last-child{text-align:right;}
+.msx-scorers b{color:var(--text);font-weight:600;}
+.msx-poss{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;font-size:0.78rem;font-weight:600;}
+.msx-poss .bar{height:6px;border-radius:3px;background:color-mix(in srgb, var(--text) 25%, transparent);overflow:hidden;}
+.msx-poss .bar i{display:block;height:100%;background:var(--tc);}
+.msx-poss-l{font-size:0.7rem;color:var(--dim);text-align:center;margin-top:-6px;}
+.msx-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.msx-chips span{font-size:0.74rem;color:var(--dim);background:var(--card);border-radius:9px;padding:4px 8px;}
+.msx-chips b{color:var(--text);font-weight:600;}
+@media (max-width:420px){ .msx-board .flap-row .flap{width:30px;height:44px;font-size:1.8rem;} .msx-board .flap-name{font-size:0.84rem;padding:9px 8px;} }
