@@ -6,7 +6,7 @@ import { tvOf } from '../fussball/tv.js';
 const EL_URL = `${SUPABASE_URL}/functions/v1/euroleague`, FB_URL = `${SUPABASE_URL}/functions/v1/fussball`, CH_URL = `${SUPABASE_URL}/functions/v1/basket`;
 const HEAD = { apikey: SUPABASE_ANON_KEY };
 const LIVE_POLL_MS = 60 * 1000, IDLE_POLL_MS = 60 * 60 * 1000; // ohne Spiel: bis 20 Min. vor dem nächsten Anpfiff, höchstens 1 Std.
-const TODAY_MAX = 8, MISSED_MAX = 6, MISSED_DAYS = 7, FIRST_DAYS = 3, FEED_MAX = 8, FEED_ALL = 40, RECENT_MS = 30 * 60 * 1000;
+const TODAY_MAX = 5, WIDGET_MAX = 4, MISSED_DAYS = 7, FIRST_DAYS = 3, FEED_ALL = 40, RECENT_MS = 30 * 60 * 1000;
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -71,7 +71,6 @@ function saveSeen(leaving = false) {
   fetch(EL_URL, { method: 'POST', keepalive: leaving, headers: { ...HEAD, 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'profile-mssave', name, pin, msState }) }).catch(() => { lastSent = ''; });
 }
 const gkey = (g) => `${g.sport}${g.id}`;
-const lastFlaps = new Map(); // letzter Stand pro Spiel: geänderte Blätter klappen um, wie in den Bereichen
 
 const zone = (d, o) => Object.fromEntries(new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', ...o }).formatToParts(d).map((p) => [p.type, p.value]));
 const dayKey = (ms) => { const o = zone(new Date(ms), { year: 'numeric', month: '2-digit', day: '2-digit' }); return `${o.year}-${o.month}-${o.day}`; };
@@ -128,11 +127,6 @@ const crest = (u, cls = '', ab = '') => (u ? `<img class="ms-logo ${cls}" src="$
 const TV_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M9 2l3 4 3-4"/></svg>';
 const tvText = (g) => (g.sport === 'f' && g.st !== 'ft' ? tvOf({ l: g.l, utc: g.utc, h: g.h, a: g.a }).ch : '');
 const tvTag = (g) => { const t = tvText(g); return t ? ` · <span class="ms-tv">${TV_ICON}${esc(t)}</span>` : ''; };
-function rowHtml(g) {
-  const score = g.st === 'ft' && g.hs != null && !hidden(g);
-  const side = (n, u, s, ab) => `<span class="tm">${crest(u, '', ab)}<b>${esc(n)}</b>${score ? `<em class="num">${s}</em>` : ''}</span>`;
-  return `<a class="ms-row ${g.sport}${g.fav ? ' fav' : ''}" href="${esc(g.href)}"><span class="t num">${g.st === 'ft' ? 'Ende' : hhmm(g.at)}</span>${side(g.h, g.hl, g.hs, g.hab)}${side(g.a, g.al, g.as, g.aab)}<span class="lg">${esc(g.lg)}${tvTag(g)}</span></a>`;
-}
 
 // Spiel deiner Teams, dessen Resultat du noch nicht gesehen hast
 const missed = (g) => g.fav && g.st === 'ft' && g.hs != null && g.at > since && g.at > Date.now() - MISSED_DAYS * 864e5 && !seen.has(gkey(g));
@@ -200,64 +194,6 @@ function nextGames(list) {
   }
   return out;
 }
-const countdown = (at) => {
-  const mins = Math.max(1, Math.round((at - Date.now()) / 60000));
-  return mins < 60 ? `in ${mins} Min.` : mins < 36 * 60 ? `in ${Math.round(mins / 60)} Std.` : `in ${Math.round(mins / 1440)} Tagen`;
-};
-function nextHtml(list) {
-  const games = nextGames(list);
-  if (!games.length) return '';
-  const rk = standings(), fm = forms(list);
-  const side = (g, home, fav) => {
-    const k = sideKey(g, home), r = rk.get(k), f = (fm.get(k) || []).slice(-5);
-    return `<span class="ms-nx-t${fav ? ' fav' : ''}">${crest(home ? g.hl : g.al, '', home ? g.hab : g.aab)}<span class="nm"><b>${esc(home ? g.h : g.a)}</b>${f.length ? `<span class="ms-form" aria-hidden="true">${f.map((x) => `<i class="${x}"></i>`).join('')}</span>` : ''}</span>${r ? `<span class="rk num">${r.rank}. · ${esc(r.rec)}</span>` : ''}</span>`;
-  };
-  const card = (g) => { const [fh, fa] = favSide(g);
-    return `<a class="ms-nx ${g.sport}" href="${esc(g.href)}"><span class="k">${esc(whenText(g.at))} · <span class="num">${countdown(g.at)}</span></span>${side(g, true, fh)}${side(g, false, fa)}<span class="lg">${esc(g.lg)}${tvTag(g)}</span></a>`; };
-  return `<section class="ms-nxs" aria-label="Als Nächstes"><div class="ms-hrow"><h2 class="ms-h">Als Nächstes</h2>${games.length > 1 ? `<span class="ms-nx-n">${games.length} Spiele</span>` : ''}</div>
-    <div class="ms-nx-strip${games.length > 1 ? ' multi' : ''}" data-keep="next">${games.map(card).join('')}</div></section>`;
-}
-function missedHtml(list) {
-  const rows = list.filter(missed).reverse().slice(0, MISSED_MAX);
-  if (!rows.length) return '';
-  const off = !spoilerOn();
-  const item = (g) => {
-    const [fh, fa] = favSide(g), home = fh, both = fh && fa, k = gkey(g);
-    const title = both ? `${g.h} – ${g.a}` : home ? g.h : g.a;
-    const wd = new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', weekday: 'short' }).format(new Date(g.at)).replace('.', '');
-    const sub = both ? `${g.lg} · ${wd}` : `${home ? 'gegen' : 'bei'} ${home ? g.a : g.h} · ${wd}`;
-    const us = home ? g.hs : g.as, them = home ? g.as : g.hs;
-    const res = us > them ? ['w', 'S'] : us < them ? ['l', 'N'] : ['d', 'U'];
-    const show = off || revealed.has(k);
-    return `<div class="ms-res">${crest(fh || !fa ? g.hl : g.al)}<span class="n"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${show ? `${both ? '' : `<i class="${res[0]}">${res[1]}</i>`}<strong class="num">${both ? `${g.hs}:${g.as}` : `${us}:${them}`}</strong>` : `<button type="button" class="ms-show" data-act="reveal" data-k="${esc(k)}" aria-label="Resultat von ${esc(title)} zeigen">Zeigen</button>`}</div>`;
-  };
-  return `<section class="ms-missed" aria-label="Seit deinem letzten Besuch"><div class="h"><b>Seit deinem letzten Besuch</b>${off ? '' : '<span>Spoilerschutz an</span>'}</div>${rows.map(item).join('')}</section>`;
-}
-
-// Fallblatt-Tafel wie auf den Seiten Basketball und Fussball; die ganze Tafel führt zum Spiel
-function liveCard(g) {
-  const bk = g.sport !== 'f';
-  const n = Number((/\d+/.exec(g.period || '') || [])[0]);
-  const running = bk && n >= 1 && /^\d{1,2}:\d\d$/.test(g.clock || '') && g.clock !== '00:00';
-  const state = running ? (n > 4 ? 'Verlängerung' : `${n}. Viertel`) : g.label;
-  const clock = running ? g.clock.replace(/^0(?=\d:)/, '') : '';
-  const hs = bk ? String(g.hs ?? 0).padStart(3, ' ') : String(g.hs ?? 0), as = bk ? String(g.as ?? 0).padStart(3, ' ') : String(g.as ?? 0);
-  const key = `${g.sport}${g.id}`, chars = [...hs, ...as, ...clock], before = lastFlaps.get(key) || [];
-  lastFlaps.set(key, chars);
-  let i = 0;
-  const tiles = (str) => `<span class="flaps">${[...str].map((ch) => {
-    const flip = before.length && before[i] !== ch; i += 1;
-    return `<span class="flap${ch === ':' ? ' sep' : ''}${flip ? ' flip' : ''}">${ch === ' ' ? '' : esc(ch)}</span>`;
-  }).join('')}</span>`;
-  const last = (g.goals || []).at(-1);
-  const goal = last ? `Tor ${last.n || (last.s === 1 ? g.h : g.a)}${last.m !== '' ? ` ${last.m}'` : ''}` : '';
-  const row1 = `<span class="flap-row">${crest(g.hl, 'flag', g.hab)}<span class="flap-name">${esc(g.h)}</span>${tiles(hs)}</span>`;
-  const row2 = `<span class="flap-row">${crest(g.al, 'flag', g.aab)}<span class="flap-name">${esc(g.a)}</span>${tiles(as)}</span>`;
-  return `<a class="live-hero ${g.sport}" href="${esc(g.href)}" aria-label="${esc(`${g.h} ${g.hs ?? 0}, ${g.a} ${g.as ?? 0}, ${state}`)}">${row1}${row2}
-    <span class="flap-bar"><span class="flap-q"><i class="live-dot" aria-hidden="true"></i>${esc(state)}<span class="flap-round">&nbsp;· ${esc(g.sport === 'b' ? `Spieltag ${g.round}` : g.lg)}</span>${g.fav ? '<span class="ms-fv" title="Dein Team">★</span>' : ''}</span>
-      <span class="flap-clock">${goal ? `<span class="ms-goal">${esc(goal)}</span>` : ''}${clock ? tiles(clock) : ''}<span class="flap-more" aria-hidden="true">›</span></span></span></a>`;
-}
-
 // Feed: Tore laufender Fussballspiele, Läufe und Viertelenden laufender Basketballspiele, Endstände der letzten halben Stunde.
 // Die Zeit ist nur für die Reihenfolge geschätzt: die Quellen nennen Spielminuten, keine Uhrzeiten.
 function feedItems(list) {
@@ -325,9 +261,79 @@ function teamCards(list) {
   return cards.sort((x, y) => x.rank - y.rank).map((c) => c.html).join('');
 }
 
+// ---------- Matchplakat und Kacheln ----------
+// Plakatfarbe pro Lieblingsteam (Vereinsfarbe); ohne Eintrag die Farbe der Sportart
+const TINT = { 'fc basel': '#C8102E', liverpool: '#C8102E', chelsea: '#034694', arsenal: '#EF0107', 'manchester united': '#DA291C', 'manchester city': '#6CABDD',
+  'young boys': '#F5C400', 'fc zürich': '#0072BC', 'fc luzern': '#1E4E9C', 'fc st. gallen': '#00843D', servette: '#8B1E3F', 'fc lugano': '#000000', 'bayern münchen': '#DC052D',
+  'borussia dortmund': '#FDE100', 'real madrid': '#3D2B8F', barcelona: '#A50044', juventus: '#000000', 'inter milan': '#0068A8',
+  PAN: '#0B7A3B', OLY: '#C8102E', MAD: '#3D2B8F', BAR: '#A50044', ULK: '#163962', IST: '#00349A', ZAL: '#006A44', MCO: '#E30613', RED: '#C8102E', TEL: '#F5C400',
+  MIL: '#D50032', BAS: '#B3003A', ASV: '#003DA5', 'h2l:h2l-bc-arlesheim-2': '#1D3F8F' };
+const SPORT_TINT = { b: 'var(--bk)', f: 'var(--fb)', c: 'var(--ch)' };
+const favKeyOf = (g, home) => (g.sport === 'f' ? String(home ? g.h : g.a).toLowerCase() : home ? g.hk : g.ak);
+const tintOf = (g) => { const [fh, fa] = favSide(g), home = fh || !fa; return TINT[favKeyOf(g, home)] || SPORT_TINT[g.sport]; };
+// Fallblatt-Ziffern (Countdown bis Anpfiff)
+const flapsHtml = (str) => `<span class="msx-flaps">${[...str].map((ch) => `<span class="msx-flap${ch === ':' ? ' sep' : ''}">${esc(ch)}</span>`).join('')}</span>`;
+const cdText = (at) => { const m = Math.max(0, Math.ceil((at - Date.now()) / 60000)); return m >= 24 * 60 ? '' : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+const goalLine = (g) => {
+  if (g.sport !== 'f' || !g.goals?.length) return '';
+  const side = (s) => g.goals.filter((x) => x.s === s).map((x) => `${esc(x.n || '')}${x.m !== '' && x.m != null ? ` ${esc(x.m)}'` : ''}`).join(', ');
+  const h = side(1), a = side(2);
+  return `⚽ ${h || '–'} <span class="msx-sep">|</span> ${a || '–'}`;
+};
+// Spiele fürs Plakat: laufende, heute noch kommende und eben beendete Spiele deiner Teams
+function heroGames(list) {
+  const now = Date.now(), today = dayKey(now);
+  const out = list.filter((g) => g.fav && (g.st === 'live' || (g.st === 'pre' && g.at > now - 15 * 60e3 && dayKey(g.at) === today)
+    || (g.st === 'ft' && g.hs != null && !hidden(g) && now - endsAt(g) < 2 * 3600e3 && dayKey(g.at) === today)));
+  const rankSt = (g) => (g.st === 'live' ? 0 : g.st === 'pre' ? 1 : 2);
+  return out.sort((x, y) => rankSt(x) - rankSt(y) || (x.st === 'ft' ? y.at - x.at : x.at - y.at));
+}
+function heroCard(g, rk) {
+  const live = g.st === 'live', pre = g.st === 'pre';
+  const left = live ? `<i class="ms-dot"></i>${esc(g.label)}` : pre ? esc(whenText(g.at)) : 'Endstand';
+  const cd = pre ? cdText(g.at) : '';
+  const mid = pre ? (cd ? `<span class="msx-cd" data-cd="${g.at}">${flapsHtml(cd)}</span>` : '<span class="msx-vs">vs</span>') : `<span class="msx-sc num">${esc(g.hs ?? 0)}:${esc(g.as ?? 0)}</span>`;
+  const r = (home) => rk(g, home);
+  const ranks = pre && r(true) && r(false) ? `${r(true).rank}. gegen ${r(false).rank}.` : '';
+  const sub = goalLine(g) || (g.sport !== 'f' && live ? '' : ranks) || (pre && tvText(g) ? `${TV_ICON}${esc(tvText(g))}` : '');
+  const [fh, fa] = favSide(g);
+  const team = (home) => `<span class="msx-tm${(home ? fh : fa) ? ' fav' : ''}">${crest(home ? g.hl : g.al, 'xl', home ? g.hab : g.aab)}<b>${esc(home ? g.h : g.a)}</b></span>`;
+  return `<a class="msx-hero ${g.sport}${live ? ' live' : ''}" href="${esc(g.href)}" style="--tc:${tintOf(g)}" aria-label="${esc(`${g.h} gegen ${g.a}, ${live ? `live ${g.hs ?? 0}:${g.as ?? 0}` : pre ? whenText(g.at) : `Endstand ${g.hs}:${g.as}`}`)}">
+    <span class="msx-k"><span>${left}</span><span>${esc(g.lg)} ★</span></span>
+    <span class="msx-vsrow">${team(true)}${mid}${team(false)}</span>
+    ${sub ? `<span class="msx-sub">${sub}</span>` : ''}</a>`;
+}
+// Tabellenplatz eines Teams: EuroLeague aus den Spielen, Schweizer Basketball aus dessen Tabelle, Fussball aus der Tabelle
+// der Funktion (mit laufenden Spielen eingerechnet, wie die Live-Tabelle im Fussball-Bereich)
+const fbTab = new Map(); // Liga → { at, rows }
+const FB_TABLE_LG = new Set(['ucl', 'pl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1', 'chsl', 'chcl']);
+const tkey = (n) => plain(n).replace(/&/g, '').replace(/\b(a?fc|cf|sc)\b/g, '').replace(/[^a-z]/g, '');
+function fbRank(lgId, name, list) {
+  const t = fbTab.get(lgId);
+  if (!t?.rows?.length) return null;
+  const rows = t.rows.map((r) => ({ ...r, old: r.rank }));
+  const find = (n) => { const k = tkey(n); return rows.find((r) => tkey(r.team) === k) || (k.length >= 5 ? rows.find((r) => { const x = tkey(r.team); return x.startsWith(k.slice(0, 6)) || k.startsWith(x.slice(0, 6)); }) : null); };
+  let live = false;
+  for (const g of list) {
+    if (g.sport !== 'f' || g.l !== lgId || g.st !== 'live' || g.hs == null || g.as == null) continue;
+    const H = find(g.h), A = find(g.a);
+    if (!H || !A || H === A) continue;
+    live = true;
+    for (const [T, f, a] of [[H, g.hs, g.as], [A, g.as, g.hs]]) { T.p += 1; T.gf += f; T.ga += a; T.pts += f > a ? 3 : f === a ? 1 : 0; }
+  }
+  if (live) { rows.sort((x, y) => y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf || x.old - y.old); rows.forEach((r, i) => { r.rank = i + 1; }); }
+  const me = find(name);
+  return me ? { rank: me.rank, rec: `${me.pts} Pkt`, mv: live ? me.old - me.rank : 0 } : null;
+}
+async function loadTables(list) {
+  const need = [...new Set(list.filter((g) => g.sport === 'f' && g.fav && FB_TABLE_LG.has(g.l)).map((g) => g.l))].filter((l) => !fbTab.has(l) || Date.now() - fbTab.get(l).at > 30 * 60e3);
+  if (!need.length) return false;
+  await Promise.all(need.map(async (l) => { const d = await getJson(`${FB_URL}?fbleague=${l}`, 15000).catch(() => null); if (d?.available && Array.isArray(d.rows)) fbTab.set(l, { at: Date.now(), rows: d.rows }); }));
+  return true;
+}
 function render() {
   const list = games(), now = Date.now(), today = dayKey(now);
-  const live = list.filter((g) => g.st === 'live').sort((x, y) => y.fav - x.fav || (x.sport === 'b' ? -1 : 0) - (y.sport === 'b' ? -1 : 0) || x.at - y.at);
+  const live = list.filter((g) => g.st === 'live');
   const pill = $('#msPill');
   pill.hidden = !live.length;
   pill.innerHTML = live.length ? `<i class="ms-dot"></i>${live.length} live` : '';
@@ -337,36 +343,103 @@ function render() {
   let added = false;
   for (const g of live) if (g.fav && !seen.has(gkey(g))) { seen.add(gkey(g)); added = true; }
   if (added) saveSeen();
-  const feed = feedItems(list);
-  const liveHtml = live.length ? `<section class="ms-live" aria-label="Live-Spiele"><div class="ms-live-h"><b><i class="live-dot" aria-hidden="true"></i>Live</b><small>${live.length} ${live.length === 1 ? 'Spiel' : 'Spiele'}</small></div>
-    <div class="hero-scroll${live.length > 1 ? ' multi' : ''}" data-keep="live">${live.map(liveCard).join('')}</div>
-    ${feed.length ? `<div class="ms-feedbox"><h3>Live-Feed</h3><ul class="ms-feed">${(show.feed ? feed : feed.slice(0, FEED_MAX)).map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul>
-      ${feed.length > FEED_MAX ? `<button type="button" class="ms-more" data-act="more-feed">${show.feed ? 'Weniger zeigen' : `Alle ${feed.length} Ereignisse`}</button>` : ''}</div>` : ''}</section>` : '';
 
-  const topHtml = `${nextHtml(list)}${missedHtml(list)}`;
+  const stand = standings();
+  const rankOf = (g, home) => (g.sport === 'f' ? fbRank(g.l, home ? g.h : g.a, list) : stand.get(sideKey(g, home)) || null);
+
+  // Plakat: mehrere Spiele zum Wischen; ohne Spiel deiner Teams heute eine ruhige Tageszeile
+  const heroes = heroGames(list), heroIds = new Set(heroes.map(gkey));
+  const upcoming = nextGames(list);
+  const nx = upcoming.find((g) => !heroIds.has(gkey(g)));
+  const favName = (g) => { const [fh, fa] = favSide(g); return fh || !fa ? g.h : g.a; };
+  const hasFav = elFav.length || fbFav.length || chFav.length;
+  const heroHtml = heroes.length
+    ? `<section class="msx-heroes-wrap" aria-label="Deine Spiele heute"><div class="msx-heroes" data-keep="hero">${heroes.map((g) => heroCard(g, rankOf)).join('')}</div>
+      ${heroes.length > 1 ? `<div class="msx-dots" aria-hidden="true">${heroes.map((_, i) => `<i${i === 0 ? ' class="on"' : ''}></i>`).join('')}</div>` : ''}</section>`
+    : `<section class="msx-calm"><h2>Heute kein Spiel deiner Teams</h2><p>${hasFav ? (nx ? `Als Nächstes: ${esc(favName(nx))} ${esc(whenText(nx.at))}` : 'Im Moment ist kein Spiel geplant.') : 'Wähle deine Teams, dann erscheinen hier ihre Spiele.'}</p></section>`;
+
+  // Kacheln: Countdown zu den nächsten Spielen, verpasste Resultate (Spoilerschutz), letzte Resultate; breit: Tabellen, Live-Feed, Heute sonst
+  const small = [], wide = [];
+  const vsTxt = (g) => { const [fh] = favSide(g); return `${fh ? 'gegen' : 'bei'} ${fh ? g.a : g.h}`; };
+  const head = (g, txt) => `<span class="msx-wt">${crest(favSide(g)[0] || !favSide(g)[1] ? g.hl : g.al, '', favSide(g)[0] || !favSide(g)[1] ? g.hab : g.aab)}<span>${esc(txt)}</span></span>`;
+  for (const g of upcoming.filter((x) => !heroIds.has(gkey(x))).slice(0, 3)) {
+    const mins = Math.round((g.at - now) / 60000);
+    const big = mins < 60 ? `${Math.max(1, mins)}′` : dayKey(g.at) === today ? hhmm(g.at) : (zone(new Date(g.at), { weekday: 'short' }).weekday || '').replace('.', '');
+    small.push(`<a class="msx-w" href="${esc(g.href)}">${head(g, mins < 60 ? `${favName(g)} · Anpfiff in` : `${favName(g)} · ${g.lg}`)}<b class="msx-big num">${esc(big)}</b><small>${esc(dayKey(g.at) === today || mins < 60 ? vsTxt(g) : `${hhmm(g.at)} ${vsTxt(g)}`)}${tvText(g) ? ` · ${esc(tvText(g))}` : ''}</small></a>`);
+  }
+  for (const g of list.filter(hidden).reverse().slice(0, WIDGET_MAX)) {
+    const wd = (zone(new Date(g.at), { weekday: 'short' }).weekday || '').replace('.', '');
+    small.push(`<div class="msx-w spoil">${head(g, `${favName(g)} · ${wd}`)}<small>Seit deinem Besuch gespielt</small><button type="button" class="msx-chip" data-act="reveal" data-k="${esc(gkey(g))}" aria-label="Resultat von ${esc(favName(g))} zeigen">Resultat zeigen</button></div>`);
+  }
+  const doneTeams = new Set();
+  for (const g of list.filter((x) => x.fav && x.st === 'ft' && x.hs != null && !hidden(x) && !heroIds.has(gkey(x)) && now - x.at < 4 * 864e5).reverse()) {
+    const [fh, fa] = favSide(g), home = fh || !fa, k = sideKey(g, home);
+    if (doneTeams.has(k) || doneTeams.size >= WIDGET_MAX) continue;
+    doneTeams.add(k);
+    const us = home ? g.hs : g.as, them = home ? g.as : g.hs, res = us > them ? ['w', 'Sieg'] : us < them ? ['l', 'Niederlage'] : ['d', 'Unentschieden'];
+    const wd = dayKey(g.at) === today ? 'heute' : (zone(new Date(g.at), { weekday: 'short' }).weekday || '').replace('.', '');
+    small.push(`<a class="msx-w res ${res[0]}" href="${esc(g.href)}">${head(g, `${favName(g)} · ${wd}`)}<b class="msx-big num">${esc(us)}:${esc(them)}</b><small>${res[1]} ${esc(vsTxt(g))}</small></a>`);
+  }
+  // Tabellen deiner Teams
+  const tRows = [], tSeen = new Set();
+  for (const g of list.filter((x) => x.fav)) {
+    for (const home of [true, false]) {
+      if (!favSide(g)[home ? 0 : 1]) continue;
+      const k = sideKey(g, home);
+      if (tSeen.has(k)) continue;
+      const r = rankOf(g, home);
+      if (!r) continue;
+      tSeen.add(k);
+      tRows.push({ name: home ? g.h : g.a, lg: g.lg, ...r });
+    }
+  }
+  if (tRows.length) wide.push(`<div class="msx-w wide"><span class="msx-wt"><span>Deine Tabellen</span></span><div class="msx-tbl">${tRows.sort((a, b) => a.rank - b.rank).map((r) => `<div><span class="num">${esc(r.rank)}.</span><b>${esc(r.name)}<small> · ${esc(r.lg)}</small></b>${r.mv ? `<i class="${r.mv > 0 ? 'up' : 'down'}">${r.mv > 0 ? '▲' : '▼'}</i>` : ''}<span class="num">${esc(r.rec)}</span></div>`).join('')}</div></div>`);
+  // Live-Feed (Tore, Läufe, Endstände)
+  const feed = feedItems(list);
+  if (feed.length) wide.push(`<div class="msx-w wide"><span class="msx-wt"><span>Live-Feed</span></span><ul class="ms-feed">${(show.feed ? feed : feed.slice(0, WIDGET_MAX)).map((f) => `<li class="${f.sport}"><span class="num">${esc(f.tag)}</span><p>${f.html}</p></li>`).join('')}</ul>
+    ${feed.length > WIDGET_MAX ? `<button type="button" class="ms-more" data-act="more-feed">${show.feed ? 'Weniger zeigen' : `Alle ${feed.length} Ereignisse`}</button>` : ''}</div>`);
+  // Heute sonst: die übrigen Spiele des Tages
+  const others = list.filter((g) => !heroIds.has(gkey(g)) && dayKey(g.at) === today && !(g.fav && g.st === 'pre')).sort((x, y) => (x.st === 'live' ? -1 : 0) - (y.st === 'live' ? -1 : 0) || (x.st === 'ft') - (y.st === 'ft') || x.at - y.at);
+  if (others.length) {
+    const row = (g) => { const sc = g.hs != null && g.st !== 'pre' && !hidden(g);
+      return `<a class="msx-row ${g.sport}" href="${esc(g.href)}"><span class="num${g.st === 'live' ? ' on' : ''}">${g.st === 'live' ? 'live' : g.st === 'ft' ? 'Ende' : hhmm(g.at)}</span><b>${esc(g.h)} – ${esc(g.a)}</b><span class="num">${sc ? `${esc(g.hs)}:${esc(g.as)}` : ''}</span></a>`; };
+    wide.push(`<div class="msx-w wide"><span class="msx-wt"><span>Heute sonst</span></span><div class="msx-rows">${(show.today ? others : others.slice(0, TODAY_MAX)).map(row).join('')}</div>
+      ${others.length > TODAY_MAX ? `<button type="button" class="ms-more" data-act="more-today">${show.today ? 'Weniger zeigen' : `Alle ${others.length} Spiele`}</button>` : ''}</div>`);
+  }
+  // Ungerade Zahl kleiner Kacheln: die letzte füllt die Zeile
+  if (small.length % 2) small[small.length - 1] = small[small.length - 1].replace('class="msx-w', 'class="msx-w fill');
+  const gridHtml = small.length || wide.length ? `<div class="msx-grid">${small.join('')}${wide.join('')}</div>` : '';
+
   const cards = teamCards(list);
   const teamsHtml = `<div class="ms-hrow"><h2 class="ms-h">Deine Teams</h2>${cards ? `<button type="button" class="ms-edit" data-act="edit-teams" aria-pressed="${editTeams}">${editTeams ? 'Fertig' : 'Bearbeiten'}</button>` : ''}</div>
     <div class="ms-teams" data-keep="teams">${cards}<button type="button" class="ms-add" data-act="add-team" aria-haspopup="dialog" aria-label="Team hinzufügen"><span aria-hidden="true">+</span>Team</button></div>`;
-
-  // Heute, oder der nächste Tag mit Spielen
-  const open = list.filter((g) => g.st !== 'live');
-  let day = today, rows = open.filter((g) => dayKey(g.at) === today);
-  if (!rows.length) { const nx = open.find((g) => g.st === 'pre' && g.at > now); if (nx) { day = dayKey(nx.at); rows = open.filter((g) => dayKey(g.at) === day); } }
-  rows = [...rows].sort((x, y) => (x.st === 'ft') - (y.st === 'ft') || y.fav - x.fav || x.at - y.at);
-  const shown = show.today ? rows : rows.slice(0, TODAY_MAX);
-  const title = day === today ? 'Heute' : whenText(rows[0]?.at ?? now).replace(/ \d\d:\d\d$/, '');
-  const todayHtml = `<h2 class="ms-h">${esc(title)}</h2>${rows.length ? `<div class="ms-list">${shown.map(rowHtml).join('')}</div>` : '<p class="ms-note">Keine Spiele.</p>'}
-    ${rows.length > TODAY_MAX ? `<button type="button" class="ms-more" data-act="more-today">${show.today ? 'Weniger zeigen' : `Alle ${rows.length} Spiele`}</button>` : ''}`;
 
   const fails = [elFailed && 'EuroLeague', chFailed && 'Schweizer Basketball', fbFailed && 'Fussball'].filter(Boolean);
   const note = (fails.length ? `<p class="ms-note">${fails.join(' und ')} gerade nicht erreichbar, angezeigt wird der letzte Stand.</p>` : '')
     + (fb?.paused ? '<p class="ms-note">Fussball: Live-Stände pausiert, das Tageslimit der Datenquelle ist erreicht.</p>' : '');
   const main = $('#msMain');
   const keep = [...main.querySelectorAll('[data-keep]')].map((n) => [n.dataset.keep, n.scrollLeft]);
-  main.classList.toggle('solo', !live.length);
-  main.innerHTML = live.length ? `<div class="ms-col">${liveHtml}</div><div class="ms-col">${note}${topHtml}${teamsHtml}${todayHtml}</div>` : `<div class="ms-col">${note}${topHtml}${teamsHtml}${todayHtml}</div>`;
+  main.classList.add('msx');
+  main.innerHTML = `<div class="ms-col">${note}${heroHtml}${gridHtml}${teamsHtml}</div>`;
   for (const [k, x] of keep) { const n = main.querySelector(`[data-keep="${k}"]`); if (n) n.scrollLeft = x; }
+  syncDots();
 }
+// Punkte unter dem Plakat: zeigen, welches Spiel gerade sichtbar ist
+function syncDots() {
+  const box = document.querySelector('.msx-heroes'), dots = document.querySelectorAll('.msx-dots i');
+  if (!box || !dots.length) return;
+  const i = Math.round(box.scrollLeft / Math.max(1, box.clientWidth));
+  dots.forEach((d, k) => d.classList.toggle('on', k === i));
+}
+document.addEventListener('scroll', (e) => { if (e.target?.classList?.contains('msx-heroes')) syncDots(); }, true);
+// Countdown im Plakat jede halbe Minute nachführen; bei 0 neu laden
+setInterval(() => {
+  for (const n of document.querySelectorAll('[data-cd]')) {
+    const t = cdText(Number(n.dataset.cd));
+    if (t === '00:00') { refresh(); continue; }
+    if (t) n.innerHTML = flapsHtml(t);
+  }
+}, 30 * 1000);
 
 const getJson = async (url, ms) => {
   const res = await fetch(url, { headers: HEAD, cache: 'no-store', signal: AbortSignal.timeout(ms) });
@@ -397,7 +470,7 @@ async function load() {
   if (b.status === 'fulfilled' && Array.isArray(b.value.matches)) { fb = b.value; if (!b.value.stale) trackGoals(); }
   fbFailed = !okv(b);
   render();
-  await loadFlows();
+  await Promise.all([loadFlows(), loadTables(games())]);
   render();
   const now = Date.now();
   const soon = games().some((g) => g.st === 'live' || (g.st === 'pre' && Math.abs(g.at - now) < 20 * 60 * 1000));
