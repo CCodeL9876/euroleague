@@ -1772,8 +1772,60 @@ async function afProbe() {
   return out;
 }
 
+// ---------- GOAL API (goal-api.com), Test vor dem Umbau der Schweizer Ligen ----------
+// Secret GOAL_KEY, Zugang per «Authorization: Bearer». Die Doku nennt zwei Basisadressen; der Test probiert beide und
+// sucht die Schweizer Ligen (Kennungen unbekannt), Live-Spiele, Spielplan und Tabelle. Etwa 15 Abfragen, 30 Min. gemerkt.
+const GOAL_BASES = ['https://api.goal-api.com/v1', 'https://goal-api.com/api/v1'];
+let goalBase = '';
+async function goalGet(path, q = {}) {
+  const key = Deno.env.get('GOAL_KEY');
+  if (!key) throw new Error('Secret GOAL_KEY fehlt');
+  const qs = new URLSearchParams(q).toString();
+  let last = '';
+  for (const base of goalBase ? [goalBase] : GOAL_BASES) {
+    try {
+      const res = await fetch(`${base}${path}${qs ? `?${qs}` : ''}`, { headers: { Authorization: `Bearer ${key}`, accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
+      const limits = Object.fromEntries([...res.headers].filter(([k]) => /limit|remaining|quota/i.test(k)));
+      const d = await res.json().catch(() => null);
+      if (res.ok && d) { goalBase = base; return { d, limits }; }
+      last = `${base}: HTTP ${res.status} ${String(d?.message || d?.error || '').slice(0, 80)}`;
+    } catch (e) { last = `${base}: ${String(e?.message || e).slice(0, 80)}`; }
+  }
+  throw new Error(last);
+}
+const goalList = (d) => (Array.isArray(d?.data) ? d.data : Array.isArray(d) ? d : Array.isArray(d?.response) ? d.response : []);
+async function goalProbe() {
+  const hit = await cacheGet('goalprobe');
+  if (hit && Date.now() - hit.at < 30 * 60 * 1000) return { ...hit.data, cached: true };
+  const out = { base: '', limits: {}, swiss: [], leagueSample: null, live: null, leagues: [] };
+  // Ligen durchsuchen (bis 12 Seiten à 100), Schweizer Einträge sammeln
+  for (let off = 0; off < 1200; off += 100) {
+    const { d, limits } = await goalGet('/leagues', { limit: '100', offset: String(off) });
+    out.base = goalBase; out.limits = limits;
+    const list = goalList(d);
+    if (!out.leagueSample && list[0]) out.leagueSample = list[0];
+    for (const l of list) if (/switz|schweiz|suisse/i.test(JSON.stringify(l))) out.swiss.push(l);
+    if (list.length < 100) break;
+  }
+  const live = await goalGet('/fixtures/live').catch((e) => ({ err: String(e.message) }));
+  const ll = goalList(live.d);
+  out.live = live.err ? { error: live.err } : { count: ll.length, swiss: ll.filter((f) => /switz/i.test(JSON.stringify(f))).slice(0, 5), sampleKeys: ll[0] ? Object.keys(ll[0]) : [] };
+  for (const l of out.swiss.filter((x) => /super league|challenge league/i.test(JSON.stringify(x))).slice(0, 2)) {
+    const id = l.id ?? l.leagueId ?? l._id;
+    const fx = await goalGet(`/leagues/${id}/fixtures`, { limit: '100' }).catch((e) => ({ err: String(e.message) }));
+    const st = await goalGet(`/standings/${id}`).catch((e) => ({ err: String(e.message) }));
+    const fl = goalList(fx.d), now = Date.now();
+    out.leagues.push({ id, name: l.name || l.leagueName, season: l.season || l.currentSeason || null,
+      fixtures: fx.err ? { error: fx.err } : { count: fl.length, next: fl.filter((f) => Date.parse(f.kickoffUtc || f.date || 0) > now).slice(0, 3).map((f) => `${f.kickoffUtc || f.date} ${f.homeTeamName || f.home?.name} – ${f.awayTeamName || f.away?.name}`), sampleKeys: fl[0] ? Object.keys(fl[0]) : [] },
+      standings: st.err ? { error: st.err } : { rows: goalList(st.d).length || (st.d?.data?.standings || []).length, sample: JSON.stringify(st.d).slice(0, 300) } });
+  }
+  out.ok = out.leagues.length === 2 && out.leagues.every((x) => x.fixtures.count > 0);
+  await cacheSet('goalprobe', out);
+  return out;
+}
+
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22b';
+const FN_VERSION = '2026-11-22c';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
@@ -1804,6 +1856,10 @@ async function handle(req) {
   if (params.has('fbdetail')) {
     try { return new Response(JSON.stringify(await fbDetail(String(params.get('fbdetail')), params.get('kind') === 'stats' ? 'stats' : 'lineup')), { headers }); }
     catch { return new Response(JSON.stringify({ available: false, error: 'nicht erreichbar' }), { status: 502, headers }); }
+  }
+  if (params.has('goalprobe')) {
+    try { return new Response(JSON.stringify(await goalProbe()), { headers }); }
+    catch (err) { return new Response(JSON.stringify({ ok: false, error: String(err?.message || err).slice(0, 200) }), { status: 502, headers }); }
   }
   if (params.has('afprobe')) {
     try { return new Response(JSON.stringify(await afProbe()), { headers }); }
