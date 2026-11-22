@@ -82,6 +82,8 @@ const fbSeason = (d) => (d.getUTCMonth() >= 6 ? d.getUTCFullYear() : d.getUTCFul
 const liveWindow = (list, now) => list.some((m) => m.st === 'live' || m.st === 'ht' || (m.st === 'pre' && Math.abs(Date.parse(m.utc) - now) < 20 * 60 * 1000)
   || (m.st !== 'ft' && m.st !== 'off' && now > Date.parse(m.utc) && now - Date.parse(m.utc) < 130 * 60 * 1000));
 const kickoffJustStarted = (m, now) => m.st === 'pre' && now >= Date.parse(m.utc) && now - Date.parse(m.utc) <= 3 * 60 * 1000;
+// Sportradar-Live-Liste um den Anpfiff nur für Spiele der Lieblingsteams sofort neu holen (sonst gilt der normale Abstand von 7 Min.)
+const favKickoff = (res, now) => res.some((r) => r.matches.some((m) => kickoffJustStarted(m, now) && (liveFavs.has(String(m.h).toLowerCase()) || liveFavs.has(String(m.a).toLowerCase()))));
 
 // Kleiner Zwischenspeicher in der Datenbank (überlebt Neustarts der Funktion); ohne Tabelle nur im Speicher.
 // Gegen Datenverkehr (Egress): Liegt der Eintrag schon im Speicher dieser Instanz, zuerst nur den Zeitstempel lesen
@@ -120,7 +122,7 @@ async function cacheSet(key, data) {
   await fetch(`${SUPABASE_URL}/rest/v1/el_fb_cache?on_conflict=key`, { method: 'POST', headers: { ...serviceHeaders(), Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify({ key, data, at: new Date(at).toISOString() }), signal: AbortSignal.timeout(TIMEOUT_MS) }).catch(() => {});
 }
-// Tageszähler gegen die Kontingente der Anbieter. Atomar über die SQL-Funktion el_fb_incr (README / unten); fehlt sie,
+// Tageszähler gegen die Kontingente der Anbieter. Atomar über die SQL-Funktion el_fb_incr (supabase/el_fb_incr.sql); fehlt sie,
 // lesen + schreiben mit einem Zähler pro Instanz, damit gleichzeitige Abfragen derselben Instanz nicht alle denselben Stand lesen.
 const memCount = new Map();
 let rpcOk = true;
@@ -428,7 +430,7 @@ async function bbLeagues(list, now) {
     const srIdx = list.map((lg, i) => { const L = FB_LEAGUES.find((l) => l.id === lg.id); return L?.sr && L.src !== 'goal' ? i : -1; }).filter((i) => i >= 0);
     const need = srIdx.some((i) => others(res[i].matches).some((m) => open(m) || kickoffJustStarted(m, now)));
     if (need) {
-      const live = srIdx.some((i) => liveWindow(others(res[i].matches), now)) ? await srLive(now, forceKickoff).catch(() => null) : null;
+      const live = srIdx.some((i) => liveWindow(others(res[i].matches), now)) ? await srLive(now, favKickoff(res, now)).catch(() => null) : null;
       const byIdSr = new Map((live?.list || []).map((x) => [x.id, x]));
       for (const i of srIdx) {
         const lg = FB_LEAGUES.find((l) => l.id === list[i].id);
@@ -1300,8 +1302,7 @@ async function srLeagues(list, now) {
   list.forEach((lg, i) => { for (const m of res[i].matches || []) MATCH_LG.set(m.id, lg.id); });
   const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 12 * 3600e3;
   if (!res.some((r) => r.matches.some(open))) return res;
-  const forceKickoff = res.some((r) => r.matches.some((m) => kickoffJustStarted(m, now)));
-  const live = res.some((r) => liveWindow(r.matches, now)) ? await srLive(now, forceKickoff) : null;
+  const live = res.some((r) => liveWindow(r.matches, now)) ? await srLive(now, favKickoff(res, now)) : null;
   const byId = new Map((live?.list || []).map((x) => [x.id, x]));
   const changed = new Set();
   for (let i = 0; i < res.length; i++) {
@@ -2120,7 +2121,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22l';
+const FN_VERSION = '2026-11-22m';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
