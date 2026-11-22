@@ -1817,8 +1817,8 @@ function goalGoals(f, events) {
     if (/disallow|cancel|miss/.test(t)) continue;
     const side = scorerH ? 1 : scorerA ? 2 : (e.teamId && e.teamId === f.homeTeamId) || /home/i.test(String(e.side || e.team || '')) ? 1 : 2;
     const who = scorerH || scorerA || e.player?.name || e.playerName || e.player || '';
-    const own = /own/.test(t) || /\(og\)|own goal/i.test(String(who)), pen = /pen/.test(t) || /\(pen/i.test(String(who));
-    out.push({ m: String(e.time ?? e.minute ?? e.elapsed ?? '').replace(/'$/, ''), s: side, n: `${String(who).replace(/\s*\((og|pen\.?)\)\s*/i, '').trim()}${pen ? ' (Pen.)' : own ? ' (Eigentor)' : ''}` });
+    const own = /own/.test(t) || /\(o\.?\s?g\.?\)|own goal/i.test(String(who)), pen = /pen/.test(t) || /\(pen/i.test(String(who));
+    out.push({ m: String(e.time ?? e.minute ?? e.elapsed ?? '').replace(/'$/, ''), s: side, n: `${String(who).replace(/\s*\((o\.?\s?g\.?|pen\.?)\)\s*/i, '').trim()}${pen ? ' (Pen.)' : own ? ' (Eigentor)' : ''}` });
   }
   return out;
 }
@@ -1835,14 +1835,15 @@ async function goalLeague(lg, now) {
   if (!Deno.env.get('GOAL_KEY')) return { status: 'nokey', message: 'GOAL-Schlüssel fehlt', matches: [] };
   const ck = `gl:${lg.key}`, hit = await cacheGet(ck), names = await goalNames(lg);
   let data = hit?.data;
-  // Saisonspielplan: 1× pro Tag (bei Fehlern nach 30 Min.)
-  if (!data || now - hit.at > (data.status === 'ok' && !data.stale ? 24 * 3600 * 1000 : 30 * 60 * 1000)) {
+  // Spielplan: 3 Wochen zurück bis 5 Wochen voraus (mehr zeigt die App nicht), alle 6 Std.; bei Fehlern nach 30 Min.
+  if (!data || now - hit.at > (data.status === 'ok' && !data.stale ? 6 * 3600 * 1000 : 30 * 60 * 1000)) {
     try {
-      const all = [];
-      for (let off = 0; off < 600; off += 100) {
+      const all = [], seen = new Set(), day = (ms) => new Date(ms).toISOString().slice(0, 10);
+      for (let off = 0; off < 400; off += 100) {
         if (!(await goalAllowed())) throw new Error('Tagesgrenze GOAL');
-        const { d } = await goalGet(`/leagues/${lg.key}/fixtures`, { limit: '100', offset: String(off) });
-        const list = goalList(d); all.push(...list);
+        const { d } = await goalGet('/fixtures', { leagueId: lg.key, from: day(now - 21 * 864e5), to: day(now + 35 * 864e5), limit: '100', offset: String(off) });
+        const list = goalList(d).filter((f) => (f.leagueId || f.league?.id) === lg.key && !seen.has(f.id));
+        list.forEach((f) => seen.add(f.id)); all.push(...list);
         if (list.length < 100) break;
       }
       const old = new Map((data?.matches || []).map((m) => [m.id, m]));
@@ -1872,6 +1873,17 @@ async function goalLeague(lg, now) {
     let changed = false;
     data = { ...data, matches: data.matches.map((m) => { const t = byId.get(m.id); if (!t) return m; if (t.st === 'ft' && m.st !== 'ft') changed = true; return { ...m, ...t, goals: t.goals || m.goals }; }) };
     if (changed) await cacheSet(ck, data);
+  }
+  // Torschützen: kommen nicht mit dem Spielplan. Laufende und in den letzten 3 Tagen beendete Spiele einzeln holen
+  // (laufend alle 2 Min., beendet einmal und dann dauerhaft gespeichert); höchstens 8 pro Durchgang
+  const need = data.matches.filter((m) => (m.st === 'live' || m.st === 'ht' || (m.st === 'ft' && now - Date.parse(m.utc) < 3 * 864e5))
+    && !(m.st === 'ft' && m.goalsDone) && (m.hs || m.as)).slice(0, 8);
+  if (need.length) {
+    const got = new Map();
+    for (const m of need) { const g = await goalGame(m.id).catch(() => null); if (g) got.set(m.id, g); }
+    let save = false;
+    data = { ...data, matches: data.matches.map((m) => { const g = got.get(m.id); if (!g) return m; if (g.final) save = true; return { ...m, goals: g.goals.length ? g.goals : m.goals, goalsDone: g.final || undefined }; }) };
+    if (save) await cacheSet(ck, data);
   }
   return data;
 }
@@ -1962,7 +1974,7 @@ async function goalProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22d';
+const FN_VERSION = '2026-11-22e';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
