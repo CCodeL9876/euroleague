@@ -153,7 +153,8 @@ let liveEager = true;
 let liveFavs = new Set();
 const isFavGame = (m, now) => (liveFavs.has(String(m.h).toLowerCase()) || liveFavs.has(String(m.a).toLowerCase()))
   && m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) - now < 2 * 60 * 1000 && now - Date.parse(m.utc) < 3 * 3600e3;
-const BB_LIVE_MS_FN = () => (bbDailyMax() >= 1000 && liveEager ? 2 : 5) * 60 * 1000;
+// Ohne Zuschauer und ohne Spiel eines Lieblingsteams: 10 Min. (fremde Spiele, spart Abfragen)
+const BB_LIVE_MS_FN = () => (liveEager ? (bbDailyMax() >= 1000 ? 2 : 5) : 10) * 60 * 1000;
 // Tagesgrenze erreicht: Zeitpunkt merken, damit die Seite «Live-Stände pausiert» zeigen kann statt still alte Stände
 let bbPausedAt = 0;
 const bbAllowed = async () => { const ok = await dailyAllowed('bbcount', bbDailyMax()); if (!ok) bbPausedAt = Date.now(); return ok; };
@@ -396,7 +397,7 @@ async function bbLeagues(list, now) {
   const days = [...new Set(res.flatMap((r) => r.matches.filter(open).map((m) => m.utc.slice(0, 10))))].sort().slice(-2);
   const liveDay = (d) => res.some((r) => liveWindow(others(r.matches).filter((m) => m.utc.slice(0, 10) === d), now));
   // Laufende Stände kommen aus dem Live-Feed; die Tagesliste (Endstände) genügt dann im doppelten Abstand
-  const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) ? 2 * BB_LIVE_MS_FN() : 15 * 60 * 1000)));
+  const lists = await Promise.all(days.map((d) => bbDay(d, now, liveDay(d) && liveEager ? 2 * BB_LIVE_MS_FN() : 15 * 60 * 1000)));
   const byId = new Map(lists.flatMap((l) => (l?.list || []).map((x) => [x.id, x.m])));
   // Laufende Spiele: Live-Feed hat Vorrang vor der gespeicherten Tagesliste (die für die Champions League hinterherhinkt)
   if (days.some(liveDay)) {
@@ -423,7 +424,8 @@ async function bbLeagues(list, now) {
   // Big Balls hat für Fussball keinen Live-Feed (nur nachgeladene Datenbank): Ligen mit Sportradar-Wettbewerb (Champions
   // League, Premier League) über die Sportradar-Live-Liste (eine Abfrage für alle Spiele weltweit) nachführen
   if (Deno.env.get('SPORTRADAR_KEY')) {
-    const srIdx = list.map((lg, i) => (FB_LEAGUES.find((l) => l.id === lg.id)?.sr ? i : -1)).filter((i) => i >= 0);
+    // Ligen mit eigener Quelle GOAL (Super League, Challenge League) nicht über Sportradar (der sr-Eintrag dient dort nur den Namen)
+    const srIdx = list.map((lg, i) => { const L = FB_LEAGUES.find((l) => l.id === lg.id); return L?.sr && L.src !== 'goal' ? i : -1; }).filter((i) => i >= 0);
     const need = srIdx.some((i) => others(res[i].matches).some((m) => open(m) || kickoffJustStarted(m, now)));
     if (need) {
       const live = srIdx.some((i) => liveWindow(others(res[i].matches), now)) ? await srLive(now, forceKickoff).catch(() => null) : null;
@@ -690,13 +692,26 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const hit = await cacheGet(ck);
   // Ältere gespeicherte Aufstellungen ohne Spieler-IDs, Rückennummern oder Nationalität: einmal neu laden
   // Fehlende Fotos (Wikidata) höchstens alle 30 Min. nachholen, nicht bei jedem Aufruf
-  const noIds = hit?.data?.available && (!hit.data.home?.start?.[0]?.id || !hit.data.home?.benchNo || !hit.data.home?.benchCc || (!hit.data.imgv && now - hit.at > 30 * 60 * 1000));
+  // Fotos fehlen: nur die Fotos nachholen (Wikidata, kein Sportradar), höchstens alle 30 Min. und 4-mal
+  if (hit?.data?.available && !hit.data.imgv && hit.data.raw?.length && now - (hit.data.pt || hit.at) > 30 * 60 * 1000 && (hit.data.ptn || 0) < 4) {
+    const ph = await lineupPhotos(hit.data.raw).catch(() => ({ ok: false, map: {} }));
+    const d2 = { ...hit.data, pt: now, ptn: (hit.data.ptn || 0) + 1 };
+    for (const t of [d2.home, d2.away]) for (const p of t?.start || []) if (ph.map[p.id]) p.img = ph.map[p.id];
+    if (ph.ok) { d2.imgv = 1; delete d2.raw; }
+    await cacheSet(ck, d2);
+    return d2;
+  }
+  const noIds = hit?.data?.available && (!hit.data.home?.start?.[0]?.id || !hit.data.home?.benchNo || !hit.data.home?.benchCc) && (hit.data.n || 0) < 2;
+  // Fertige Aufstellung (ab Anpfiff ändert sie sich nicht mehr) nie neu holen; sonst höchstens 8 Sportradar-Abfragen pro Spiel
+  if (hit?.data?.available && Date.parse(m.utc) < now) return hit.data;
+  if (hit && (hit.data.n || 0) >= 8) return hit.data.available ? hit.data : bbLineup(m, now);
   if (hit && !noIds && (hit.data.final || now - hit.at < (hit.data.available ? 3 * 3600 : 15 * 60) * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await srAllowed())) return hit?.data || bbLineup(m, now);
   const d = await srGet(`sport_events/${srUrn(sr.id)}/lineups`).catch(() => null);
   // Fehler: den alten Stand (oder «nicht verfügbar») 15 Min. merken, statt jede Minute erneut zu fragen
-  if (!d) { await cacheSet(ck, hit?.data || { available: false, message: 'Die Aufstellung ist gerade nicht verfügbar.' }); return hit?.data || bbLineup(m, now); }
+  const n = (hit?.data?.n || 0) + 1;
+  if (!d) { await cacheSet(ck, { ...(hit?.data || { available: false, message: 'Die Aufstellung ist gerade nicht verfügbar.' }), n }); return hit?.data?.available ? hit.data : bbLineup(m, now); }
   const flip = (n) => String(n || '').replace(/^(.+), (.+)$/, '$2 $1');
   const POS = { goalkeeper: 'TW', right_back: 'RV', left_back: 'LV', central_defender: 'IV', defensive_midfielder: 'DM', central_midfielder: 'ZM', right_winger: 'RA', left_winger: 'LA',
     attacking_midfielder: 'OM', striker: 'ST', right_midfielder: 'RM', left_midfielder: 'LM', midfielder: 'M', defender: 'V', forward: 'ST' };
@@ -706,12 +721,13 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
     benchNo: (c.players || []).filter((p) => !p.starter).map((p) => p.jersey_number ?? ''), benchCc: (c.players || []).filter((p) => !p.starter).map(natCode) };
   const comps = d?.lineups?.competitors || [];
   const data = { available: comps.some((c) => (c.players || []).some((p) => p.starter)),
-    home: team(comps.find((c) => c.qualifier === 'home')), away: team(comps.find((c) => c.qualifier === 'away')), final: m.st === 'ft' };
+    home: team(comps.find((c) => c.qualifier === 'home')), away: team(comps.find((c) => c.qualifier === 'away')), final: m.st === 'ft', n };
   // Fotos der Startelf (Wikidata/Commons, kein Kontingent); klappt die Abfrage nicht, beim nächsten Laden nochmals versuchen
   if (data.available) {
     const ph = await lineupPhotos(comps.flatMap((c) => (c.players || []).filter((p) => p.starter))).catch(() => ({ ok: false, map: {} }));
     for (const t of [data.home, data.away]) for (const p of t?.start || []) if (ph.map[p.id]) p.img = ph.map[p.id];
-    if (ph.ok) data.imgv = 1; else data.final = false;
+    // Fotos fehlen: Spieler für den späteren Foto-Nachtrag merken (statt die Aufstellung neu zu holen)
+    if (ph.ok) data.imgv = 1; else { data.pt = now; data.raw = comps.flatMap((c) => (c.players || []).filter((p) => p.starter)).map((p) => ({ id: p.id, name: p.name, date_of_birth: p.date_of_birth })); }
   }
   await cacheSet(ck, data);
   return data;
@@ -1241,14 +1257,18 @@ async function srTimeline(id, now = Date.now()) {
   const hit = await cacheGet(ck);
   // Noch nicht angepfiffen / verschoben (z. B. Verspätung): nur stündlich nachfragen statt bei jedem Live-Durchgang
   // Ebenso nach dem Abpfiff, solange Sportradar das Spiel noch nicht abgeschlossen hat («ended» statt «closed»)
-  const quiet = hit && (['pre', 'off'].includes(srState(hit.data.es)) || hit.data.es?.status === 'ended' || hit.data.err);
+  // Ab 2½ Std. nach Anpfiff nur noch stündlich, ab 4 Std. gar nicht mehr (Resultat steht; Sportradar schliesst Spiele teils
+  // erst Stunden später ab) – vorher fragte die Funktion bis 12 Std. lang alle 7 Min. nach. Höchstens 30 Abfragen pro Spiel
+  const ko = Date.parse(hit?.data?.ko || '') || 0;
+  if (hit && ((ko && now - ko > 4 * 3600e3) || (hit.data.n || 0) >= 30)) return hit.data;
+  const quiet = hit && (['pre', 'off'].includes(srState(hit.data.es)) || hit.data.es?.status === 'ended' || hit.data.err || (ko && now - ko > 150 * 60 * 1000));
   if (hit && (hit.data.final || now - hit.at < (quiet ? 60 * 60 * 1000 : SR_LIVE_MS))) return hit.data;
   if (!Deno.env.get('SPORTRADAR_KEY') || !(await srAllowed())) return hit?.data || null;
   let d;
   try { d = await srGet(`sport_events/${srUrn(id)}/timeline`); }
-  catch (err) { await cacheSet(ck, { ...(hit?.data || { goals: [], final: false, es: {} }), err: 1 }); throw err; } // Fehler: 1 Std. Ruhe
+  catch (err) { await cacheSet(ck, { ...(hit?.data || { goals: [], final: false, es: {} }), err: 1, n: (hit?.data?.n || 0) + 1 }); throw err; } // Fehler: 1 Std. Ruhe
   const es = d?.sport_event_status || {};
-  const data = { goals: srGoals(d?.timeline), final: srState(es) === 'ft', es };
+  const data = { goals: srGoals(d?.timeline), final: srState(es) === 'ft', es, ko: d?.sport_event?.start_time || hit?.data?.ko || '', n: (hit?.data?.n || 0) + 1 };
   await cacheSet(ck, data);
   return data;
 }
@@ -2100,7 +2120,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22k';
+const FN_VERSION = '2026-11-22l';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
