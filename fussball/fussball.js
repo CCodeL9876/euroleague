@@ -144,7 +144,7 @@ function goalsHtml(m) {
 }
 
 // Premier League: Reiter Tore · Aufstellung · Statistik im aufgeklappten Spiel
-const hasExtra = (m) => ['pl', 'ucl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1'].includes(m.l);
+const hasExtra = (m) => ['pl', 'ucl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1', 'chsl', 'chcl'].includes(m.l);
 // Torminute; unbekannt (Premier League über FPL nach einem Neustart) = leer
 const gmin = (g) => (g.m === '' || g.m == null ? '' : `${esc(g.m)}'`);
 // Aufstellung als Spielfeld: Heim unten (spielt nach oben), Gast oben. Sportradar liefert die Startelf in Reihenfolge
@@ -232,7 +232,7 @@ function lineupHtml(m) {
       return `<div class="fb-lu-row"><span>${h ? `<b>${esc(h.no)}</b>${natFlag(h.cc)}${nm(h)}<i>${esc(h.pos)}</i>` : ''}</span><span>${a ? `<i>${esc(a.pos)}</i>${nm(a)}${natFlag(a.cc)}<b>${esc(a.no)}</b>` : ''}</span></div>`; }).join('');
   }
   return `<div class="fb-lu">${body}${benchHtml(m, d)}
-    <p class="fb-x-src">Aufstellung: ${d.src === 'bb' ? 'Big Balls' : 'Sportradar'}</p></div>`;
+    <p class="fb-x-src">Aufstellung: ${d.src === 'bb' ? 'Big Balls' : d.src === 'goal' ? 'GOAL' : 'Sportradar'}</p></div>`;
 }
 // Ersatzbank und Trainer unter dem Feld: ein Team auf einmal, Umschalter Heim/Gast (gewählte Seite pro Spiel gemerkt)
 const benchSide = new Map();
@@ -255,7 +255,7 @@ function statsHtml(m) {
   const pct = (x) => (x.passes ? Math.round((x.acc / x.passes) * 100) : null);
   const lines = [['Ballbesitz', d.home.poss, d.away.poss, '%'], ['Schüsse', d.home.shots, d.away.shots], ['Aufs Tor', d.home.on, d.away.on], ['Ecken', d.home.corners, d.away.corners],
     ['Fouls', d.home.fouls, d.away.fouls], ['Gelbe Karten', d.home.yellow, d.away.yellow], ['Rote Karten', d.home.red, d.away.red], ['Pässe', d.home.passes, d.away.passes],
-    ['Passquote', pct(d.home), pct(d.away), '%'], ['Paraden', d.home.saves, d.away.saves], ['Abseits', d.home.offsides, d.away.offsides]].filter((l) => l[1] != null && l[2] != null && !(l[0] === 'Rote Karten' && !l[1] && !l[2]));
+    ['Passquote', pct(d.home), pct(d.away), '%'], ['Paraden', d.home.saves, d.away.saves], ['Abseits', d.home.offsides, d.away.offsides], ['Angriffe', d.home.att, d.away.att], ['Gefährliche Angriffe', d.home.datt, d.away.datt]].filter((l) => l[1] != null && l[2] != null && !(l[0] === 'Rote Karten' && !l[1] && !l[2]));
   return `<div class="fb-stats">${lines.map(([n, a, b, u = '']) => { const t = (Number(a) || 0) + (Number(b) || 0), p = t ? Math.round(((Number(a) || 0) / t) * 100) : 50;
     return `<div class="fb-st-row"><span class="v">${esc(a)}${u ? ` ${u}` : ''}</span><span class="n">${esc(n)}</span><span class="v r">${esc(b)}${u ? ` ${u}` : ''}</span><span class="bar"><i style="width:${p}%"></i><i class="b" style="width:${100 - p}%"></i></span></div>`; }).join('')}
     <p class="fb-x-src">Statistik: ${esc(d.src || 'Big Balls')}${d.final || d.ended ? ' · Endstand' : ' · Live'}</p></div>`;

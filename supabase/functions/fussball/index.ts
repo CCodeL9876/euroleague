@@ -623,7 +623,7 @@ async function srMatchFor(m, now) {
 }
 // Ligen mit Aufstellung und Teamstatistik: Premier League und Champions League mit Sportradar-Aufstellung (genauer: Formation,
 // Positionen links/rechts), sonst und als Ersatz die Aufstellung von Big Balls (nur Tor/Verteidigung/Mittelfeld/Sturm)
-const DETAIL_LEAGUES = new Set(['pl', 'ucl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1']);
+const DETAIL_LEAGUES = new Set(['pl', 'ucl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1', 'chsl', 'chcl']);
 // Aufstellungen auch für diese Ligen von Sportradar (mit Nationalität); nur beim Öffnen einer Aufstellung abgefragt, sonst Big Balls
 const SR_LINEUP = { efl: 'sr:competition:18', bl1: 'sr:competition:35', laliga: 'sr:competition:8', seriea: 'sr:competition:23', ligue1: 'sr:competition:34' };
 // Nationalität: Sportradar liefert ISO-3-Codes (dazu ENG/SCO/WAL/NIR) → ISO-2 bzw. gb-eng usw., die Seite macht daraus Flagge und Namen
@@ -658,6 +658,8 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const ov = overview || await fbOverview(now);
   const m = ov.matches.find((x) => x.id === id);
   if (!m || !DETAIL_LEAGUES.has(m.l)) return { error: 'nicht verfügbar' };
+  // Super League, Challenge League: Aufstellung und Live-Statistik von GOAL
+  if (id.startsWith('gl-')) return kind === 'stats' ? goalStats(m, now) : goalLineup(m, now);
   if (kind === 'stats') {
     // Nach Spielende Big Balls (dauerhaft gespeichert); während des Spiels und als Ersatz Sportradar (UCL, PL, Championship)
     if (m.st === 'pre') return { available: false };
@@ -1955,6 +1957,76 @@ async function goalLeague(lg, now) {
   }
   return data;
 }
+// ---------- GOAL: Aufstellung und Statistik (Super League, Challenge League) ----------
+// Aufstellung: erscheint etwa 30 Min. vor Anpfiff. Bis dahin höchstens alle 5 Min. fragen (ab 60 Min. vorher), dann dauerhaft
+// gespeichert. Höchstens 15 Abfragen pro Spiel. Positionen liefert GOAL nur als Reihenfolge: das Feld ordnet nach Formation
+async function goalLineup(m, now) {
+  const fid = m.id.replace(/^gl-/, ''), ck = `gllu:${fid}`, hit = await cacheGet(ck);
+  if (hit?.data?.available && (hit.data.final || Date.parse(m.utc) < now)) return hit.data;
+  if (hit && (now - hit.at < (hit.data.available ? 3 * 3600e3 : 5 * 60 * 1000) || (hit.data.n || 0) >= 15)) return hit.data;
+  if (Date.parse(m.utc) - now > 60 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine halbe Stunde vor Anpfiff.' };
+  if (!(await goalAllowed())) return hit?.data || { available: false, message: 'Die Aufstellung ist gerade nicht verfügbar.' };
+  const n = (hit?.data?.n || 0) + 1;
+  try {
+    const { d } = await goalGet(`/fixtures/${fid}/lineups`);
+    const x = d?.data || d || {};
+    const ord = (p, i) => Number(p.lineupPosition) || 100 + i;
+    const side = (t, formation) => {
+      const st = (t?.startingLineups || []).map((p, i) => [p, i]).sort((a, b) => ord(...a) - ord(...b)).map(([p]) => p);
+      const sub = t?.substitutes || [];
+      return { formation: String(formation || '').trim(), coach: String(t?.coach?.[0]?.lineupPlayer || ''),
+        start: st.map((p) => ({ id: '', n: String(p.lineupPlayer || ''), no: p.lineupNumber ?? '', pos: '', cc: '', img: /^https:\/\/media\.goal-api\.com\//.test(String(p.playerImage || '')) ? p.playerImage : '' })),
+        bench: sub.map((p) => String(p.lineupPlayer || '')), benchIds: sub.map(() => ''), benchNo: sub.map((p) => p.lineupNumber ?? ''), benchCc: sub.map(() => '') };
+    };
+    const home = side(x.home, x.homeFormation), away = side(x.away, x.awayFormation);
+    const available = home.start.length >= 11 && away.start.length >= 11;
+    const data = { available, home, away, src: 'goal', final: available && m.st === 'ft', n,
+      ...(available ? {} : { message: 'Die Aufstellung erscheint etwa eine halbe Stunde vor Anpfiff.' }) };
+    await cacheSet(ck, data);
+    return data;
+  } catch {
+    const data = { ...(hit?.data || { available: false, message: 'Die Aufstellung ist gerade nicht verfügbar.' }), n };
+    await cacheSet(ck, data);
+    return data;
+  }
+}
+// Statistik: live höchstens alle 5 Min., nach Schluss einmal und dauerhaft. Leere Werte heissen bei GOAL «nicht erfasst»
+export function goalStatMap(list) {
+  const v = {}, types = [];
+  for (const r of list || []) {
+    const t = String(r.type || '').toLowerCase().trim();
+    types.push(r.type);
+    const num = (x) => { const s = String(x ?? '').replace('%', '').trim(); return s === '' || !Number.isFinite(Number(s)) ? null : Number(s); };
+    v[t] = [num(r.home), num(r.away)];
+  }
+  const get = (...ks) => { for (const k of ks) if (v[k] && (v[k][0] != null || v[k][1] != null)) return v[k]; return [null, null]; };
+  const side = (i) => {
+    const on = get('on target', 'shots on target', 'shots on goal')[i], off = get('off target', 'shots off target', 'shots off goal')[i];
+    let shots = get('shots total', 'total shots', 'shots')[i];
+    if (shots == null && on != null && off != null) shots = on + off + (get('blocked shots', 'shots blocked')[i] || 0);
+    return { poss: get('ball possession', 'possession', 'possession %')[i], shots, on, corners: get('corners', 'corner kicks')[i],
+      fouls: get('fouls')[i], yellow: get('yellow cards', 'yellowcards')[i], red: get('red cards', 'redcards')[i],
+      passes: get('passes', 'total passes', 'passes total')[i], acc: get('accurate passes', 'passes accurate', 'successful passes')[i],
+      saves: get('saves', 'goalkeeper saves')[i], offsides: get('offsides')[i], att: get('attacks')[i], datt: get('dangerous attacks')[i] };
+  };
+  return { home: side(0), away: side(1), types };
+}
+async function goalStats(m, now) {
+  if (m.st === 'pre') return { available: false, src: 'GOAL', message: 'Die Live-Statistik erscheint nach Anpfiff.' };
+  const fid = m.id.replace(/^gl-/, ''), ck = `glst:${fid}`, hit = await cacheGet(ck);
+  if (hit && (hit.data.final || now - hit.at < SR_STATS_MS || (hit.data.n || 0) >= 40)) return hit.data;
+  if (!(await goalAllowed())) return hit?.data || { available: false, src: 'GOAL' };
+  const n = (hit?.data?.n || 0) + 1;
+  try {
+    const { d } = await goalGet(`/fixtures/${fid}/statistics`);
+    const x = d?.data || d || {};
+    const { home, away, types } = goalStatMap(x.match?.fullTime || []);
+    const any = (t) => Object.values(t).some((y) => y != null);
+    const data = { available: Boolean(x.hasStatistics !== false && (any(home) || any(away))), home, away, types, src: 'GOAL', final: m.st === 'ft', n };
+    await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || { available: false, src: 'GOAL' }; }
+}
 // Einzelnes Spiel (Tore für Mitteilungen und Spieldetail): Ereignisse, live 2 Min., nach Schluss dauerhaft
 async function goalGame(id) {
   const fid = id.replace(/^gl-/, ''), ck = `glev:${fid}`, hit = await cacheGet(ck), now = Date.now();
@@ -2121,7 +2193,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22m';
+const FN_VERSION = '2026-11-22n';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };

@@ -2,7 +2,7 @@
 // Auf dem Mac ohne Installation:
 //   /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc -m supabase/functions/tests.mjs
 // oder mit Deno: deno run supabase/functions/tests.mjs
-import { fplSame, elDetect, elMessage, mapOldb, parseFootballCareer, goalCurrentRows } from './fussball/index.ts';
+import { fplSame, elDetect, elMessage, mapOldb, parseFootballCareer, goalCurrentRows, goalStatMap } from './fussball/index.ts';
 import { buildPayload, gameExcitement } from './euroleague/index.ts';
 
 const out = globalThis.print || console.log;
@@ -66,6 +66,15 @@ eq('Verlängerung als Grund', gameExcitement({ FirstQuarter: [row('09:00', 2, 0)
   const got = goalCurrentRows([...cur, ...old]);
   eq('GOAL Tabelle ohne Vorsaison', got.length === 12 && got.every((r) => r.p < 20), true);
   eq('GOAL Tabelle ohne Doppel unverändert', goalCurrentRows(cur).length, 12);
+
+// GOAL-Statistik: Typen auf die Felder der App abbilden; leere Werte = nicht erfasst
+{
+  const g = goalStatMap([{ type: 'Ball Possession', home: '58%', away: '42%' }, { type: 'On Target', home: '4', away: '1' }, { type: 'Off Target', home: '3', away: '2' }, { type: 'Corners', home: '', away: '' }, { type: 'Dangerous Attacks', home: '13', away: '5' }]);
+  eq('GOAL Ballbesitz', g.home.poss === 58 && g.away.poss === 42, true);
+  eq('GOAL Schüsse aus Tor/daneben', g.home.shots, 7);
+  eq('GOAL leere Ecken', g.home.corners, null);
+  eq('GOAL gefährliche Angriffe', g.away.datt, 5);
+}
 }
 
 out(`${passed} bestanden, ${failed} fehlgeschlagen`);
