@@ -680,12 +680,14 @@ async function fbDetail(id, kind, now = Date.now(), overview = null) {
   const ck = `srlu:${sr.id}`;
   const hit = await cacheGet(ck);
   // Ältere gespeicherte Aufstellungen ohne Spieler-IDs, Rückennummern oder Nationalität: einmal neu laden
-  const noIds = hit?.data?.available && (!hit.data.home?.start?.[0]?.id || !hit.data.home?.benchNo || !hit.data.home?.benchCc || !hit.data.imgv);
+  // Fehlende Fotos (Wikidata) höchstens alle 30 Min. nachholen, nicht bei jedem Aufruf
+  const noIds = hit?.data?.available && (!hit.data.home?.start?.[0]?.id || !hit.data.home?.benchNo || !hit.data.home?.benchCc || (!hit.data.imgv && now - hit.at > 30 * 60 * 1000));
   if (hit && !noIds && (hit.data.final || now - hit.at < (hit.data.available ? 3 * 3600 : 15 * 60) * 1000)) return hit.data;
   if (Date.parse(m.utc) - now > 90 * 60 * 1000) return { available: false, message: 'Die Aufstellung erscheint etwa eine Stunde vor Anpfiff.' };
   if (!(await srAllowed())) return hit?.data || bbLineup(m, now);
   const d = await srGet(`sport_events/${srUrn(sr.id)}/lineups`).catch(() => null);
-  if (!d) return hit?.data || bbLineup(m, now);
+  // Fehler: den alten Stand (oder «nicht verfügbar») 15 Min. merken, statt jede Minute erneut zu fragen
+  if (!d) { await cacheSet(ck, hit?.data || { available: false, message: 'Die Aufstellung ist gerade nicht verfügbar.' }); return hit?.data || bbLineup(m, now); }
   const flip = (n) => String(n || '').replace(/^(.+), (.+)$/, '$2 $1');
   const POS = { goalkeeper: 'TW', right_back: 'RV', left_back: 'LV', central_defender: 'IV', defensive_midfielder: 'DM', central_midfielder: 'ZM', right_winger: 'RA', left_winger: 'LA',
     attacking_midfielder: 'OM', striker: 'ST', right_midfielder: 'RM', left_midfielder: 'LM', midfielder: 'M', defender: 'V', forward: 'ST' };
@@ -953,7 +955,16 @@ const srBase = () => `https://api.sportradar.com/soccer/${Deno.env.get('SPORTRAD
 const srDailyMax = () => Number(Deno.env.get('SPORTRADAR_DAILY')) || 60;
 const SR_LIVE_MS = 7 * 60 * 1000; // Sonntage mit Spielen von 14 bis 19 Uhr bleiben so unter 60 Abfragen
 const SR_STATS_MS = 5 * 60 * 1000;
-const srAllowed = () => dailyAllowed('srcount', srDailyMax());
+// Meldet Sportradar «Limit Exceeded» (Kontingent oder zu viele Anfragen), 30 Min. gar nicht mehr fragen – für alle
+// Instanzen (el_fb_cache «srblock»). Sonst versucht jeder Minuten-Tick es erneut und verbraucht die Tagesgrenze.
+let srBlockUntil = 0;
+const SR_BLOCK_MS = 30 * 60 * 1000;
+async function srAllowed() {
+  if (Date.now() < srBlockUntil) return false;
+  const b = Number((await cacheGet('srblock'))?.data) || 0;
+  if (Date.now() < b) { srBlockUntil = b; return false; }
+  return dailyAllowed('srcount', srDailyMax());
+}
 // Test-Zugang: höchstens 1 Abfrage pro Sekunde, darum nacheinander mit Abstand
 let srLast = 0;
 async function srGet(path, params = {}, el = '') {
@@ -964,7 +975,11 @@ async function srGet(path, params = {}, el = '') {
   const q = new URLSearchParams({ ...params, api_key: Deno.env.get('SPORTRADAR_KEY') || '' });
   const res = await fetch(`${srBase()}/${path}.json?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
   const d = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(String(d?.message || `HTTP ${res.status}`));
+  if (!res.ok) {
+    const msg = String(d?.message || `HTTP ${res.status}`);
+    if (res.status === 429 || /limit exceeded/i.test(msg)) { srBlockUntil = Date.now() + SR_BLOCK_MS; await cacheSet('srblock', srBlockUntil).catch(() => {}); }
+    throw new Error(msg);
+  }
   return d;
 }
 // ---------- Verbrauch pro Datenelement und Liga (Big Balls, Sportradar) ----------
@@ -1160,7 +1175,9 @@ async function srFixtures(lg, now) {
   const hit = await cacheGet(ck);
   // Genau 100 Spiele = mit dem alten Fehler nur die erste Seite gespeichert: neu laden
   const cut = hit?.data?.matches?.length === 100;
-  if (hit && !cut && now - hit.at < (hit.data.status === 'ok' ? 24 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
+  if (hit && !cut && now - hit.at < (hit.data.status === 'ok' && !hit.data.stale ? 24 * 3600 * 1000 : 30 * 60 * 1000)) return hit.data;
+  // Sportradar gesperrt («Limit Exceeded»): den letzten Spielplan zeigen statt einer Fehlermeldung
+  if (hit?.data?.matches?.length && Date.now() < srBlockUntil) return { ...hit.data, status: 'ok', message: '', stale: true };
   try {
     const season = await srSeason(lg, now);
     if (!season) throw new Error('Keine laufende Saison gefunden');
@@ -1183,7 +1200,10 @@ async function srFixtures(lg, now) {
     await cacheSet(ck, data);
     return data;
   } catch (err) {
-    const data = { status: 'error', message: String(err?.message || err).slice(0, 160), matches: hit?.data?.matches || [] };
+    // Fehler (z. B. «Limit Exceeded»): mit vorhandenem Spielplan weiterarbeiten, in 30 Min. erneut versuchen
+    const old = hit?.data?.matches || [];
+    const data = old.length ? { ...hit.data, status: 'ok', message: '', stale: true, matches: old }
+      : { status: 'error', message: 'Zurzeit keine Daten', matches: [] };
     await cacheSet(ck, data);
     return data;
   }
@@ -1211,10 +1231,13 @@ async function srTimeline(id, now = Date.now()) {
   const ck = `srev:${id}`;
   const hit = await cacheGet(ck);
   // Noch nicht angepfiffen / verschoben (z. B. Verspätung): nur stündlich nachfragen statt bei jedem Live-Durchgang
-  const quiet = hit && ['pre', 'off'].includes(srState(hit.data.es));
+  // Ebenso nach dem Abpfiff, solange Sportradar das Spiel noch nicht abgeschlossen hat («ended» statt «closed»)
+  const quiet = hit && (['pre', 'off'].includes(srState(hit.data.es)) || hit.data.es?.status === 'ended' || hit.data.err);
   if (hit && (hit.data.final || now - hit.at < (quiet ? 60 * 60 * 1000 : SR_LIVE_MS))) return hit.data;
   if (!Deno.env.get('SPORTRADAR_KEY') || !(await srAllowed())) return hit?.data || null;
-  const d = await srGet(`sport_events/${srUrn(id)}/timeline`);
+  let d;
+  try { d = await srGet(`sport_events/${srUrn(id)}/timeline`); }
+  catch (err) { await cacheSet(ck, { ...(hit?.data || { goals: [], final: false, es: {} }), err: 1 }); throw err; } // Fehler: 1 Std. Ruhe
   const es = d?.sport_event_status || {};
   const data = { goals: srGoals(d?.timeline), final: srState(es) === 'ft', es };
   await cacheSet(ck, data);
@@ -1719,7 +1742,7 @@ async function pushMessages(endpoint, now) {
 
 let lastViewMark = 0;
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-21';
+const FN_VERSION = '2026-11-22';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
