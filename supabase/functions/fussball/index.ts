@@ -1703,6 +1703,28 @@ async function pushTick(now, again = false) {
   for (const [id, v] of Object.entries(prev)) if (!cur[id] && ov.matches.some((m) => m.id === id && now - Date.parse(m.utc) < 864e5)) cur[id] = v;
   await cacheSet('push:scores', cur);
   for (const m of scoreChanges) await fbGame(m.id).catch(() => null);
+  // Anpfiff, Halbzeit, Schluss bei Spielen der Lieblingsteams: aus dem Statuswechsel, den der Server ohnehin jede Minute sieht (keine
+  // zusätzliche Abfrage). Je Spiel gemerkt, was schon gemeldet ist; verpasste Phasen (z. B. erst nach Schluss gesehen) nicht nachmelden
+  const pst = (await cacheGet('push:st'))?.data || {}, nst = {}, phases = [];
+  for (const m of ov.matches) {
+    const ko = Date.parse(m.utc);
+    if (!isFav(m) || now - ko > 864e5 || ko - now > 3 * 3600e3) continue;
+    const p = { ...(pst[m.id] || {}) };
+    const on = m.st === 'live' || m.st === 'ht';
+    if ((on || m.st === 'ft') && !p.k) { p.k = 1; if (on && now - ko < 15 * 60 * 1000) phases.push({ m, ph: 'k' }); }
+    // Halbzeit: die Quelle meldet «ht». FPL (Premier League) kennt keine Pause: die Minute steht ab der 45. seit 6 Min. still
+    let ht = m.st === 'ht';
+    if (m.st === 'live' && m.src === 'fpl') {
+      const mn = Number(m.min) || 0;
+      if (mn !== p.m) { p.m = mn; p.mt = now; }
+      else if (mn >= 45 && mn < 50 && now - (p.mt || now) >= 6 * 60 * 1000 && now - ko < 80 * 60 * 1000) ht = true;
+    }
+    if (ht && !p.h && p.k) { p.h = 1; phases.push({ m, ph: 'h' }); }
+    if (m.st === 'live' && !ht && (Number(m.min) || 0) > 50) p.h = 1; // zweite Halbzeit läuft: verpasste Pause nicht nachmelden
+    if (m.st === 'ft' && !p.f) { p.f = 1; if (on || pst[m.id]?.k) phases.push({ m, ph: 'f' }); }
+    nst[m.id] = p;
+  }
+  if (JSON.stringify(nst) !== JSON.stringify(pst)) await cacheSet('push:st', nst);
   // Aufstellung erschienen (vor dem Anpfiff, von refreshAroundMatches eben geladen): einmal pro Spiel melden
   const lineups = [];
   for (const m of ov.matches) {
@@ -1716,7 +1738,7 @@ async function pushTick(now, again = false) {
     lineups.push({ m, d });
   }
   if (!Deno.env.get('VAPID_PRIVATE')) return { el, events: 0, sent: 0, refresh };
-  if (!events.length && !lineups.length) return { el, events: 0, sent: 0, refresh };
+  if (!events.length && !lineups.length && !phases.length) return { el, events: 0, sent: 0, refresh };
   if (!subs.length) return { el, events: events.length, sent: 0 };
   let sent = 0;
   const hhmm = (iso) => new Intl.DateTimeFormat('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
@@ -1729,7 +1751,17 @@ async function pushTick(now, again = false) {
       return { id: m.id, kind: 'lineup', tag: `${m.id}-lineup`, at: now, url: `fussball/?m=${encodeURIComponent(m.id)}&tab=lineup`,
         title: `📋 Aufstellung ${team}`, body: `${m.h} – ${m.a} · Anpfiff ${hhmm(m.utc)}${t?.formation ? ` · ${t.formation}` : ''}` };
     });
-    if (!mine.length && !luMsgs.length) continue;
+    const phMsgs = phases.filter((x) => isMine(x.m)).map(({ m, ph }) => {
+      const favT = [m.h, m.a].find((n) => f.has(n.toLowerCase())), lg = FB_LEAGUES.find((l) => l.id === m.l)?.name || '';
+      const hs = m.hs ?? 0, as = m.as ?? 0, sc = `${m.h} ${hs}:${as} ${m.a}`;
+      const goals = (m.goals || []).map((g) => `${g.n}${g.m ? ` ${g.m}'` : ''}`).join(', ');
+      const diff = favT === m.h ? hs - as : as - hs;
+      const msg = ph === 'k' ? { title: `▶️ Anpfiff: ${m.h} – ${m.a}`, body: `${lg} · Los geht's!` }
+        : ph === 'h' ? { title: `⏸️ Halbzeit: ${sc}`, body: goals || 'Noch keine Tore' }
+        : { title: `🏁 Schluss: ${sc}`, body: `${diff > 0 ? `Sieg für ${favT}` : diff < 0 ? `Niederlage für ${favT}` : 'Unentschieden'}${goals ? ` · ${goals}` : ''}` };
+      return { id: m.id, kind: 'phase', tag: `${m.id}-${ph}`, at: now, url: `fussball/?m=${encodeURIComponent(m.id)}`, ...msg };
+    });
+    if (!mine.length && !luMsgs.length && !phMsgs.length) continue;
     const hash = await sha256Hex(s.endpoint);
     const old = (await cacheGet(`pushmsg:${hash}`))?.data || [];
     const msgs = mine.map(({ m, side }) => {
@@ -1740,12 +1772,12 @@ async function pushTick(now, again = false) {
         title: scorerIsFavorite ? `⚽ Vamooooos! - Tor für ${team}` : `⚠️ Gegentor für ${favoriteTeam}`,
         body: `${m.h} ${m.hs}:${m.as} ${m.a}${last?.n ? ` · ${last.n}${last.m ? ` (${last.m}')` : ''}` : m.min ? ` · ${m.min}'` : ''}` };
     });
-    await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), ...msgs, ...luMsgs].slice(-10));
+    await cacheSet(`pushmsg:${hash}`, [...old.filter((x) => now - x.at < 30 * 60 * 1000), ...msgs, ...luMsgs, ...phMsgs].slice(-10));
     const st = await pushPing(s.endpoint).catch(() => 0);
     if (st === 404 || st === 410) await fetch(`${PUSH_URL}?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: 'DELETE', headers: serviceHeaders() }).catch(() => {});
     else if (st >= 200 && st < 300) sent++;
   }
-  return { el, events: events.length, lineups: lineups.length, sent, refresh };
+  return { el, events: events.length, lineups: lineups.length, phases: phases.length, sent, refresh };
 }
 // Das Gerät holt nach dem Anstoss seine Meldungen ab (nur die der letzten 30 Min.); abgeholt = gelöscht, damit
 // beim nächsten Anstoss nicht ältere Meldungen nochmals erscheinen
@@ -1917,10 +1949,28 @@ async function goalGame(id) {
   } catch { return hit?.data || { goals: [], final: false }; }
 }
 // Tabelle (eine Abfrage), bis 6 Std. gespeichert bzw. nach dem letzten Spiel des Tages neu
+// GOAL mischt in die Tabelle teils Gruppen der Vorsaison (z. B. die Abstiegsrunde, 31 Spiele) – jedes Team erschien doppelt.
+// Gruppe je Zeile aus Saison-/Phasenangaben; fehlen sie oder bleiben Teams doppelt: nach Spielzahl gruppieren (± 3) und die Gruppe
+// mit den meisten Teams nehmen (die laufende Saison hat alle Teams), bei Gleichstand die mit weniger Spielen
+const goalStandGroup = (r) => [r?.season ?? r?.seasonId ?? r?.seasonName ?? '', r?.stageName ?? r?.stage ?? r?.groupName ?? r?.group ?? ''].join('|');
+export function goalCurrentRows(rows) {
+  const dup = (list) => new Set(list.map((r) => r.team)).size < list.length;
+  if (!dup(rows)) return rows;
+  const byG = new Map();
+  for (const r of rows) byG.set(r._g, [...(byG.get(r._g) || []), r]);
+  let groups = [...byG.values()];
+  if (groups.length < 2 || groups.some(dup)) {
+    const sorted = [...rows].sort((a, b) => a.p - b.p);
+    groups = [];
+    for (const r of sorted) { const g = groups.at(-1); if (g && r.p - g[0].p <= 3 && !g.some((x) => x.team === r.team)) g.push(r); else groups.push([r]); }
+  }
+  return groups.sort((a, b) => b.length - a.length || a[0].p - b[0].p)[0];
+}
 async function goalTable(cfg, now, force) {
   const ck = `gltab:${cfg.goal}`, hit = await cacheGet(ck);
-  if (hit && !force && now - hit.at < 6 * 3600 * 1000) return hit.data;
-  if (!Deno.env.get('GOAL_KEY') || !(await goalAllowed())) return hit?.data || { available: false };
+  // v2: alte Saison herausgefiltert (gespeicherte Tabellen ohne v2 einmal neu holen)
+  if (hit && !force && hit.data?.v === 2 && now - hit.at < 6 * 3600 * 1000) return hit.data;
+  if (!Deno.env.get('GOAL_KEY') || !(await goalAllowed())) return hit?.data?.v === 2 ? hit.data : { available: false };
   try {
     const { d } = await goalGet(`/standings/${cfg.goal}`);
     const lg = FB_LEAGUES.find((l) => l.key === cfg.goal), names = lg ? await goalNames(lg) : new Map();
@@ -1929,11 +1979,12 @@ async function goalTable(cfg, now, force) {
     const rows = raw.map((r) => { const T = goalName(names, r.teamName || r.team?.name); return { rank: pick(r, 'overallLeaguePosition', 'position', 'rank'), team: T.n, logo: T.logo,
       p: pick(r, 'overallLeaguePayed', 'overallLeaguePlayed', 'played'), w: pick(r, 'overallLeagueW', 'won', 'win'), d: pick(r, 'overallLeagueD', 'draw', 'drawn'),
       l: pick(r, 'overallLeagueL', 'lost', 'loss'), gf: pick(r, 'overallLeagueGF', 'goalsFor'), ga: pick(r, 'overallLeagueGA', 'goalsAgainst'), pts: pick(r, 'overallLeaguePTS', 'points', 'pts') }; })
-      .filter((r) => r.team).sort((a, b) => a.rank - b.rank);
-    const data = { available: rows.length > 0, zones: cfg.zones, rows, source: 'GOAL API', asOf: new Date(now).toISOString() };
-    if (rows.length) await cacheSet(ck, data);
+      .map((r, i) => ({ ...r, _g: goalStandGroup(raw[i]) })).filter((r) => r.team);
+    const cur = goalCurrentRows(rows).sort((a, b) => a.rank - b.rank).map(({ _g, ...r }) => r);
+    const data = { v: 2, available: cur.length > 0, zones: cfg.zones, rows: cur, source: 'GOAL API', asOf: new Date(now).toISOString() };
+    if (cur.length) await cacheSet(ck, data);
     return data;
-  } catch { return hit?.data || { available: false }; }
+  } catch { return hit?.data?.v === 2 ? hit.data : { available: false }; }
 }
 
 // ---------- GOAL API (goal-api.com), Test vor dem Umbau der Schweizer Ligen ----------
@@ -2049,7 +2100,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22i';
+const FN_VERSION = '2026-11-22k';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };

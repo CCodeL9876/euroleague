@@ -2,7 +2,7 @@
 // Auf dem Mac ohne Installation:
 //   /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc -m supabase/functions/tests.mjs
 // oder mit Deno: deno run supabase/functions/tests.mjs
-import { fplSame, elDetect, elMessage, mapOldb, parseFootballCareer } from './fussball/index.ts';
+import { fplSame, elDetect, elMessage, mapOldb, parseFootballCareer, goalCurrentRows } from './fussball/index.ts';
 import { buildPayload, gameExcitement } from './euroleague/index.ts';
 
 const out = globalThis.print || console.log;
@@ -58,6 +58,15 @@ const blow = gameExcitement({ FirstQuarter: [row('09:00', 10, 0)], SecondQuarter
 eq('knappes Spiel schlägt Kantersieg', close.score > blow.score, true);
 eq('später Führungswechsel als Grund', close.why, 'Krimi bis zur Schlusssirene');
 eq('Verlängerung als Grund', gameExcitement({ FirstQuarter: [row('09:00', 2, 0)], ForthQuarter: [row('00:10', 2, 2)], ExtraTime: [{ PLAYTYPE: 'BP' }, row('01:00', 4, 2)] }).why, 'Verlängerung');
+
+// GOAL-Tabelle mit Abstiegsrunde der Vorsaison: nur die laufende Saison bleibt
+{
+  const cur = ['Lugano','YB','Sion','SG','FCZ','Servette','Basel','Thun','Lausanne','Luzern','GC','Vaduz'].map((team, i) => ({ team, p: 13 + (i % 2), _g: '|' }));
+  const old = ['Luzern','Servette','Lausanne','FCZ','GC','Winterthur'].map((team) => ({ team, p: 31, _g: '|' }));
+  const got = goalCurrentRows([...cur, ...old]);
+  eq('GOAL Tabelle ohne Vorsaison', got.length === 12 && got.every((r) => r.p < 20), true);
+  eq('GOAL Tabelle ohne Doppel unverändert', goalCurrentRows(cur).length, 12);
+}
 
 out(`${passed} bestanden, ${failed} fehlgeschlagen`);
 if (failed) throw new Error('Tests fehlgeschlagen');
