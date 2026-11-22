@@ -1960,6 +1960,8 @@ async function goalLeague(lg, now) {
 // ---------- GOAL: Aufstellung und Statistik (Super League, Challenge League) ----------
 // Aufstellung: erscheint etwa 30 Min. vor Anpfiff. Bis dahin höchstens alle 5 Min. fragen (ab 60 Min. vorher), dann dauerhaft
 // gespeichert. Höchstens 15 Abfragen pro Spiel. Positionen liefert GOAL nur als Reihenfolge: das Feld ordnet nach Formation
+// Trainer: GOAL liefert ihn als Liste oder einzeln, mit unterschiedlichen Feldnamen
+const goalCoach = (c) => { const x = Array.isArray(c) ? c[0] : c; return String((typeof x === 'string' ? x : x?.lineupPlayer || x?.name || x?.coachName || x?.playerName) || '').trim(); };
 async function goalLineup(m, now) {
   const fid = m.id.replace(/^gl-/, ''), ck = `gllu:${fid}`, hit = await cacheGet(ck);
   if (hit?.data?.available && (hit.data.final || Date.parse(m.utc) < now)) return hit.data;
@@ -1974,7 +1976,7 @@ async function goalLineup(m, now) {
     const side = (t, formation) => {
       const st = (t?.startingLineups || []).map((p, i) => [p, i]).sort((a, b) => ord(...a) - ord(...b)).map(([p]) => p);
       const sub = t?.substitutes || [];
-      return { formation: String(formation || '').trim(), coach: String(t?.coach?.[0]?.lineupPlayer || ''),
+      return { formation: String(formation || '').trim(), coach: goalCoach(t?.coach ?? t?.coaches ?? t?.manager),
         start: st.map((p) => ({ id: '', n: String(p.lineupPlayer || ''), no: p.lineupNumber ?? '', pos: '', cc: '', img: /^https:\/\/media\.goal-api\.com\//.test(String(p.playerImage || '')) ? p.playerImage : '' })),
         bench: sub.map((p) => String(p.lineupPlayer || '')), benchIds: sub.map(() => ''), benchNo: sub.map((p) => p.lineupNumber ?? ''), benchCc: sub.map(() => '') };
     };
@@ -2193,7 +2195,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22n';
+const FN_VERSION = '2026-11-22o';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
