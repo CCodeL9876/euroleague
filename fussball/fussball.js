@@ -1,6 +1,6 @@
 // Fussball-Bereich: Spielübersicht (Resultate und anstehende Spiele) pro Tag, nach Liga gruppiert, eigene Teams oben.
 // Daten über die eigene Supabase-Funktion „fussball“ (?fb=1): grosse Ligen, Champions League und Nationalteams aus Big Balls,
-// 2. Bundesliga aus OpenLigaDB, Schweizer Ligen aus Sportradar. UCL/PL mit Sportradar-Aufstellungen und Live-Statistik (?fbdetail=). Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
+// 2. Bundesliga aus OpenLigaDB, Schweizer Ligen aus der GOAL API. UCL/PL mit Sportradar-Aufstellungen und Live-Statistik (?fbdetail=). Zugang und Profil wie im Basketball-Bereich (gate.js, Profil aus dem Speicher).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC } from '../config.js';
 import { tvOf } from './tv.js';
@@ -108,7 +108,7 @@ const lastFlaps = new Map();
 // Blatt von unten mit Tabelle und Torschützen (grosse Ligen)
 const ZONE_NAME = { up: 'Aufstieg', upq: 'Aufstiegs-Play-offs', cl: 'Champions League', clq: 'CL-Qualifikation', el: 'Europa League', co: 'Conference League', rel: 'Relegation', ab: 'Abstieg',
   'ucl-r16': 'Achtelfinale', 'ucl-playoff': 'Play-off-Runde', 'ucl-out': 'Ausgeschieden' };
-const TABLE_LEAGUES = new Set(['ucl', 'pl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1']);
+const TABLE_LEAGUES = new Set(['ucl', 'pl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1', 'chsl', 'chcl']);
 const leagueCache = new Map(); // `${id}|${kind}` → Antwort von ?fbleague=
 // Desktop-Dashboard (drei Spalten, Grenze wie in fussball.css): links Ligen und Teams, rechts Tabelle, Torschützen, letzte Tore
 const DASH = matchMedia('(min-width:1100px)');
@@ -385,7 +385,7 @@ function render() {
     + (() => { const bad = data.leagues.filter((lg) => lg.status !== 'ok' && lg.status !== 'nokey'); return bad.length ? `<p class="fb-quiet">Zurzeit keine neuen Daten: ${esc(bad.map((lg) => lg.name).join(', '))}.</p>` : ''; })();
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   renderDash(dayMs, matches);
-  $('#fbFoot').textContent = `${data.paused ? 'Live-Stände pausiert: Tageslimit der Datenquelle erreicht (Big Balls). ' : ''}Stand ${zTime(new Date(data.updated))} · Big Balls · Premier League live: FPL · 2. Bundesliga: OpenLigaDB · Schweiz, Championship: Sportradar`;
+  $('#fbFoot').textContent = `${data.paused ? 'Live-Stände pausiert: Tageslimit der Datenquelle erreicht (Big Balls). ' : ''}Stand ${zTime(new Date(data.updated))} · Big Balls · Premier League live: FPL · 2. Bundesliga: OpenLigaDB · Schweiz: GOAL API · Championship: Sportradar`;
 }
 
 // ---------- Desktop-Dashboard: Spalten links und rechts ----------

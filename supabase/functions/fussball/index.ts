@@ -56,8 +56,9 @@ const FB_LEAGUES = [
   { id: 'seriea', name: 'Serie A', country: 'Italien', short: 'SA', color: '#0A5DB8', src: 'bb', key: 'seriea' },
   { id: 'ligue1', name: 'Ligue 1', country: 'Frankreich', short: 'L1', color: '#1B2A4A', src: 'bb', key: 'ligue1' },
   { id: 'bl2', name: '2. Bundesliga', country: 'Deutschland', short: '2B', color: '#5B6170', src: 'oldb', key: 'bl2' },
-  { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'sr', key: 'sr:competition:215' },
-  { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'sr', key: 'sr:competition:216' },
+  // Schweizer Ligen: GOAL API (goal-api.com, Secret GOAL_KEY, gratis 1000/Tag); sr = alte Sportradar-Kennung (Namen/Wappen aus dem alten Stand)
+  { id: 'chsl', name: 'Super League', country: 'Schweiz', short: 'SL', color: '#E30613', src: 'goal', key: 'cmr77dvyx00egrx06pta3wmnc', sr: 'sr:competition:215' },
+  { id: 'chcl', name: 'Challenge League', country: 'Schweiz', short: 'CL', color: '#1F6FB2', src: 'goal', key: 'cmr77dvyx00ekrx064z74pcl5', sr: 'sr:competition:216' },
   { id: 'unl', name: 'Nations League', country: 'Nationalteams', short: 'NL', color: '#00A0E4', src: 'bb', key: 'UEFA Nations League', season: 'cal' },
   { id: 'wcq', name: 'WM-Qualifikation', country: 'Nationalteams', short: 'WMQ', color: '#8A1538', src: 'bb', key: 'World Cup - Qualification Europe', season: 'cal' },
   { id: 'emq', name: 'EM-Qualifikation', country: 'Nationalteams', short: 'EMQ', color: '#143CDB', src: 'bb', key: 'Euro Championship - Qualification', season: 'cal' },
@@ -518,6 +519,8 @@ const BB_TABLE = {
   laliga: { key: 'laliga', scorers: 'laliga', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
   seriea: { key: 'seriea', scorers: 'serie-a', zones: [[1, 4, 'cl'], [5, 5, 'el'], [6, 6, 'co'], [18, 20, 'ab']] },
   ligue1: { key: 'ligue1', scorers: 'ligue-1', zones: [[1, 3, 'cl'], [4, 4, 'clq'], [5, 5, 'el'], [6, 6, 'co'], [16, 16, 'rel'], [17, 18, 'ab']] },
+  chsl: { goal: 'cmr77dvyx00egrx06pta3wmnc', zones: [] },
+  chcl: { goal: 'cmr77dvyx00ekrx064z74pcl5', zones: [] },
   // Championship: Tabelle von Sportradar (keine Torschützenliste)
   efl: { sr: 'sr:competition:18', zones: [[1, 2, 'up'], [3, 6, 'upq'], [22, 24, 'ab']] },
 };
@@ -545,6 +548,7 @@ async function srTable(cfg, now, force) {
 async function fbLeague(id, kind, now = Date.now(), force = false) {
   const cfg = BB_TABLE[id];
   if (!cfg) return { available: false };
+  if (cfg.goal) return kind === 'scorers' ? { available: false } : goalTable(cfg, now, force);
   if (cfg.sr) return kind === 'scorers' ? { available: false } : srTable(cfg, now, force);
   if (kind === 'scorers') {
     if (id === 'ucl') {
@@ -1334,20 +1338,21 @@ async function oldbLeague(lg, season, now) {
 async function fbOverview(now) {
   const season = fbSeason(new Date(now));
   const fail = () => ({ status: 'error', message: 'Fehler', matches: [] });
-  const srList = FB_LEAGUES.filter((lg) => lg.src === 'sr'), bbList = FB_LEAGUES.filter((lg) => lg.src === 'bb');
+  const srList = FB_LEAGUES.filter((lg) => lg.src === 'sr'), bbList = FB_LEAGUES.filter((lg) => lg.src === 'bb'), glList = FB_LEAGUES.filter((lg) => lg.src === 'goal');
   const [other, srRes, bbRes] = await Promise.all([
-    Promise.all(FB_LEAGUES.map((lg) => (lg.src === 'oldb' ? oldbLeague(lg, season, now) : null)).map((p) => p && p.catch(fail))),
+    Promise.all(FB_LEAGUES.map((lg) => (lg.src === 'oldb' ? oldbLeague(lg, season, now) : lg.src === 'goal' ? goalLeague(lg, now) : null)).map((p) => p && p.catch(fail))),
     srList.length ? srLeagues(srList, now).catch(() => srList.map(fail)) : [],
     bbList.length ? bbLeagues(bbList, now).catch(() => bbList.map(fail)) : [],
   ]);
   const res = FB_LEAGUES.map((lg, i) => (lg.src === 'sr' ? srRes[srList.indexOf(lg)] : lg.src === 'bb' ? bbRes[bbList.indexOf(lg)] : other[i]));
+  void glList;
   const from = now - 14 * 864e5, to = now + 15 * 864e5;
   // Ein Wappen pro Klub über alle Ligen (z. B. Liverpool in Premier League und Champions League):
   // zuerst Sportradar-Ligen (Wikipedia, scharf), dann Bundesligen, zuletzt Champions League
   // Gespeicherte Sportradar-Spielpläne von früher: Namen kürzen und Wappen nachtragen
   FB_LEAGUES.forEach((lg, i) => { if (lg.src === 'sr') for (const m of res[i].matches || []) { m.hl = m.hl || srLogo(m.h); m.al = m.al || srLogo(m.a); m.h = srName(m.h); m.a = srName(m.a); } });
   const crest = new Map();
-  const rank = (lg) => (lg.src === 'sr' ? 0 : lg.id === 'ucl' ? 2 : 1);
+  const rank = (lg) => (lg.src === 'sr' || lg.src === 'goal' ? 0 : lg.id === 'ucl' ? 2 : 1);
   [...FB_LEAGUES.keys()].sort((a, b) => rank(FB_LEAGUES[a]) - rank(FB_LEAGUES[b])).forEach((i) => {
     for (const m of res[i].matches || []) {
       if (m.hl && !crest.has(m.h)) crest.set(m.h, m.hl);
@@ -1402,7 +1407,7 @@ async function refreshAroundMatches(now, ov, favs = new Set()) {
         // Alte Tabelle merken, neue holen und prüfen, ob die Resultate seit dem alten Stand drin sind (ein Spiel mehr bei beiden Teams).
         // Fehlt etwas (Quelle trägt Resultate erst später ein): die Spiel-IDs als «missing» mitgeben – die Seite rechnet sie selbst ein –
         // und in 15 Min. nochmals holen, höchstens 8-mal; danach bleibt «missing» bis zur nächsten Tabelle
-        const ck = BB_TABLE[id].sr ? `srtab:${BB_TABLE[id].sr}` : `bbtab:${BB_TABLE[id].key}`;
+        const ck = BB_TABLE[id].goal ? `gltab:${BB_TABLE[id].goal}` : BB_TABLE[id].sr ? `srtab:${BB_TABLE[id].sr}` : `bbtab:${BB_TABLE[id].key}`;
         const old = (await cacheGet(ck))?.data;
         const table = await fbLeague(id, 'table', now, true).catch(() => ({ available: false }));
         if (table.available) {
@@ -1429,6 +1434,7 @@ async function refreshAroundMatches(now, ov, favs = new Set()) {
 async function fbGame(id) {
   if (/^bb-[\w-]+$/.test(String(id))) return bbGame(id);
   if (/^sr-\d+$/.test(String(id))) { const t = await srTimeline(String(id)); return { goals: t?.goals || [], final: !!t?.final }; }
+  if (/^gl-[a-z0-9]+$/.test(String(id))) return goalGame(String(id));
   throw new Error('ungültig');
 }
 
@@ -1674,13 +1680,13 @@ async function pushTick(now) {
     if (!p) {
       if (m.hs + m.as > 0 && m.st !== 'ft' && now - Date.parse(m.utc) < 10 * 60 * 1000) {
         events.push({ m, side: m.hs > 0 ? 1 : 2 });
-        if (!m.goals?.length && /^(bb-|sr-)/.test(m.id)) scoreChanges.push(m);
+        if (!m.goals?.length && /^(bb-|sr-|gl-)/.test(m.id)) scoreChanges.push(m);
       }
       continue;
     }
     if (m.hs > p[0]) events.push({ m, side: 1 });
     if (m.as > p[1]) events.push({ m, side: 2 });
-    if ((m.hs !== p[0] || m.as !== p[1]) && !m.goals?.length && /^(bb-|sr-)/.test(m.id)) scoreChanges.push(m);
+    if ((m.hs !== p[0] || m.as !== p[1]) && !m.goals?.length && /^(bb-|sr-|gl-)/.test(m.id)) scoreChanges.push(m);
   }
   // Beendete Spiele nach einem Tag aus dem Vergleich nehmen
   for (const [id, v] of Object.entries(prev)) if (!cur[id] && ov.matches.some((m) => m.id === id && now - Date.parse(m.utc) < 864e5)) cur[id] = v;
@@ -1772,6 +1778,137 @@ async function afProbe() {
   return out;
 }
 
+// ---------- GOAL API: Super League und Challenge League ----------
+// Saisonspielplan 1× pro Tag (Blättern à 100), heutige Spiele mit Live-Stand alle 2 Min. (Lieblingsteam spielt oder jemand
+// schaut zu) bzw. alle 5 Min., Tore aus den Ereignissen. Namen und Wappen wie bisher (aus dem alten Sportradar-Stand),
+// damit Lieblingsteams («FC Basel») weiter passen. Eigene Grenze GOAL_DAILY (Standard 900 von 1000).
+const goalDailyMax = () => Number(Deno.env.get('GOAL_DAILY')) || 900;
+const goalAllowed = () => dailyAllowed('goalcount', goalDailyMax());
+const gNorm = (n) => String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\b(fc|sc|fk|ac|cs)\b/g, '').replace(/[^a-z]/g, '');
+const G_ALIAS = { grasshoppers: 'gczurich', grasshopper: 'gczurich', gc: 'gczurich', neuchatelxamax: 'xamax', xamaxfcs: 'xamax', nyon: 'stadenyonnais', stadelausanneouchy: 'lausanneouchy', servettegeneve: 'servette', yverdonsport: 'yverdonsport', etoilecarouge: 'etoilecarouge' };
+async function goalNames(lg) {
+  // Anzeigenamen und Wappen aus dem gespeicherten Sportradar-Spielplan (bleibt erhalten), ergänzt laufend aus GOAL
+  const old = (await cacheGet(`sr:${lg.sr}`))?.data?.matches || [];
+  const map = new Map();
+  for (const m of old) { map.set(gNorm(m.h), { n: m.h, logo: m.hl || '' }); map.set(gNorm(m.a), { n: m.a, logo: m.al || '' }); }
+  return map;
+}
+function goalName(map, raw, badge) {
+  let k = gNorm(raw); k = G_ALIAS[k] || k;
+  let hit = map.get(k);
+  if (!hit) for (const [nk, v] of map) if (nk.length > 3 && (nk.includes(k) || k.includes(nk))) { hit = v; break; }
+  return hit ? { n: hit.n, logo: hit.logo || srLogo(hit.n) } : { n: String(raw || '').trim(), logo: '' };
+}
+const gInt = (v) => (v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
+function goalState(f) {
+  const s = String(f.matchStatus || '').toUpperCase(), p = String(f.matchPeriod || '').toUpperCase();
+  if (s === 'LIVE') return /HALF_?TIME|BREAK/.test(p) ? 'ht' : 'live';
+  if (/FINISH|FT|AFTER|ENDED/.test(s)) return 'ft';
+  if (/POSTP|CANC|ABAND|SUSP|DELAY/.test(s)) return 'off';
+  return 'pre';
+}
+// Tore aus den Ereignissen (Feldnamen defensiv: GOAL nennt sie nicht vollständig in der Doku)
+function goalGoals(f, events) {
+  const out = [];
+  for (const e of events || []) {
+    const t = String(e.type || e.eventType || e.name || '').toLowerCase();
+    const scorerH = e.homeScorer || e.home_scorer, scorerA = e.awayScorer || e.away_scorer;
+    if (!/goal|tor/.test(t) && !scorerH && !scorerA) continue;
+    if (/disallow|cancel|miss/.test(t)) continue;
+    const side = scorerH ? 1 : scorerA ? 2 : (e.teamId && e.teamId === f.homeTeamId) || /home/i.test(String(e.side || e.team || '')) ? 1 : 2;
+    const who = scorerH || scorerA || e.player?.name || e.playerName || e.player || '';
+    const own = /own/.test(t) || /\(og\)|own goal/i.test(String(who)), pen = /pen/.test(t) || /\(pen/i.test(String(who));
+    out.push({ m: String(e.time ?? e.minute ?? e.elapsed ?? '').replace(/'$/, ''), s: side, n: `${String(who).replace(/\s*\((og|pen\.?)\)\s*/i, '').trim()}${pen ? ' (Pen.)' : own ? ' (Eigentor)' : ''}` });
+  }
+  return out;
+}
+function mapGoal(lg, f, names) {
+  const st = goalState(f), H = goalName(names, f.homeTeam?.name || f.homeTeamName), A = goalName(names, f.awayTeam?.name || f.awayTeamName);
+  const hh = gInt(f.homeTeamHalftimeScore), ah = gInt(f.awayTeamHalftimeScore);
+  const goals = goalGoals(f, f.events);
+  return { id: `gl-${f.id}`, l: lg.id, utc: new Date(f.kickoffUtc).toISOString(), round: String(f.matchRound || ''), h: H.n, a: A.n, hl: H.logo, al: A.logo,
+    hs: st === 'pre' ? null : gInt(f.homeTeamScore), as: st === 'pre' ? null : gInt(f.awayTeamScore), st,
+    min: st === 'live' ? (f.matchExtra ? `${f.matchElapsed}+${f.matchExtra}` : f.matchElapsed ?? f.matchMinute ?? null) : null,
+    ht: hh !== null && ah !== null && st !== 'pre' ? `${hh}:${ah}` : '', note: st === 'off' ? String(f.matchStatus || '') : '', ...(goals.length ? { goals } : {}) };
+}
+async function goalLeague(lg, now) {
+  if (!Deno.env.get('GOAL_KEY')) return { status: 'nokey', message: 'GOAL-Schlüssel fehlt', matches: [] };
+  const ck = `gl:${lg.key}`, hit = await cacheGet(ck), names = await goalNames(lg);
+  let data = hit?.data;
+  // Saisonspielplan: 1× pro Tag (bei Fehlern nach 30 Min.)
+  if (!data || now - hit.at > (data.status === 'ok' && !data.stale ? 24 * 3600 * 1000 : 30 * 60 * 1000)) {
+    try {
+      const all = [];
+      for (let off = 0; off < 600; off += 100) {
+        if (!(await goalAllowed())) throw new Error('Tagesgrenze GOAL');
+        const { d } = await goalGet(`/leagues/${lg.key}/fixtures`, { limit: '100', offset: String(off) });
+        const list = goalList(d); all.push(...list);
+        if (list.length < 100) break;
+      }
+      const old = new Map((data?.matches || []).map((m) => [m.id, m]));
+      const matches = all.map((f) => mapGoal(lg, f, names)).map((m) => (old.get(m.id)?.goals && !m.goals ? { ...m, goals: old.get(m.id).goals } : m));
+      data = { status: matches.length ? 'ok' : 'error', message: matches.length ? '' : 'Kein Spielplan erhalten', matches };
+      await cacheSet(ck, data);
+    } catch (err) {
+      data = data?.matches?.length ? { ...data, status: 'ok', message: '', stale: true } : { status: 'error', message: 'Zurzeit keine Daten', matches: [] };
+      await cacheSet(ck, data);
+    }
+  }
+  // Heute: Live-Stand und Tore, solange ein Spiel läuft oder bald beginnt
+  if (liveWindow(data.matches, now)) {
+    const lk = `gllive:${lg.key}`, lh = await cacheGet(lk);
+    const ttl = liveEager ? 2 * 60 * 1000 : 5 * 60 * 1000;
+    let today = lh?.data;
+    if (!lh || now - lh.at > ttl) {
+      try {
+        if (!(await goalAllowed())) throw new Error('Tagesgrenze GOAL');
+        const day = new Date(now).toISOString().slice(0, 10);
+        const { d } = await goalGet('/fixtures', { leagueId: lg.key, from: day, to: day, limit: '50' });
+        today = goalList(d).filter((f) => f.leagueId === lg.key || f.league?.id === lg.key).map((f) => mapGoal(lg, f, names));
+        await cacheSet(lk, today);
+      } catch { today = lh?.data || []; }
+    }
+    const byId = new Map((today || []).map((m) => [m.id, m]));
+    let changed = false;
+    data = { ...data, matches: data.matches.map((m) => { const t = byId.get(m.id); if (!t) return m; if (t.st === 'ft' && m.st !== 'ft') changed = true; return { ...m, ...t, goals: t.goals || m.goals }; }) };
+    if (changed) await cacheSet(ck, data);
+  }
+  return data;
+}
+// Einzelnes Spiel (Tore für Mitteilungen und Spieldetail): Ereignisse, live 2 Min., nach Schluss dauerhaft
+async function goalGame(id) {
+  const fid = id.replace(/^gl-/, ''), ck = `glev:${fid}`, hit = await cacheGet(ck), now = Date.now();
+  if (hit && (hit.data.final || now - hit.at < 2 * 60 * 1000)) return hit.data;
+  if (!(await goalAllowed())) return hit?.data || { goals: [], final: false };
+  try {
+    const [{ d: fx }, ev] = await Promise.all([goalGet(`/fixtures/${fid}`), goalGet(`/fixtures/${fid}/events`).catch(() => ({ d: null }))]);
+    const f = fx?.data || fx;
+    const events = goalList(ev.d).length ? goalList(ev.d) : f?.events || [];
+    const data = { goals: goalGoals(f || {}, events), final: goalState(f || {}) === 'ft' };
+    await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || { goals: [], final: false }; }
+}
+// Tabelle (eine Abfrage), bis 6 Std. gespeichert bzw. nach dem letzten Spiel des Tages neu
+async function goalTable(cfg, now, force) {
+  const ck = `gltab:${cfg.goal}`, hit = await cacheGet(ck);
+  if (hit && !force && now - hit.at < 6 * 3600 * 1000) return hit.data;
+  if (!Deno.env.get('GOAL_KEY') || !(await goalAllowed())) return hit?.data || { available: false };
+  try {
+    const { d } = await goalGet(`/standings/${cfg.goal}`);
+    const lg = FB_LEAGUES.find((l) => l.key === cfg.goal), names = lg ? await goalNames(lg) : new Map();
+    const raw = goalList(d).filter((r) => !r.stageName || /current|regular|league/i.test(r.stageName) || goalList(d).every((x) => x.stageName === r.stageName));
+    const pick = (r, ...ks) => { for (const k of ks) if (r[k] !== undefined && r[k] !== null && r[k] !== '') return Number(r[k]); return 0; };
+    const rows = raw.map((r) => { const T = goalName(names, r.teamName || r.team?.name); return { rank: pick(r, 'overallLeaguePosition', 'position', 'rank'), team: T.n, logo: T.logo,
+      p: pick(r, 'overallLeaguePayed', 'overallLeaguePlayed', 'played'), w: pick(r, 'overallLeagueW', 'won', 'win'), d: pick(r, 'overallLeagueD', 'draw', 'drawn'),
+      l: pick(r, 'overallLeagueL', 'lost', 'loss'), gf: pick(r, 'overallLeagueGF', 'goalsFor'), ga: pick(r, 'overallLeagueGA', 'goalsAgainst'), pts: pick(r, 'overallLeaguePTS', 'points', 'pts') }; })
+      .filter((r) => r.team).sort((a, b) => a.rank - b.rank);
+    const data = { available: rows.length > 0, zones: cfg.zones, rows, source: 'GOAL API', asOf: new Date(now).toISOString() };
+    if (rows.length) await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || { available: false }; }
+}
+
 // ---------- GOAL API (goal-api.com), Test vor dem Umbau der Schweizer Ligen ----------
 // Secret GOAL_KEY, Zugang per «Authorization: Bearer». Die Doku nennt zwei Basisadressen; der Test probiert beide und
 // sucht die Schweizer Ligen (Kennungen unbekannt), Live-Spiele, Spielplan und Tabelle. Etwa 15 Abfragen, 30 Min. gemerkt.
@@ -1825,7 +1962,7 @@ async function goalProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22c';
+const FN_VERSION = '2026-11-22d';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
