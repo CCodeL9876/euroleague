@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-22",
+ "updated": "2026-11-23",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -328,18 +328,6 @@
   },
   {
    "id": "",
-   "name": "Johnathan Motley",
-   "team": "RED",
-   "status": "out",
-   "since": "2026-11-12",
-   "note": "Grippe; fehlte in Mailand",
-   "back": "",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
-  },
-  {
-   "id": "",
    "name": "Davide Casarin",
    "team": "VIR",
    "status": "out",
@@ -613,6 +601,30 @@
    "since": "2026-11-21",
    "note": "nicht näher bezeichnete Verletzung; verpasste die Runden 1 bis 13",
    "back": ""
+  },
+  {
+   "id": "",
+   "name": "Josh Nebo",
+   "team": "BAR",
+   "status": "out",
+   "since": "2026-11-20",
+   "note": "Teilavulsion der Patellasehne im rechten Knie, erlitten gegen Crvena Zvezda; konservative Behandlung ohne Operation",
+   "back": "ca. 3-4 Monate",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2039262/josh-nebo-out-three-to-four-months-with-knee-injury/",
+   "reported": "2026-11-23"
+  },
+  {
+   "id": "",
+   "name": "Tyrese Martin",
+   "team": "BAR",
+   "status": "doubtful",
+   "since": "2026-11-17",
+   "note": "Verstauchung des rechten Knöchels gegen Paris, Symptome verschlimmert; fehlte in Tenerife",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2039262/josh-nebo-out-three-to-four-months-with-knee-injury/",
+   "reported": "2026-11-23"
   }
  ]
 }
