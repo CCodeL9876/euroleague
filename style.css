@@ -1297,8 +1297,8 @@ html.bar-wait .mtabs, html.bar-wait .fb-tabs, html.bar-wait .ms-tabs{opacity:0 !
 .pl-table tr.tp2 td:nth-child(4) b{color:var(--dim);} .pl-table tr.tp3 td:nth-child(4) b{color:var(--orange);}
 .pl-table tr.tp1, .pl-table tr.tp2, .pl-table tr.tp3{background:color-mix(in srgb, var(--gold) 6%, transparent);}
 .pl-table tr.tp1 .pl, .pl-table tr.tp2 .pl, .pl-table tr.tp3 .pl{background:color-mix(in srgb, var(--gold) 6%, var(--card));}
-.tp-sort{display:flex;align-items:center;gap:6px;margin:0;padding:10px 14px 4px;font-size:0.75rem;color:var(--faint);}
-.tp-sort button{border:1px solid var(--line);background:var(--card);color:var(--dim);border-radius:999px;padding:4px 11px;font:inherit;font-weight:600;cursor:pointer;}
+.tp-sort{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;padding:10px 14px 4px;font-size:0.75rem;color:var(--faint);}
+.tp-sort button{min-height:36px;border:1px solid var(--line);background:var(--card);color:var(--dim);border-radius:999px;padding:4px 11px;font:inherit;font-weight:600;cursor:pointer;}
 .tp-sort button[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text);}
 .tp-list{overflow:hidden;}
 .tps-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--line);}

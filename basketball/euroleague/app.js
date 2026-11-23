@@ -1190,7 +1190,7 @@ function renderBox() {
       <td class="no">${esc(p.no)}</td><th scope="row" class="pl">${p.on && b.live ? '<i class="live-dot" aria-label="auf dem Feld"></i>' : ''}${rk ? `<span class="tp-rk r${rk}" aria-label="Platz ${rk}">${rk}</span>` : ''}${playerBtn(p, team.code)}${p.start ? '<small>S5</small>' : ''}</th>
       <td>${esc(p.min || '–')}</td><td class="${!rankOf.size && p.pts === top && top ? 'is-top' : ''}"><b>${p.pts}</b></td><td>${p.reb}</td><td>${p.ast}</td>
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`; }).join('');
-  setBox(dlg, `${head}${tops.some((l) => l.length) ? topPlayersHtml(m, g, b, tops) : ''}${seg}${quarters}${flowHtml(m, g, b)}
+  setBox(dlg, `${head}${g.status !== 'pre' && topPlayers(b, 'pts').some((l) => l.length) ? topPlayersHtml(m, g, b, tops) : ''}${seg}${quarters}${flowHtml(m, g, b)}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
     <h3>Spieler</h3>
     <div class="seg" role="group" aria-label="Team wählen">${b.teams.map((t, i) => `<button type="button" data-act="box-team" data-i="${i}" aria-pressed="${i === boxState.team}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>
@@ -1201,16 +1201,22 @@ function renderBox() {
     <p class="box-note small">Quelle: EuroLeague. S5 = Startformation${b.live ? ', roter Punkt = gerade auf dem Feld. Aktualisiert sich alle 30 Sekunden' : ''}.</p>`);
 }
 
-// Top 3 pro Team: nach Punkten (Gleichstand: PIR) oder nach PIR (Gleichstand: Punkte); nur Spieler mit Einsatz
+// Top 3 pro Team nach gewählter Kategorie (Gleichstand: Punkte, bei Punkten PIR); nur Spieler mit Einsatz.
+// Ausser bei Punkten und PIR zählen nur Spieler mit mindestens 1 (sonst stünden bei Fouls Spieler mit 0 in der Liste)
+const TOP_BY = [['pts', 'Punkte', 'Pkt'], ['pir', 'PIR', 'PIR'], ['reb', 'Rebounds', 'Reb'], ['ast', 'Assists', 'Ass'], ['pf', 'Fouls', 'F'], ['tov', 'Ballverluste', 'BV']];
+const topKey = (by) => (TOP_BY.some((c) => c[0] === by) ? by : 'pts');
 function topPlayers(b, by) {
-  const k1 = by === 'pir' ? 'pir' : 'pts', k2 = by === 'pir' ? 'pts' : 'pir';
-  return b.teams.map((t) => t.players.filter((p) => (p.min && p.min !== '00:00') || p.pts)
+  const k1 = topKey(by), k2 = k1 === 'pts' ? 'pir' : 'pts';
+  return b.teams.map((t) => t.players.filter((p) => ((p.min && p.min !== '00:00') || p.pts) && (k1 === 'pts' || k1 === 'pir' || p[k1] > 0))
     .sort((x, y) => (y[k1] - x[k1]) || (y[k2] - x[k2])).slice(0, 3));
 }
-// Zugeklappt: der Beste jedes Teams. Aufgeklappt: Team-Umschalter, «Nach Punkten / Effizienz», drei Zeilen mit vier Kacheln
+// Zugeklappt: der Beste jedes Teams. Aufgeklappt: Team-Umschalter, «Nach» Punkte/PIR/Rebounds/Assists/Fouls/Ballverluste, drei Zeilen mit vier Kacheln
 function topPlayersHtml(m, g, b, tops) {
-  const by = boxState.topBy, ti = tops[boxState.topTeam]?.length ? boxState.topTeam : 0, code = b.teams[ti].code;
-  const val = (p) => (by === 'pir' ? p.pir : p.pts), unit = by === 'pir' ? 'PIR' : 'Pkt';
+  const by = topKey(boxState.topBy), ti = b.teams[boxState.topTeam] ? boxState.topTeam : 0, code = b.teams[ti].code;
+  const unitOf = (k) => TOP_BY.find((c) => c[0] === k)[2];
+  const val = (p) => p[by];
+  // Kacheln: gewählte Kategorie zuerst, danach die übrigen aus Punkte/Reb/Ass/PIR
+  const chipKeys = [by, ...['pts', 'reb', 'ast', 'pir'].filter((k) => k !== by)].slice(0, 4);
   const last = (n) => String(n).replace(/^.*?\.\s*/, '');
   const fg = (p) => `${p.fg2[0] + p.fg3[0]}/${p.fg2[1] + p.fg3[1]} FG · ${ratio(p.fg3)} 3P`;
   const items = tops.map((l, i) => (l[0] ? `<span class="tp-it"><span class="tp-tc">${esc(short(b.teams[i].code))}</span>${esc(last(l[0].name))} <em class="num">${val(l[0])}</em></span>` : '')).join('');
@@ -1220,15 +1226,15 @@ function topPlayersHtml(m, g, b, tops) {
     return `<div class="tps-row${i === 0 ? ' first' : ''}">
       <span class="tp-av">${playerImg({ img })}<span class="tp-rk r${i + 1}" aria-hidden="true">${i + 1}</span></span>
       <span class="tp-nm"><b>${playerBtn(p, code)}</b><small class="num">${fg(p)}</small></span>
-      <span class="tp-g4 num">${chip(val(p), unit)}${chip(p.reb, 'Reb')}${chip(p.ast, 'Ass')}${by === 'pir' ? chip(p.pts, 'Pkt') : chip(p.pir, 'PIR')}</span></div>`;
+      <span class="tp-g4 num">${chipKeys.map((k) => chip(p[k], unitOf(k))).join('')}</span></div>`;
   }).join('');
   const teamSeg = `<div class="seg tp-teams" role="group" aria-label="Team">${b.teams.map((t, i) => `<button type="button" data-act="top-team" data-i="${i}" aria-pressed="${i === ti}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>`;
   return `<details class="tp-box" id="topBox"${boxState.topOpen ? ' open' : ''}>
     <summary><span class="tp-lab">${b.live ? '<i class="live-dot" aria-hidden="true"></i>' : ''}Top 3</span><span class="tp-its">${items}</span><span class="tp-title">${b.live ? 'Aktuell beste Spieler pro Team' : 'Beste Spieler pro Team'}</span><span class="tp-chev" aria-hidden="true">›</span></summary>
     <div class="tp-body">${teamSeg}
-      <div class="tp-sort" role="group" aria-label="Auswahl nach"><span>Nach</span><button type="button" data-act="top-by" data-by="pts" aria-pressed="${by !== 'pir'}">Punkten</button><button type="button" data-act="top-by" data-by="pir" aria-pressed="${by === 'pir'}">Effizienz (PIR)</button></div>
-      <div class="tp-list">${rows}</div>
-      <p class="tp-more">Steals, Blocks, Ballverluste und +/− stehen in der Spielertabelle.</p></div></details>`;
+      <div class="tp-sort" role="group" aria-label="Auswahl nach"><span>Nach</span>${TOP_BY.map(([k, l]) => `<button type="button" data-act="top-by" data-by="${k}" aria-pressed="${k === by}">${l}</button>`).join('')}</div>
+      <div class="tp-list">${rows || '<p class="tp-more">Noch kein Spieler in dieser Kategorie.</p>'}</div>
+      <p class="tp-more">Steals, Blocks und +/− stehen in der Spielertabelle.</p></div></details>`;
 }
 
 // Reiter „Videos“: gewähltes Video gross (lädt den Player von youtube-nocookie.com erst beim Antippen), die übrigen als Liste
@@ -2227,7 +2233,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'video-play') { boxState.vid = t.dataset.id; boxState.playing = true; renderBox(); $('#box .vstage')?.scrollIntoView({ block: 'nearest' }); }
   else if (act === 'box-close') $('#box').close();
   else if (act === 'top-team') { boxState.topTeam = Number(t.dataset.i) || 0; renderBox(); }
-  else if (act === 'top-by') { boxState.topBy = t.dataset.by === 'pir' ? 'pir' : 'pts'; renderBox(); }
+  else if (act === 'top-by') { boxState.topBy = topKey(t.dataset.by); renderBox(); }
   else if (act === 'box-team') { boxState.team = Number(t.dataset.i); boxState.shooter = ''; boxState.shotV = 0; renderBox(); }
   else if (act === 'shot-v' || act === 'shot-court') {
     const ns = t.dataset.ns === 'pl' ? 'pl' : 'box', st = ns === 'pl' ? playerState : boxState;
