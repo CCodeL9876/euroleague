@@ -1080,7 +1080,7 @@ function toast(msg, variant = '') {
 }
 
 // ---------- Spielbericht ----------
-const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false, topBy: 'pts', court: 'dots', topOpen: false, topTeam: 0 };
+const boxState = { code: 0, data: null, error: '', team: 0, timer: null, shooter: '', shotV: 0, view: 'stats', vid: '', playing: false, topBy: 'pts', court: 'dots', topOpen: false, topTeam: 0, pppOpen: false };
 const pct = (a) => (a[1] ? `${Math.round(a[0] / a[1] * 100)}%` : '–');
 const ratio = (a) => `${a[0]}/${a[1]}`;
 
@@ -1196,7 +1196,7 @@ function renderBox() {
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`; }).join('');
   setBox(dlg, `${head}${g.status !== 'pre' && topPlayers(b, 'pts').some((l) => l.length) ? topPlayersHtml(m, g, b, tops) : ''}${seg}${quarters}${flowHtml(m, g, b)}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
-    <details class="ppp-info box-note small"><summary>Was heisst «Punkte pro Angriff»?</summary>
+    <details class="ppp-info box-note small" id="pppInfo"${boxState.pppOpen ? ' open' : ''}><summary>Was heisst «Punkte pro Angriff»?</summary>
       <p>Der Wert zeigt, wie viele Punkte ein Team im Schnitt aus einem Ballbesitz macht. Ein Angriff endet mit einem Wurf, Freiwürfen oder einem Ballverlust. Holt das Team den Abpraller selbst (Offensiv-Rebound), geht derselbe Angriff weiter.</p>
       <p>Weil beide Teams etwa gleich viele Angriffe haben, zeigt der Wert ehrlicher als die Punktzahl, wer besser angreift. Ein schnelles Spiel bringt viele Punkte, aber nicht unbedingt mehr pro Angriff. Anders als die Wurfquote zählt er auch Ballverluste, Offensiv-Rebounds und Freiwürfe mit.</p>
       <p>Berechnung: Angriffe = Wurfversuche + 0,44 × Freiwurfversuche − Offensiv-Rebounds + Ballverluste. Die 0,44 gibt es, weil nicht jeder Freiwurf einen eigenen Angriff beendet: Zwei Freiwürfe nach einem Foul zählen zusammen als ein Angriff, ein Bonus-Freiwurf nach einem Korb («And-one») als keiner. Punkte pro Angriff = Punkte ÷ Angriffe.</p>
@@ -2361,7 +2361,7 @@ document.addEventListener('change', (e) => {
   boxState.shooter = e.target.value;
   refreshShots();
 });
-document.addEventListener('toggle', (e) => { if (e.target.id === 'topBox') boxState.topOpen = e.target.open; if (e.target.id === 'podsCard') podsOpen = e.target.open; }, true);
+document.addEventListener('toggle', (e) => { if (e.target.id === 'topBox') boxState.topOpen = e.target.open; if (e.target.id === 'pppInfo') boxState.pppOpen = e.target.open; if (e.target.id === 'podsCard') podsOpen = e.target.open; }, true);
 document.addEventListener('submit', (e) => { if (e.target.id === 'profileForm') e.preventDefault(); });
 document.addEventListener('input', (e) => {
   if (e.target.id === 'profName') profileDraft.name = e.target.value;
