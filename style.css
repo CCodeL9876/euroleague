@@ -1544,11 +1544,8 @@ a.pm-btn.pm-yt{text-decoration:none;}
 /* Form der letzten Spiele: Felder mit S/N statt nur Farbpunkten (auch bei Rot-Grün-Schwäche lesbar) */
 .form i{display:grid;place-items:center;width:14px;height:16px;border-radius:4px;font:700 0.6rem/1 var(--mono);font-style:normal;color:#0B2A1B;background:var(--green);}
 .form i.l{background:var(--coral-text);color:#3A0B10;}
-.standings-table td.form-c .form i{width:14px;height:16px;}
-/* Tabellenzonen zusätzlich als Etikett in der Zeile */
-.zn{display:inline-block;margin-left:6px;padding:1px 5px;border-radius:5px;font:700 0.62rem/1.4 var(--mono);letter-spacing:0.03em;vertical-align:1px;}
-.zn.po{background:color-mix(in srgb, var(--green) 22%, transparent);color:var(--green);}
-.zn.pi{background:color-mix(in srgb, var(--orange) 24%, transparent);color:var(--orange);}
+.standings-table td.form-c .form{gap:2px;}
+.standings-table td.form-c .form i{width:11px;height:14px;font-size:0.52rem;border-radius:3px;}
 /* Spiele deiner Teams: goldener Strich links (wie im Fussball); Verlierer abgedunkelt */
 .game.fav{box-shadow:inset 3px 0 0 var(--gold);}
 .side.lose .logo{opacity:0.6;}
