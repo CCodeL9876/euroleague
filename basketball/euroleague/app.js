@@ -1047,7 +1047,7 @@ function render() {
 function setTab(t, scroll = true) {
   tab = t;
   $('#app').dataset.tab = t;
-  document.querySelectorAll('.mtabs button').forEach((b) => { if (b.dataset.tab === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  document.querySelectorAll('.el-seg [data-tab]').forEach((b) => { if (b.dataset.tab === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   store.set('el-tab', t);
   if (t === 'news' && news) newsBadgeAck(); else newsBadge();
   if (scroll) window.scrollTo(0, 0);
@@ -2187,11 +2187,11 @@ async function refresh({ withNews = false } = {}) {
 
 // ---------- Bedienung ----------
 document.addEventListener('click', (e) => {
-  if (profileMenuOpen && !e.target.closest('#profileMenu, #profileBtn')) { profileMenuOpen = false; renderProfileMenu(); }
+  if (profileMenuOpen && !e.target.closest('#profileMenu, #profileBtn, [data-act="profile-menu"]')) { profileMenuOpen = false; renderProfileMenu(); }
   if (e.target.closest('a.el-tv')) return; // EuroLeague TV öffnen, nicht den Spielbericht
-  const t = e.target.closest('[data-act], [data-team], .mtabs button');
+  const t = e.target.closest('[data-act], [data-team], .el-seg [data-tab]');
   if (!t) return;
-  if (t.matches('.mtabs button')) return setTab(t.dataset.tab);
+  if (t.matches('.el-seg [data-tab]')) return setTab(t.dataset.tab);
   if (t.dataset.team) { sel = t.dataset.team; store.set('el-team', sel); return render(); }
   const act = t.dataset.act;
   if (act === 'toggle-table') {
@@ -2287,6 +2287,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'search-close') $('#searchDlg').close();
   else if (act === 'search-clear') { searchState.q = ''; searchState.sel = -1; $('#psInput').value = ''; drawSearch(); $('#psInput').focus(); }
   else if (act === 'logout') logout();
+  else if (act === 'page-top') scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   else if (act === 'profile-menu') { profileMenuOpen = !profileMenuOpen; renderProfileMenu(); if (profileMenuOpen) $('#profileMenu .pm-item')?.focus(); }
   else if (act === 'fav-edit') { favEdit = true; profileMenuOpen = false; profileError = ''; renderProfileMenu(); renderFavSheet(); }
   else if (act === 'fav-close') closeFavSheet();

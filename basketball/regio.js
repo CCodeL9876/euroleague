@@ -270,6 +270,8 @@ function gameHtml(g) {
 }
 
 // ---------- Ereignisse ----------
+// Leiste unten: «Basketball» ist der aktuelle Bereich, Antippen scrollt nach oben
+document.addEventListener('click', (e) => { if (e.target.closest('[data-act="page-top"]')) scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); });
 document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-game],[data-view],[data-mine],[data-fav],[data-close],[data-boxtab],[data-cat],[data-tile]');
   if (!t) { if (e.target === dlg) dlg.close(); return; }

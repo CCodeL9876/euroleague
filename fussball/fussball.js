@@ -1040,8 +1040,16 @@ document.addEventListener('click', (e) => {
     render(); scrollTo(0, 0); return;
   }
   const act = e.target.closest('[data-act]')?.dataset.act;
-  if (menuOpen && !e.target.closest('#profileMenu, #profileBtn')) { menuOpen = false; renderMenu(); }
+  if (menuOpen && !e.target.closest('#profileMenu, #profileBtn, [data-act="profile-menu"]')) { menuOpen = false; renderMenu(); }
   if (act === 'theme') { toggleTheme(); return; }
+  // Leiste unten: aktueller Bereich nach oben; «Tabellen» im Umschalter öffnet die Tabelle der Liga deiner Teams
+  if (act === 'page-top') { scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); return; }
+  if (act === 'fb-tables') {
+    const favLg = (data?.matches || []).filter(isFav).map((m) => m.l).find((l) => TABLE_LEAGUES.has(l) && l !== 'ucl');
+    const id = tableLg || favLg || orderedLeagues().find((l) => TABLE_LEAGUES.has(l.id))?.id;
+    if (id) openSheet(id, 'table');
+    return;
+  }
   if (act === 'profile-menu') { menuOpen = !menuOpen; renderMenu(); return; }
   if (act === 'copy-link') { menuOpen = false; renderMenu(); copyLink(); return; }
   if (act === 'profile-logout') { store.set('el-profile-name', ''); store.set('el-profile-pin', ''); location.href = '../basketball/euroleague/'; return; }
