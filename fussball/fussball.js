@@ -281,7 +281,7 @@ function tvHtml(m) {
   if (m.st !== 'pre' && !isLive(m)) return '';
   const t = tvOf(m);
   if (!t.ch && !t.de) return '';
-  return `<small class="fb-tv"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M9 2l3 4 3-4"/></svg>${t.ch ? `<span><abbr title="Schweiz">CH</abbr> ${esc(t.ch)}</span>` : ''}${t.de ? `<span><abbr title="Deutschland">D</abbr> ${esc(t.de)}</span>` : ''}</small>`;
+  return `<small class="fb-tv"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M9 2l3 4 3-4"/></svg>${t.ch && t.ch === t.de ? `<span>${esc(t.ch)}</span>` : `${t.ch ? `<span><abbr title="Schweiz">CH</abbr> ${esc(t.ch)}</span>` : ''}${t.de ? `<span><abbr title="Deutschland">D</abbr> ${esc(t.de)}</span>` : ''}`}</small>`;
 }
 
 function row(m) {
@@ -289,7 +289,7 @@ function row(m) {
   const hw = m.st === 'ft' && m.hs > m.as, aw = m.st === 'ft' && m.as > m.hs;
   const ex = open.has(m.id);
   const live = m.st === 'live' || m.st === 'ht';
-  return `<button type="button" class="fb-match${live ? ' is-live' : ''}" data-id="${esc(m.id)}" aria-expanded="${ex}">${status(m)}
+  return `<button type="button" class="fb-match${live ? ' is-live' : ''}${isFav(m) ? ' fav' : ''}" data-id="${esc(m.id)}" aria-expanded="${ex}">${status(m)}
     <span class="fb-teams"><span class="fb-t${hw ? ' win' : aw ? ' lose' : ''}${isFavName(m.h) ? ' fav' : ''}">${logo(m.hl)}<span>${esc(m.h)}</span></span>
       <span class="fb-t${aw ? ' win' : hw ? ' lose' : ''}${isFavName(m.a) ? ' fav' : ''}">${logo(m.al)}<span>${esc(m.a)}</span></span>${tvHtml(m)}</span>
     <span class="fb-sc">${done ? `<span class="${aw ? 'lose' : ''}">${m.hs}</span><span class="${hw ? 'lose' : ''}">${m.as}</span>` : ''}</span>
@@ -347,6 +347,61 @@ function tickerHtml(lives) {
   }).join('')}</div>`;
 }
 
+let srcOpen = false;
+// Leerer Tag: sagen, wann es weitergeht, und direkt dorthin springen
+function emptyDayHtml(keys, byDay) {
+  const next = keys.find((k) => k > sel && byDay[k]?.length);
+  if (!next) return '<p class="fb-empty">An diesem Tag keine Spiele.</p>';
+  const d = new Date(`${next}T12:00:00`), n = byDay[next].length;
+  return `<div class="fb-emptybox"><b>An diesem Tag keine Spiele</b><p>Nächster Spieltag: ${esc(dayLabel(next))}, ${d.getDate()}. ${MON[d.getMonth()]} mit ${n} ${n === 1 ? 'Spiel' : 'Spielen'}.</p>
+    <button type="button" class="fb-go" data-act="fb-goto-day" data-d="${esc(next)}">Zu ${esc(dayLabel(next))}</button></div>`;
+}
+// Handy: unter den Spielen des Tages deine Teams (nächstes Spiel, letztes Resultat) und ein Tabellenausschnitt rund um sie.
+// Am Bildschirm steht beides in den Spalten daneben.
+const MOBILE_TABLES = 3;
+function mobileExtraHtml() {
+  const names = FAV ? [...FAV.values()] : [];
+  if (!names.length || !data) return '';
+  const now = Date.now();
+  const when = (m) => `${dayLabel(zDate(new Date(m.utc)))} ${zTime(new Date(m.utc))}`;
+  const cards = [], lgs = [];
+  for (const n of names) {
+    const k = n.toLowerCase(), list = data.matches.filter((m) => m.h.toLowerCase() === k || m.a.toLowerCase() === k);
+    const next = list.filter((m) => m.st === 'pre' && Date.parse(m.utc) > now).sort((a, b) => a.utc.localeCompare(b.utc))[0];
+    const last = list.filter((m) => m.st === 'ft' && m.hs != null && m.as != null).sort((a, b) => b.utc.localeCompare(a.utc))[0];
+    // Liga des Teams für den Tabellenausschnitt: die eigene Meisterschaft vor der Champions League
+    const own = list.filter((m) => TABLE_LEAGUES.has(m.l)).map((m) => m.l), dom = own.find((l) => l !== 'ucl') || own[0];
+    if (dom && !lgs.includes(dom)) lgs.push(dom);
+    if (!next && !last) continue;
+    const home = (m) => m.h.toLowerCase() === k, opp = (m) => (home(m) ? m.a : m.h);
+    let res = '';
+    if (last) { const us = home(last) ? last.hs : last.as, them = home(last) ? last.as : last.hs; res = `<em class="${us > them ? 'w' : us < them ? 'l' : 'd'}">${us > them ? 'S' : us < them ? 'N' : 'U'} ${us}:${them}</em>`; }
+    cards.push(`<button type="button" class="fb-mine-c" data-act="fb-goto-m" data-id="${esc((next || last).id)}"><b>${esc(n)}</b>${next ? `<small>${esc(when(next))}<br>${home(next) ? 'gegen' : 'bei'} ${esc(opp(next))}</small>` : '<small>kein Spiel geplant</small>'}${res}</button>`);
+  }
+  const order = orderedLeagues().map((l) => l.id);
+  const tables = lgs.sort((a, b) => order.indexOf(a) - order.indexOf(b)).slice(0, MOBILE_TABLES).map((id) => {
+    const d = leagueCache.get(`${id}|table`), lg = data.leagues.find((l) => l.id === id);
+    if (!d) { fetchLeague(id, 'table').then((ok) => { if (ok) render(); }); return ''; }
+    if (!d.available || !d.rows?.length) return '';
+    const rows = liveTable(id, d) || d.rows;
+    const idx = rows.map((r, i) => (isFavName(r.team) ? i : -1)).filter((i) => i >= 0);
+    if (!idx.length) return '';
+    const show = new Set(idx.flatMap((i) => [i - 1, i, i + 1]).filter((i) => i >= 0 && i < rows.length));
+    let prev = -1, out = '';
+    for (const i of [...show].sort((a, b) => a - b)) {
+      if (prev >= 0 && i > prev + 1) out += '<p class="fb-mini-gap" aria-hidden="true">⋯</p>';
+      const r = rows[i];
+      out += `<div class="fb-mini-r${isFavName(r.team) ? ' me' : ''}"><span>${esc(r.rank)}.</span><span>${esc(r.team)}${isFavName(r.team) ? ' ★' : ''}${r.live && r.old !== r.rank ? ` <i class="${r.old > r.rank ? 'up' : 'down'}">${r.old > r.rank ? '▲' : '▼'}</i>` : ''}</span><span>${esc(r.p)}</span><span>${esc(r.pts)}</span></div>`;
+      prev = i;
+    }
+    return `<section class="fb-mini"><div class="fb-mini-h"><span class="fb-lg" style="--c:${esc(lg?.color || '#555')}">${esc(lg?.short || '')}</span><b>${esc(lg?.name || id)}</b><button type="button" data-act="fb-table" data-id="${esc(id)}" aria-haspopup="dialog">Ganze Tabelle ›</button></div>
+      <div class="fb-mini-r hd" aria-hidden="true"><span>#</span><span>Team</span><span>Sp</span><span>Pkt</span></div>${out}</section>`;
+  }).join('');
+  return `${cards.length ? `<div class="fb-mine-h"><b>Deine Teams</b><button type="button" data-act="fb-fav" aria-haspopup="dialog">Ändern</button></div><div class="fb-mine">${cards.join('')}</div>` : ''}${tables}`;
+}
+// Ligawahl für Tabellen: wischbare Leiste mit Kürzel und Namen (Handy-Blatt und rechte Spalte)
+const lgChips = (cur, act) => `<div class="fb-lgchips" role="tablist" aria-label="Liga wählen">${orderedLeagues().filter((l) => TABLE_LEAGUES.has(l.id)).map((l) => `<button type="button" role="tab" data-act="${act}" data-id="${esc(l.id)}" aria-selected="${l.id === cur}"><span class="fb-lg" style="--c:${esc(l.color)}">${esc(l.short)}</span>${esc(l.name)}</button>`).join('')}</div>`;
+const centerChip = (root) => { const box = root?.querySelector('.fb-lgchips'), b = box?.querySelector('[aria-selected="true"]'); if (box && b) box.scrollLeft = b.offsetLeft - box.clientWidth / 2 + b.clientWidth / 2; };
 function render() {
   const days = $('#fbDays'), list = $('#fbList');
   if (!data) { days.innerHTML = ''; list.innerHTML = `<p class="fb-empty">${esc(error || 'Lade Spiele …')}</p>`; return; }
@@ -381,11 +436,12 @@ function render() {
   };
   const favBar = mineOnly ? `<button type="button" class="fb-fav-edit" data-act="fb-fav" aria-haspopup="dialog">${icon('star')}<span>${FAV?.size ? `${FAV.size} ${FAV.size === 1 ? 'Team' : 'Teams'}: ${esc([...FAV.values()].join(', '))}` : 'Noch keine Teams gewählt'}</span><b>Ändern ›</b></button>` : '';
   const strip = list.querySelector('[data-keep-scroll="fb-live"]'), keep = strip ? strip.scrollLeft : 0;
-  list.innerHTML = (staleNote ? `<p class="notice fb-stale">${esc(staleNote)}</p>` : '') + favBar + liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : '<p class="fb-empty">An diesem Tag keine Spiele.</p>')
+  list.innerHTML = (staleNote ? `<p class="notice fb-stale">${esc(staleNote)}</p>` : '') + favBar + liveHtml() + (groups.length ? groups.map((g) => `<section class="fb-group">${head(g)}${g.list.map(row).join('')}</section>`).join('') : emptyDayHtml(keys, byDay)) + (!DASH.matches && !mineOnly && !lgOnly ? mobileExtraHtml() : '')
     + (() => { const bad = data.leagues.filter((lg) => lg.status !== 'ok' && lg.status !== 'nokey'); return bad.length ? `<p class="fb-quiet">Zurzeit keine neuen Daten: ${esc(bad.map((lg) => lg.name).join(', '))}.</p>` : ''; })();
   const strip2 = list.querySelector('[data-keep-scroll="fb-live"]'); if (strip2) strip2.scrollLeft = keep;
   renderDash(dayMs, matches);
-  $('#fbFoot').textContent = `${data.paused ? 'Live-Stände pausiert: Tageslimit der Datenquelle erreicht (Big Balls). ' : ''}Stand ${zTime(new Date(data.updated))} · Big Balls · Premier League live: FPL · 2. Bundesliga: OpenLigaDB · Schweiz: GOAL API · Championship: Sportradar`;
+  const src = 'Big Balls · Premier League live: FPL · Bundesliga 2: OpenLigaDB · Schweiz: GOAL API · Championship: Sportradar';
+  $('#fbFoot').innerHTML = `${data.paused ? 'Live-Stände pausiert, das Tageslimit der Datenquelle ist erreicht. ' : ''}Stand ${esc(zTime(new Date(data.updated)))} · <button type="button" class="fb-src-btn" data-act="fb-src" aria-expanded="${srcOpen}">Quellen</button>${srcOpen ? `<span class="fb-src"> ${esc(src)}</span>` : ''}`;
 }
 
 // ---------- Desktop-Dashboard: Spalten links und rechts ----------
@@ -439,7 +495,7 @@ function sideRightHtml(lg) {
     <div class="fb-sc-list">${s.rows.slice(0, 8).map((r) => `<div class="fb-scr compact${isFavName(r.team) ? ' fav' : ''}"><span class="pos">${esc(r.rank)}</span><span class="who"><b>${esc(r.n)}</b>${r.team ? `<small>${esc(r.team)}</small>` : ''}</span><span class="g">${esc(r.g)}</span></div>`).join('')}</div></section>` : '';
   return `${tick}<section class="fb-card"><h3 class="fb-card-h"><span class="fb-lg" style="--c:${esc(lg.color)}">${esc(lg.short)}</span><b>${esc(lg.name)}</b>
       <button type="button" class="fb-side-more" data-act="fb-table" data-id="${esc(lg.id)}" aria-haspopup="dialog">Ganze Tabelle ›</button></h3>
-    <div class="fb-dash-seg" role="group" aria-label="Tabelle wählen">${tabs.map((l) => `<button type="button" data-act="fb-dash-lg" data-id="${esc(l.id)}" aria-pressed="${l.id === lg.id}" title="${esc(l.name)}">${esc(l.short)}</button>`).join('')}</div>${table}</section>${scorers}`;
+    ${lgChips(lg.id, 'fb-dash-lg')}${table}</section>${scorers}`;
 }
 function renderDash(dayMs, matches) {
   const left = $('#fbSideL'), right = $('#fbSideR');
@@ -450,7 +506,7 @@ function renderDash(dayMs, matches) {
   const keepL = left.scrollTop, keepR = right.scrollTop;
   left.innerHTML = sideLeftHtml(dayMs, matches);
   right.innerHTML = sideRightHtml(lg);
-  left.scrollTop = keepL; right.scrollTop = keepR;
+  left.scrollTop = keepL; right.scrollTop = keepR; centerChip(right);
   if (lg) Promise.all([fetchLeague(lg.id, 'table'), fetchLeague(lg.id, 'scorers')]).then((r) => { if (r.some(Boolean)) render(); });
 }
 // Liga links gewählt: Spielliste filtern, rechts die Tabelle zeigen; ohne Spiele am gewählten Tag zum nächsten Spieltag der Liga
@@ -636,9 +692,11 @@ function renderSheet() {
     <section class="fb-sheet" role="dialog" aria-modal="true" aria-labelledby="fbSheetTitle"><span class="fb-grab" aria-hidden="true"></span>
       <div class="fb-sheet-h"><span class="fb-lg" style="--c:${esc(lg?.color || '#555')}">${esc(lg?.short || '')}</span><b id="fbSheetTitle">${esc(lg?.name || '')}</b>
         <button type="button" class="fb-sheet-x" data-act="fb-sheet-close" aria-label="Schliessen">✕</button></div>
+      ${lgChips(sheet.id, 'fb-sheet-lg')}
       ${tabs.length ? `<div class="fb-seg" role="tablist">${tabs.map(([k, t]) => `<button type="button" role="tab" data-act="fb-sheet-tab" data-tab="${k}" aria-selected="${sheet.tab === k}">${t}</button>`).join('')}</div>` : ''}
       <div class="fb-sheet-body">${sheetBody(sheet.id, sheet.tab)}</div></section>`;
   el.querySelector('.fb-sheet-body').scrollTop = keep;
+  centerChip(el);
 }
 async function openSheet(id, tab) {
   sheet = { id, tab: id === 'efl' ? 'table' : tab }; renderSheet();
@@ -1017,6 +1075,10 @@ document.addEventListener('click', (e) => {
   if (act === 'fb-order-reset') { leagueOrder = []; store.set('el-fb-order', '[]'); renderSheet(); render(); return; }
   if (act === 'fb-fav-toggle') { toggleFav(e.target.closest('[data-team]').dataset.team); return; }
   if (act === 'fb-dash-pick') { pickLeague(e.target.closest('[data-id]').dataset.id); return; }
+  if (act === 'fb-sheet-lg') { const id = e.target.closest('[data-id]').dataset.id; openSheet(id, sheet?.tab === 'scorers' && id !== 'efl' ? 'scorers' : 'table'); return; }
+  if (act === 'fb-goto-day') { sel = e.target.closest('[data-d]').dataset.d; open.clear(); delete $('#fbDays').dataset.scrolled; render(); scrollTo({ top: 0 }); return; }
+  if (act === 'fb-goto-m') { const m = data?.matches.find((x) => x.id === e.target.closest('[data-id]').dataset.id); if (m) openMatch(m); return; }
+  if (act === 'fb-src') { srcOpen = !srcOpen; render(); return; }
   if (act === 'fb-dash-lg') { tableLg = e.target.closest('[data-id]').dataset.id; render(); return; }
   if (act === 'fb-dash-team') { const m = teamGame(e.target.closest('[data-team]').dataset.team); if (m) openMatch(m); return; }
   if (act === 'fb-table') { openSheet(e.target.closest('[data-id]').dataset.id, 'table'); return; }

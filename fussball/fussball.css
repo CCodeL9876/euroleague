@@ -1,7 +1,7 @@
 /* Fussball-Bereich: gleiche Farb-Bausteine wie die Euroleague-Seite (style.css), Akzent Rasengrün */
 :root{--pitch:#2E9E5B;--pitch-hi:#5BD08A;}
 /* Dunkelmodus in Tannengrün (statt Blau-Violett wie im Basketball-Teil); der helle Modus aus style.css überschreibt das */
-:root{--frame:#B4D6C0;--bg:#1B3326;--panel:#203B2D;--card:#264534;--card-2:#2D503D;--line:#365C46;--text:#ECF6EF;--dim:#A7C4B1;--faint:#88A894;}
+:root{--frame:#B4D6C0;--bg:#1B3326;--panel:#203B2D;--card:#264534;--card-2:#2D503D;--line:#365C46;--text:#ECF6EF;--dim:#A7C4B1;--faint:#98B8A3;}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .live-hero{--flap-board:#142A1E;--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;} }
 :root[data-theme="dark"] .live-hero{--flap-board:#142A1E;--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;}
 @media (prefers-color-scheme: light){ :root:not([data-theme="dark"]) .live-hero{--flap-top:#2D503D;--flap-bot:#264534;--flap-hinge:#10231A;} }
@@ -376,3 +376,46 @@ button.fb-bpl:hover span{text-decoration:underline;}
 .fb-use-r i{grid-area:bar;}
 .fb-stale{margin:0 0 12px;border-left:3px solid var(--orange);}
 .fb-quiet{margin:14px 4px 0;font-size:0.78rem;color:var(--faint);text-align:center;}
+
+/* Spiele deiner Teams in der Liste: goldener Strich links */
+.fb-match.fav{box-shadow:inset 3px 0 0 var(--gold);}
+/* Leerer Tag: sagen, wann es weitergeht */
+.fb-emptybox{display:flex;flex-direction:column;gap:6px;background:var(--panel);border-radius:16px;padding:16px;margin:4px 0;}
+.fb-emptybox b{font-size:0.98rem;} .fb-emptybox p{margin:0;font-size:0.86rem;color:var(--dim);}
+.fb-go{align-self:flex-start;min-height:44px;margin-top:4px;padding:0 16px;border:0;border-radius:12px;background:var(--pitch);color:#fff;font:inherit;font-size:0.88rem;font-weight:700;cursor:pointer;}
+.fb-go:focus-visible{outline:2px solid var(--pitch-hi);outline-offset:2px;}
+/* Handy: deine Teams und Tabellenausschnitt unter den Spielen */
+.fb-mine-h, .fb-mini-h{display:flex;align-items:center;gap:8px;margin:12px 4px 0;}
+.fb-mine-h b{font-size:0.88rem;color:var(--dim);font-weight:600;}
+.fb-mine-h button, .fb-mini-h button{margin-left:auto;min-height:44px;padding:0 4px;border:0;background:none;color:var(--pitch-hi);font:inherit;font-size:0.84rem;font-weight:600;cursor:pointer;}
+.fb-mine{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;padding-bottom:2px;}
+.fb-mine::-webkit-scrollbar{display:none;}
+.fb-mine-c{flex:0 0 132px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-height:96px;padding:10px 12px;border:0;border-radius:16px;background:var(--card);color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+.fb-mine-c b{font-size:0.92rem;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fb-mine-c small{font-size:0.76rem;color:var(--dim);line-height:1.35;}
+.fb-mine-c em{margin-top:auto;font:700 0.86rem var(--mono);font-style:normal;}
+.fb-mine-c em.w{color:var(--pitch-hi);} .fb-mine-c em.l{color:var(--coral);} .fb-mine-c em.d{color:var(--dim);}
+.fb-mine-c:focus-visible{outline:2px solid var(--pitch-hi);outline-offset:2px;}
+.fb-mini{background:var(--card);border-radius:16px;padding:2px 0 6px;margin-bottom:4px;}
+.fb-mini-h{margin:0;padding:4px 6px 0 12px;}
+.fb-mini-h b{font-size:0.9rem;}
+.fb-mini-r{display:grid;grid-template-columns:30px minmax(0,1fr) 32px 38px;gap:6px;align-items:center;padding:7px 12px;font-size:0.86rem;font-variant-numeric:tabular-nums;}
+.fb-mini-r span:first-child{color:var(--dim);font-weight:600;}
+.fb-mini-r span:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fb-mini-r span:nth-child(3), .fb-mini-r span:nth-child(4){text-align:right;font-family:var(--mono);}
+.fb-mini-r span:nth-child(4){font-weight:700;}
+.fb-mini-r.hd{font-size:0.7rem;color:var(--faint);padding-block:2px;} .fb-mini-r.hd span{font-weight:600;color:var(--faint);}
+.fb-mini-r.me{background:color-mix(in srgb, var(--gold) 15%, transparent);font-weight:700;}
+.fb-mini-r i{font-style:normal;font-size:0.7rem;} .fb-mini-r i.up{color:var(--pitch-hi);} .fb-mini-r i.down{color:var(--coral);}
+.fb-mini-gap{margin:0;text-align:center;color:var(--faint);font-size:0.8rem;line-height:1;}
+/* Ligawahl der Tabellen: wischbare Leiste, Knöpfe 44 px hoch */
+.fb-lgchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 12px 10px;scroll-padding-inline:12px;}
+.fb-lgchips::-webkit-scrollbar{display:none;}
+.fb-lgchips button{flex:none;display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 12px 0 8px;border:0;border-radius:12px;background:var(--card);color:var(--dim);font:inherit;font-size:0.84rem;font-weight:600;white-space:nowrap;cursor:pointer;}
+.fb-lgchips button[aria-selected="true"]{background:var(--text);color:var(--bg);}
+.fb-lgchips button:focus-visible{outline:2px solid var(--pitch-hi);outline-offset:2px;}
+.fb-side .fb-lgchips button{background:var(--panel);}
+.fb-side .fb-lgchips button[aria-selected="true"]{background:var(--text);}
+/* Fusszeile: Quellen erst auf Wunsch */
+.fb-src-btn{border:0;background:none;padding:6px 2px;min-height:32px;color:var(--pitch-hi);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+.fb-src{display:block;margin-top:4px;}
