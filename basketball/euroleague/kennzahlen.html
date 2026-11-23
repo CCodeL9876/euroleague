@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kennzahlen erklärt · EuroLeague</title>
+  <meta name="description" content="Was PIR, TS%, Effizienz-Wert, Punkte pro Angriff, Topspiel und Krimi in der EuroLeague-Seite bedeuten.">
+  <meta name="theme-color" content="#262746">
+  <meta name="color-scheme" content="dark light">
+  <script src="../../theme-boot.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="icon" href="../../icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400..600&display=swap">
+  <link rel="stylesheet" href="../../style.css">
+  <style>
+.kz{--accent:var(--blue-hi);--plus:var(--green);--plus-soft:color-mix(in srgb, var(--green) 20%, transparent);--minus:var(--coral-text);--minus-soft:color-mix(in srgb, var(--coral) 20%, transparent);
+  --gold-soft:color-mix(in srgb, var(--gold) 20%, transparent);--orange-soft:color-mix(in srgb, var(--orange) 20%, transparent);}
+.kz-back{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px 0 10px;border-radius:999px;background:var(--panel);color:var(--text);text-decoration:none;font-weight:600;font-size:.9rem;margin-bottom:12px}
+.kz-back svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.k{scroll-margin-top:16px}
+.k:target{outline:2px solid var(--blue-hi);outline-offset:2px}
+
+/* Layout: eine Spalte, drei Kapitel (Spieler, Team, Spiel). Jede Kennzahl als Karte: links Formel und Einordnung, rechts eine kleine Grafik mit Beispielwerten. */
+*{box-sizing:border-box}
+body.kz{background:var(--bg);line-height:1.5;padding:calc(20px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(56px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));}
+main{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+h1{margin:0 0 8px;font-size:1.75rem;letter-spacing:-.02em;text-wrap:balance}
+h2{margin:0 0 4px;font-size:1.25rem;text-wrap:balance}
+h3{margin:0;font-size:1.02rem}
+.lead{margin:0;color:var(--dim);max-width:68ch}
+.sub{margin:0 0 14px;color:var(--dim);font-size:.92rem;max-width:68ch}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+nav.toc a{font-size:.82rem;font-weight:600;color:var(--accent);text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+.chap{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.k{background:var(--card);border-radius:16px;padding:16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:700px){.k{grid-template-columns:minmax(0,1fr)}}
+.k>*,.chap,main{min-width:0}
+.k p{margin:6px 0 0;font-size:.88rem;color:var(--dim)}
+.k .where{font-size:.76rem;color:var(--faint);margin-top:8px}
+.abbr{font:600 .72rem var(--mono);color:var(--faint);margin-left:6px}
+.f{font:500 .84rem var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px;overflow-x:auto;white-space:nowrap}
+.scale{display:flex;margin-top:10px;border-radius:8px;overflow:hidden;font-size:.72rem;font-weight:600}
+.scale span{flex:1;padding:4px 6px;text-align:center}
+.s1{background:var(--minus-soft);color:var(--minus)}.s2{background:var(--line);color:var(--dim)}.s3{background:var(--plus-soft);color:var(--plus)}.s4{background:var(--plus);color:var(--panel)}
+svg{display:block;width:100%;height:auto}
+svg text{font-family:var(--font);fill:var(--dim);font-size:11px}
+svg .n{font-family:var(--mono);font-weight:600;fill:var(--text)}
+svg .lbl{fill:var(--faint);font-size:10px}
+.vis small{display:block;color:var(--faint);font-size:.72rem;margin-top:4px}
+.tbl{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:8px}
+.tbl td{padding:4px 0;border-bottom:1px solid var(--line)}
+.tbl td:last-child{text-align:right;white-space:nowrap;padding-left:10px;font:600 .8rem var(--mono);color:var(--text)}
+.foot{font-size:.8rem;color:var(--faint);margin:0}
+
+  </style>
+</head>
+<body class="kz">
+<main>
+<header>
+  <a class="kz-back" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>EuroLeague</a>
+  <h1>EuroLeague-Kennzahlen in der App</h1>
+  <p class="lead">Alle Werte, die die EuroLeague-Seite zeigt oder selbst ausrechnet: was sie bedeuten, wie sie entstehen und wie man sie einordnet. Die Zahlen in den Grafiken sind Beispiele.</p>
+  <nav class="toc" aria-label="Kapitel"><a href="#spieler">Spieler</a><a href="#team">Team</a><a href="#spiel">Spiel</a></nav>
+</header>
+
+<!-- ============ SPIELER ============ -->
+<section class="chap" id="spieler">
+  <div><h2>Spieler</h2><p class="sub">Spielerseite, Bestenlisten und Spielbericht. In den Bestenlisten zählen nur Spieler mit mindestens der Hälfte der Spiele des fleissigsten Spielers.</p></div>
+
+  <div class="k" id="pir">
+    <div>
+      <h3>PIR<span class="abbr">Performance Index Rating</span></h3>
+      <p>Der offizielle Bewertungswert der EuroLeague. Alles Gute zählt plus, alles Schlechte minus, jeweils 1:1.</p>
+      <div class="f">PIR = (Pkt + Reb + Ass + Steals + Blocks + gezogene Fouls) − (Fehlwürfe + verfehlte FW + Ballverluste + geblockte Würfe + Fouls)</div>
+      <div class="scale" aria-label="Einordnung pro Spiel"><span class="s2">um 10 solide</span><span class="s3">ab 15 sehr gut</span><span class="s4">über 20 Spitze</span></div>
+      <p class="where">Schwäche: Verteidigung ohne Statistik-Eintrag zählt nicht. In der App: Spielerseite, Bestenliste, Spielertabelle, Top 3.</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 190" role="img" aria-label="Beispiel: 34 Pluspunkte minus 13 Minuspunkte ergibt PIR 21">
+        <text x="0" y="14" class="lbl">Plus</text>
+        <rect x="0" y="20" width="108" height="22" rx="4" fill="var(--plus)"/><text x="4" y="35" fill="var(--panel)" style="fill:var(--panel);font-weight:600">18 Pkt</text>
+        <rect x="110" y="20" width="36" height="22" rx="4" fill="var(--plus)" opacity=".8"/><text x="113" y="35" style="fill:var(--panel)">6 Reb</text>
+        <rect x="148" y="20" width="24" height="22" rx="4" fill="var(--plus)" opacity=".65"/><text x="150" y="35" style="fill:var(--panel)">4 A</text>
+        <rect x="174" y="20" width="6" height="22" rx="2" fill="var(--plus)" opacity=".5"/>
+        <rect x="182" y="20" width="30" height="22" rx="4" fill="var(--plus)" opacity=".4"/><text x="184" y="35" style="fill:var(--text)">5 FD</text>
+        <text x="220" y="35" class="n">= 34</text>
+        <text x="0" y="66" class="lbl">Minus</text>
+        <rect x="0" y="72" width="36" height="22" rx="4" fill="var(--minus)"/><text x="3" y="87" style="fill:var(--panel)">6 FG</text>
+        <rect x="38" y="72" width="6" height="22" rx="2" fill="var(--minus)" opacity=".8"/>
+        <rect x="46" y="72" width="18" height="22" rx="4" fill="var(--minus)" opacity=".65"/><text x="48" y="87" style="fill:var(--panel)">3</text>
+        <rect x="66" y="72" width="6" height="22" rx="2" fill="var(--minus)" opacity=".5"/>
+        <rect x="74" y="72" width="12" height="22" rx="3" fill="var(--minus)" opacity=".4"/>
+        <text x="94" y="87" class="n">= 13</text>
+        <line x1="0" y1="112" x2="320" y2="112" stroke="var(--line)"/>
+        <rect x="0" y="124" width="126" height="30" rx="6" fill="var(--accent)"/><text x="10" y="144" style="fill:var(--panel);font-weight:700;font-size:15px">PIR 21</text>
+        <text x="136" y="144">34 − 13</text>
+      </svg>
+      <small>1 Strich = 1 Zähler. FD = gezogene Fouls, FG = Fehlwürfe, 3 = Ballverluste.</small>
+    </div>
+  </div>
+
+  <div class="k" id="ts">
+    <div>
+      <h3>TS%<span class="abbr">True Shooting Percentage</span></h3>
+      <p>Wie effizient ein Spieler punktet. Anders als die normale Wurfquote zählt ein Dreier mehr, und Freiwürfe zählen mit. Die 0,44 gibt es, weil nicht jeder Freiwurf einen eigenen Wurf ersetzt (zwei Freiwürfe nach einem Foul, ein Bonus-Freiwurf nach einem Korb).</p>
+      <div class="f">TS% = Punkte ÷ (2 × (Wurfversuche + 0,44 × Freiwurfversuche))</div>
+      <div class="scale"><span class="s1">unter 52 % schwach</span><span class="s2">um 58 % Schnitt</span><span class="s3">ab 62 % sehr effizient</span></div>
+      <p class="where">Center, die nah am Korb abschliessen, kommen oft über 70 %. In der App: Spielerseite, Bestenliste.</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 170" role="img" aria-label="Zwei Spieler mit je 20 Punkten: A braucht 14 Würfe und 4 Freiwürfe, TS 63 Prozent; B braucht 19 Würfe und 2 Freiwürfe, TS 50 Prozent">
+        <text x="0" y="14" class="lbl">Beide 20 Punkte</text>
+        <text x="0" y="44">A</text>
+        <g fill="var(--accent)">
+          <rect x="18" y="32" width="8" height="16" rx="2"/><rect x="29" y="32" width="8" height="16" rx="2"/><rect x="40" y="32" width="8" height="16" rx="2"/><rect x="51" y="32" width="8" height="16" rx="2"/><rect x="62" y="32" width="8" height="16" rx="2"/><rect x="73" y="32" width="8" height="16" rx="2"/><rect x="84" y="32" width="8" height="16" rx="2"/><rect x="95" y="32" width="8" height="16" rx="2"/><rect x="106" y="32" width="8" height="16" rx="2"/><rect x="117" y="32" width="8" height="16" rx="2"/><rect x="128" y="32" width="8" height="16" rx="2"/><rect x="139" y="32" width="8" height="16" rx="2"/><rect x="150" y="32" width="8" height="16" rx="2"/><rect x="161" y="32" width="8" height="16" rx="2"/>
+        </g>
+        <g fill="var(--accent)" opacity=".45"><rect x="172" y="36" width="5" height="12" rx="2"/><rect x="179" y="36" width="5" height="12" rx="2"/><rect x="186" y="36" width="5" height="12" rx="2"/><rect x="193" y="36" width="5" height="12" rx="2"/></g>
+        <text x="250" y="45" class="n">63 %</text>
+        <text x="0" y="86">B</text>
+        <g fill="var(--accent)">
+          <rect x="18" y="74" width="8" height="16" rx="2"/><rect x="29" y="74" width="8" height="16" rx="2"/><rect x="40" y="74" width="8" height="16" rx="2"/><rect x="51" y="74" width="8" height="16" rx="2"/><rect x="62" y="74" width="8" height="16" rx="2"/><rect x="73" y="74" width="8" height="16" rx="2"/><rect x="84" y="74" width="8" height="16" rx="2"/><rect x="95" y="74" width="8" height="16" rx="2"/><rect x="106" y="74" width="8" height="16" rx="2"/><rect x="117" y="74" width="8" height="16" rx="2"/><rect x="128" y="74" width="8" height="16" rx="2"/><rect x="139" y="74" width="8" height="16" rx="2"/><rect x="150" y="74" width="8" height="16" rx="2"/><rect x="161" y="74" width="8" height="16" rx="2"/><rect x="172" y="74" width="8" height="16" rx="2"/><rect x="183" y="74" width="8" height="16" rx="2"/><rect x="194" y="74" width="8" height="16" rx="2"/><rect x="205" y="74" width="8" height="16" rx="2"/><rect x="216" y="74" width="8" height="16" rx="2"/>
+        </g>
+        <g fill="var(--accent)" opacity=".45"><rect x="227" y="78" width="5" height="12" rx="2"/><rect x="234" y="78" width="5" height="12" rx="2"/></g>
+        <text x="250" y="87" class="n" style="fill:var(--minus)">50 %</text>
+        <text x="0" y="122" class="lbl">A: 20 ÷ (2 × (14 + 0,44 × 4)) = 20 ÷ 31,5</text>
+        <text x="0" y="140" class="lbl">B: 20 ÷ (2 × (19 + 0,44 × 2)) = 20 ÷ 39,8</text>
+      </svg>
+      <small>Grosser Balken = Wurfversuch, kleiner = Freiwurfversuch. Wer für dieselben Punkte weniger Versuche braucht, hat die höhere TS%.</small>
+    </div>
+  </div>
+
+  <div class="k" id="eff">
+    <div>
+      <h3>Effizienz-Wert<span class="abbr">eigener Wert der App</span></h3>
+      <p>Der PIR, angepasst an die Wurfeffizienz. Wer besser trifft als der Schnitt der Bestenliste, bekommt einen Bonus, wer schlechter trifft, einen Abzug. Die Abweichung zählt nur zur Hälfte, damit der PIR die Hauptrolle behält.</p>
+      <div class="f">Effizienz = PIR × (1 + ½ × (TS% ÷ Schnitt − 1))</div>
+      <p class="where">Der Schnitt ist punktegewichtet über alle Spieler der Bestenliste. In der App: Spielerseite (mit Rechnung), Bestenliste.</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 150" role="img" aria-label="Beispiel: PIR 15, TS 10 Prozent über dem Schnitt, ergibt Effizienz 15,8">
+        <text x="0" y="14" class="lbl">PIR 15, TS 10 % über dem Schnitt</text>
+        <rect x="0" y="26" width="225" height="26" rx="5" fill="var(--accent)" opacity=".35"/><text x="8" y="44" style="fill:var(--text);font-weight:600">PIR 15</text>
+        <rect x="0" y="62" width="236" height="26" rx="5" fill="var(--accent)"/><rect x="225" y="62" width="11" height="26" fill="var(--plus)"/>
+        <text x="8" y="80" style="fill:var(--panel);font-weight:600">Effizienz 15,8</text>
+        <text x="244" y="80" class="n" style="fill:var(--plus)">+5 %</text>
+        <text x="0" y="114" class="lbl">10 % besser als der Schnitt → halbe Wirkung → × 1,05</text>
+        <text x="0" y="132" class="lbl">10 % schlechter → × 0,95 → 14,3</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="k" id="pm">
+    <div>
+      <h3>Plus/Minus<span class="abbr">+/−</span></h3>
+      <p>Wie sich der Spielstand verändert hat, solange der Spieler auf dem Feld stand. +8 heisst: In seinen Minuten hat sein Team 8 Punkte mehr erzielt als der Gegner.</p>
+      <p class="where">Hängt stark von den Mitspielern ab, darum nur zusammen mit anderen Werten lesen. In der App: Spielertabelle im Spielbericht, Spielerseite.</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 120" role="img" aria-label="Spielstand-Verlauf mit markierten Minuten des Spielers: in dieser Zeit plus 8">
+        <rect x="70" y="10" width="110" height="80" fill="var(--plus-soft)"/>
+        <line x1="0" y1="50" x2="320" y2="50" stroke="var(--line)" stroke-dasharray="3 3"/>
+        <polyline points="0,50 30,56 70,58 100,48 130,40 160,34 180,30 210,36 250,40 290,30 320,34" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+        <circle cx="70" cy="58" r="4" fill="var(--accent)"/><circle cx="180" cy="30" r="4" fill="var(--accent)"/>
+        <text x="82" y="104" class="n" style="fill:var(--plus)">auf dem Feld: −4 → +4 = +8</text>
+      </svg>
+      <small>Linie = Vorsprung des eigenen Teams, grün = Minuten des Spielers.</small>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TEAM ============ -->
+<section class="chap" id="team">
+  <div><h2>Team</h2><p class="sub">Teamseite («Profil» mit Rang in der Liga), Teamvergleich im Spielbericht und Vorschau. Alle Werte beruhen auf den Angriffen (Ballbesitzen), damit schnelle und langsame Teams vergleichbar sind.</p></div>
+
+  <div class="k" id="ppp">
+    <div>
+      <h3>Angriffe und Punkte pro Angriff<span class="abbr">Possessions · PPP</span></h3>
+      <p>Ein Angriff endet mit einem Wurf, Freiwürfen oder einem Ballverlust. Holt das Team den Abpraller selbst, geht derselbe Angriff weiter, darum werden Offensiv-Rebounds abgezogen.</p>
+      <div class="f">Angriffe = Wurfversuche + 0,44 × FW-Versuche − Off.-Rebounds + Ballverluste</div>
+      <div class="f">Punkte pro Angriff = Punkte ÷ Angriffe</div>
+      <div class="scale"><span class="s1">unter 1,00 schwach</span><span class="s2">um 1,10 Schnitt</span><span class="s3">ab 1,20 sehr stark</span></div>
+      <p class="where">In der App: Teamvergleich im Spielbericht (pro Spiel, live).</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 150" role="img" aria-label="Beispiel: 80 Punkte aus 72 Angriffen ergibt 1,11 Punkte pro Angriff">
+        <text x="0" y="14" class="lbl">Beispiel: 64 Würfe, 20 FW, 9 Off.-Reb., 11 BV</text>
+        <rect x="0" y="24" width="192" height="20" rx="4" fill="var(--accent)" opacity=".8"/><text x="6" y="38" style="fill:var(--panel)">64 Würfe</text>
+        <rect x="194" y="24" width="26" height="20" rx="4" fill="var(--accent)" opacity=".5"/><text x="196" y="38" style="fill:var(--panel);font-size:10px">8,8</text>
+        <rect x="222" y="24" width="33" height="20" rx="4" fill="var(--accent)" opacity=".35"/><text x="226" y="38" style="fill:var(--text);font-size:10px">+11</text>
+        <rect x="165" y="50" width="27" height="20" rx="4" fill="var(--minus)" opacity=".5"/><text x="169" y="64" style="fill:var(--text);font-size:10px">−9</text>
+        <text x="262" y="38" class="n">≈ 72</text>
+        <text x="0" y="100" class="n" style="font-size:22px">80 ÷ 72 = 1,11</text>
+        <text x="0" y="124" class="lbl">Punkte pro Angriff, knapp über dem Schnitt</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="k" id="rtg">
+    <div>
+      <h3>Angriff, Verteidigung, Netto<span class="abbr">ORtg · DRtg · Net</span></h3>
+      <p>Dasselbe auf die ganze Saison und auf 100 Angriffe hochgerechnet. «Angriff» = eigene Punkte pro 100 Angriffe, «Verteidigung» = Punkte des Gegners pro 100 Angriffe (tiefer ist besser). Netto = Angriff − Verteidigung.</p>
+      <div class="f">Angriff 115 = 1,15 Punkte pro Angriff</div>
+      <p class="where">In der App: Teamseite, Profil mit Rang und Streudiagramm aller Teams.</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 210" role="img" aria-label="Streudiagramm: rechts oben gute Angriffe und gute Verteidigung">
+        <rect x="160" y="10" width="150" height="85" rx="6" fill="var(--plus-soft)"/>
+        <rect x="10" y="95" width="150" height="85" rx="6" fill="var(--minus-soft)"/>
+        <line x1="10" y1="95" x2="310" y2="95" stroke="var(--line)"/><line x1="160" y1="10" x2="160" y2="180" stroke="var(--line)"/>
+        <text x="166" y="26" style="fill:var(--plus);font-weight:600">stark in beidem</text>
+        <text x="16" y="174" style="fill:var(--minus);font-weight:600">schwach in beidem</text>
+        <text x="16" y="26" class="lbl">gute Verteidigung</text><text x="210" y="174" class="lbl">guter Angriff</text>
+        <circle cx="250" cy="40" r="7" fill="var(--accent)"/><circle cx="200" cy="70" r="7" fill="var(--accent)" opacity=".7"/><circle cx="120" cy="60" r="7" fill="var(--accent)" opacity=".7"/><circle cx="230" cy="120" r="7" fill="var(--accent)" opacity=".7"/><circle cx="90" cy="140" r="7" fill="var(--accent)" opacity=".5"/><circle cx="150" cy="105" r="7" fill="var(--accent)" opacity=".5"/>
+        <text x="10" y="200" class="lbl">→ Angriff (mehr ist besser)   ↑ Verteidigung (weniger Gegenpunkte)</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="k" id="faktoren">
+    <div>
+      <h3>Tempo und die vier Faktoren</h3>
+      <p>Die vier Faktoren erklären, <i>warum</i> ein Angriff gut ist. Dazu kommt das Tempo.</p>
+      <table class="tbl">
+        <tr><td>Tempo: Angriffe pro Spiel (Schnitt beider Teams)</td><td>≈ 72</td></tr>
+        <tr><td>Wurfquote eFG: (Treffer + ½ × Dreiertreffer) ÷ Würfe</td><td>≈ 54 %</td></tr>
+        <tr><td>Dreierquote: getroffene ÷ versuchte Dreier</td><td>≈ 36 %</td></tr>
+        <tr><td>Ballverluste: Anteil der Angriffe mit Ballverlust (tiefer besser)</td><td>≈ 15 %</td></tr>
+        <tr><td>Offensivrebounds: Anteil der eigenen Fehlwürfe, die das Team zurückholt</td><td>≈ 30 %</td></tr>
+        <tr><td>Freiwurf-Rate: Freiwurfversuche im Verhältnis zu den Würfen</td><td>≈ 30 %</td></tr>
+      </table>
+      <p class="where">Werte rechts: ungefährer Ligaschnitt. In der App: Teamseite («Profil», mit Rang von 1 bis 20).</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 200" role="img" aria-label="Rangbalken eines Teams in sechs Werten">
+        <text x="0" y="14" class="lbl">Beispiel: Rang in der Liga (1 = bester)</text>
+        <g>
+          <text x="0" y="40">Tempo</text><rect x="110" y="28" width="190" height="16" rx="8" fill="var(--line)"/><rect x="110" y="28" width="140" height="16" rx="8" fill="var(--accent)" opacity=".6"/><text x="256" y="41" class="n">6.</text>
+          <text x="0" y="68">eFG</text><rect x="110" y="56" width="190" height="16" rx="8" fill="var(--line)"/><rect x="110" y="56" width="180" height="16" rx="8" fill="var(--plus)"/><text x="276" y="69" class="n" style="fill:var(--panel)">2.</text>
+          <text x="0" y="96">Dreier</text><rect x="110" y="84" width="190" height="16" rx="8" fill="var(--line)"/><rect x="110" y="84" width="120" height="16" rx="8" fill="var(--accent)" opacity=".6"/><text x="236" y="97" class="n">8.</text>
+          <text x="0" y="124">Ballverluste</text><rect x="110" y="112" width="190" height="16" rx="8" fill="var(--line)"/><rect x="110" y="112" width="40" height="16" rx="8" fill="var(--minus)"/><text x="156" y="125" class="n">17.</text>
+          <text x="0" y="152">Off.-Rebounds</text><rect x="110" y="140" width="190" height="16" rx="8" fill="var(--line)"/><rect x="110" y="140" width="100" height="16" rx="8" fill="var(--accent)" opacity=".6"/><text x="216" y="153" class="n">10.</text>
+          <text x="0" y="180">Freiwurf-Rate</text><rect x="110" y="168" width="190" height="16" rx="8" fill="var(--line)"/><rect x="110" y="168" width="160" height="16" rx="8" fill="var(--plus)" opacity=".75"/><text x="276" y="181" class="n">4.</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="k" id="tabelle">
+    <div>
+      <h3>Tabelle, Korbdifferenz, Form und Serie</h3>
+      <p>Die Tabelle zählt nur die Hauptrunde. Bei gleicher Bilanz entscheidet der Direktvergleich, wenn alle punktgleichen Teams zweimal gegeneinander gespielt haben, sonst die gesamte Korbdifferenz.</p>
+      <table class="tbl">
+        <tr><td>Platz 1–6: direkt in den Playoffs</td><td>PO</td></tr>
+        <tr><td>Platz 7–10: Play-in</td><td>PI</td></tr>
+        <tr><td>Form: letzte 5 Spiele (S = Sieg, N = Niederlage)</td><td>S S N S S</td></tr>
+        <tr><td>Serie: gleiche Ergebnisse am Stück</td><td>S3</td></tr>
+      </table>
+      <p class="where">In der App: Tabelle, Teamkarten, Korbdifferenz-Verlauf bei deinen Teams.</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 150" role="img" aria-label="Kumulierte Korbdifferenz über 10 Spieltage, rote Punkte sind Niederlagen">
+        <line x1="20" y1="100" x2="310" y2="100" stroke="var(--line)"/><text x="0" y="104" class="lbl">0</text>
+        <polygon points="20,100 20,92 50,80 80,86 110,70 140,62 170,72 200,54 230,44 260,50 290,36 290,100" fill="var(--accent)" opacity=".18"/>
+        <polyline points="20,92 50,80 80,86 110,70 140,62 170,72 200,54 230,44 260,50 290,36" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+        <circle cx="80" cy="86" r="4" fill="var(--minus)"/><circle cx="170" cy="72" r="4" fill="var(--minus)"/><circle cx="260" cy="50" r="4" fill="var(--minus)"/><circle cx="290" cy="36" r="5" fill="var(--accent)"/>
+        <text x="250" y="24" class="n">+64</text>
+        <text x="20" y="130" class="lbl">Spieltag 1 → 10, jeder Punkt ein Spiel</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SPIEL ============ -->
+<section class="chap" id="spiel">
+  <div><h2>Spiel</h2><p class="sub">Was die App über ein einzelnes Spiel ausrechnet: vorher als Vorschau, nachher als Spannungs-Bewertung.</p></div>
+
+  <div class="k" id="topspiel">
+    <div>
+      <h3>Topspiel<span class="abbr">vor dem Spiel</span></h3>
+      <p>Vorschau-Wert von 0 bis 100 aus Spielen vor diesem, darum ohne Spoiler. Pro Runde bekommen höchstens 2 Spiele ab 45 Punkten die Marke «⚡ Topspiel».</p>
+      <div class="f">Prognose = Korbdiff./Spiel Heim − Korbdiff./Spiel Gast + 2,5 Heimvorteil</div>
+      <p class="where">Im Spielbericht vor dem Anpfiff: «Darum lohnt es sich» mit Siegchance und Gründen.</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 196" role="img" aria-label="Höchstpunkte der Gründe: Ausgeglichen 35, Klasse 20, Es geht um etwas 20, Form 10, Revanche 10, Derby 5">
+        <g>
+          <text x="0" y="22">Ausgeglichen</text><rect x="120" y="10" width="175" height="18" rx="5" fill="var(--gold)"/><text x="300" y="24" class="n">35</text>
+          <text x="0" y="52">Klasse (Top 6)</text><rect x="120" y="40" width="100" height="18" rx="5" fill="var(--gold)" opacity=".8"/><text x="226" y="54" class="n">20</text>
+          <text x="0" y="82">Es geht um etwas</text><rect x="120" y="70" width="100" height="18" rx="5" fill="var(--gold)" opacity=".8"/><text x="226" y="84" class="n">20</text>
+          <text x="0" y="112">Form</text><rect x="120" y="100" width="50" height="18" rx="5" fill="var(--gold)" opacity=".6"/><text x="176" y="114" class="n">10</text>
+          <text x="0" y="142">Revanche</text><rect x="120" y="130" width="50" height="18" rx="5" fill="var(--gold)" opacity=".6"/><text x="176" y="144" class="n">10</text>
+          <text x="0" y="172">Derby</text><rect x="120" y="160" width="25" height="18" rx="5" fill="var(--gold)" opacity=".45"/><text x="151" y="174" class="n">+5</text>
+        </g>
+      </svg>
+      <small>Höchstpunkte pro Grund. «Ausgeglichen» gibt volle Punkte bei Prognose 0, keine mehr ab 10 Punkten Unterschied.</small>
+    </div>
+  </div>
+
+  <div class="k" id="krimi">
+    <div>
+      <h3>Krimi und Spiel des Tages<span class="abbr">nach dem Spiel</span></h3>
+      <p>Aus dem Play-by-Play jedes beendeten Spiels. Ab 70 Punkten bekommt das Spiel die Marke «Krimi» (etwa das spannendste Viertel der Saison). Das spannendste Spiel der letzten Runde wird «Spiel des Tages».</p>
+      <table class="tbl">
+        <tr><td>je Führungswechsel</td><td>× 3</td></tr>
+        <tr><td>je Gleichstand</td><td>× 1,5</td></tr>
+        <tr><td>knapper Endstand: (20 − Abstand)</td><td>× 1,2</td></tr>
+        <tr><td>je Verlängerung</td><td>+ 25</td></tr>
+        <tr><td>grösster aufgeholter Rückstand des Siegers</td><td>× 0,8</td></tr>
+        <tr><td>Führungswechsel in den letzten 2 Minuten</td><td>× 6</td></tr>
+      </table>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 150" role="img" aria-label="Spielverlauf mit vielen Führungswechseln und Gleichstand am Ende">
+        <line x1="0" y1="70" x2="320" y2="70" stroke="var(--line)"/>
+        <polyline points="0,70 25,62 45,76 70,58 95,80 120,66 150,84 175,60 200,74 230,64 255,78 280,66 300,74 320,64" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linejoin="round"/>
+        <rect x="290" y="20" width="30" height="100" fill="var(--orange-soft)" opacity=".7"/>
+        <text x="0" y="16" class="lbl">Vorsprung Heim ↑ / Gast ↓</text>
+        <text x="200" y="140" class="n" style="fill:var(--orange)">13 Wechsel · Score 82</text>
+        <text x="250" y="34" class="lbl">letzte 2 Min.</text>
+      </svg>
+      <small>Grund unter der Marke, z. B. «Comeback aus 14 Punkten Rückstand» oder «Verlängerung».</small>
+    </div>
+  </div>
+
+  <div class="k" id="top3">
+    <div>
+      <h3>Top 3 und Wurfkarte</h3>
+      <p>Top 3 pro Team: die besten drei Spieler mit Einsatz, wählbar nach Punkten, PIR, Rebounds, Assists, Fouls oder Ballverlusten (bei Gleichstand entscheiden die Punkte). Wurfkarte: jeder Wurf mit Ort, gefüllt = Treffer, Ring = Fehlwurf.</p>
+      <p class="where">In der App: Spielbericht (live alle 30 Sekunden), Wurfkarte auch auf der Spielerseite über die ganze Saison.</p>
+    </div>
+    <div class="vis">
+      <svg viewBox="0 0 320 170" role="img" aria-label="Halbes Spielfeld mit Treffern und Fehlwürfen">
+        <rect x="20" y="10" width="280" height="150" rx="8" fill="var(--card)" stroke="var(--line)"/>
+        <path d="M45 160 V120 A115 115 0 0 1 275 120 V160" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <rect x="125" y="100" width="70" height="60" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <circle cx="160" cy="148" r="6" fill="none" stroke="var(--dim)" stroke-width="2"/>
+        <g fill="var(--accent)"><circle cx="150" cy="130" r="5"/><circle cx="170" cy="125" r="5"/><circle cx="160" cy="112" r="5"/><circle cx="70" cy="80" r="5"/><circle cx="240" cy="60" r="5"/><circle cx="160" cy="30" r="5"/></g>
+        <g fill="none" stroke="var(--minus)" stroke-width="2"><circle cx="90" cy="50" r="5"/><circle cx="215" cy="40" r="5"/><circle cx="140" cy="95" r="5"/><circle cx="260" cy="100" r="5"/></g>
+      </svg>
+    </div>
+  </div>
+
+  <p class="foot">Quellen: EuroLeague (Spielstände, Statistik, Play-by-Play, Wurfdaten), Wikipedia (Stationen und College), eigene Berechnungen der App für Effizienz-Wert, Punkte pro Angriff, Topspiel und Krimi. </p>
+</section>
+</main>
+</body>
+</html>

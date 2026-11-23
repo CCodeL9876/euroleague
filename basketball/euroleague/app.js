@@ -432,7 +432,7 @@ function renderProfileMenu() {
   if (!profileMenuOpen) return;
   const item = (act, ic, label) => `<button type="button" class="pm-item" role="menuitem" data-act="${act}">${icon(ic)}<span>${label}</span></button>`;
   menu.innerHTML = `<div class="pm-head"><span class="pm-avatar" aria-hidden="true">${esc(initials(profile?.name))}</span><span><b>${esc(profile?.name || '')}</b><small>${FAV.length} ${FAV.length === 1 ? 'Lieblingsteam' : 'Lieblingsteams'}</small></span></div>
-    ${item('fav-edit', 'star', 'Lieblingsteams bearbeiten')}${item('copy-link', 'share', 'Link für Home-App kopieren')}${item('push-toggle', 'bell', `Mitteilungen (Viertel, Endstand): ${pushOn ? 'Ein' : 'Aus'}`)}${item('welcome-open', 'info', 'Einführung anzeigen')}
+    ${item('fav-edit', 'star', 'Lieblingsteams bearbeiten')}${item('copy-link', 'share', 'Link für Home-App kopieren')}${item('push-toggle', 'bell', `Mitteilungen (Viertel, Endstand): ${pushOn ? 'Ein' : 'Aus'}`)}${item('welcome-open', 'info', 'Einführung anzeigen')}<a class="pm-item" role="menuitem" href="kennzahlen.html">${icon('bars')}<span>Kennzahlen erklärt</span></a>
     <hr>${item('profile-logout', 'logout', 'Profil abmelden')}${item('logout', 'logout', 'Von diesem Gerät abmelden')}`;
 }
 
@@ -627,7 +627,7 @@ function topReasonHtml(m, g) {
   const list = p.reasons.length ? `<ul class="tps-why">${p.reasons.map(([ic, b, sm]) => `<li><span class="ic">${esc(ic)}</span><span><b>${esc(b)}</b><small>${esc(sm)}</small></span></li>`).join('')}</ul>`
     : '<p class="label">Keine besonderen Gründe: klarer Favorit, wenig auf dem Spiel.</p>';
   return `<section class="tps-pre" aria-label="Darum lohnt es sich">
-    <h3>${isTopGame(m, g) ? `<span class="top-b">${STAR_SVG}Topspiel</span>` : ''}Darum lohnt es sich</h3>
+    <h3>${isTopGame(m, g) ? `<span class="top-b">${STAR_SVG}Topspiel</span>` : ''}Darum lohnt es sich${kzQ('topspiel', 'Topspiel')}</h3>
     <div class="tps-pred"><span>${esc(short(g.home))}</span><span class="tps-bar" role="img" aria-label="Siegchance ${esc(name(m, g.home))} ${hc} Prozent"><i style="width:${hc}%"></i></span><span>${esc(short(g.away))}</span></div>
     <p class="box-note small">Prognose: ${Math.abs(p.margin) < 0.5 ? 'ausgeglichen' : `${esc(name(m, p.margin >= 0 ? g.home : g.away))} +${de1(Math.abs(p.margin))}`} · Siegchance ${esc(name(m, g.home))} ${hc} %, ${esc(name(m, g.away))} ${100 - hc} %</p>
     ${list}
@@ -754,12 +754,15 @@ const STAT_INFO = {
     <p class="box-note">Grundlage ist der PIR. Wer effizienter trifft als der Schnitt der Bestenliste (${de1(avg)} % TS), bekommt einen Bonus, wer schlechter trifft, einen Abzug. Die Abweichung zählt nur zur Hälfte: 10 % besser als der Schnitt ergibt 5 % mehr.</p>
     <p class="box-note">Beispiel: PIR 15 und 10 % über dem Schnitt → 15 × 1,05 = 15,8. Auf der Spielerseite steht die Rechnung für jeden Spieler.</p>`],
 };
+// Verweis auf die Seite «Kennzahlen erklärt» (kennzahlen.html, Abschnitt per #id)
+const kzLink = (id, label) => `<a class="kz-link" href="kennzahlen.html#${id}">${label}<span aria-hidden="true"> ›</span></a>`;
+const kzQ = (id, what) => `<a class="kz-q" href="kennzahlen.html#${id}" aria-label="Erklärung: ${what}" title="Erklärung">?</a>`;
 function openStatInfo(k) {
   const info = STAT_INFO[k];
   if (!info) return;
   const dlg = $('#infoDlg');
   dlg.innerHTML = `<div class="box-in"><div class="box-top"><h2 id="infoTitle">${info[0]}</h2><button type="button" class="box-close" data-act="info-close" aria-label="Schliessen">×</button></div>
-    <p class="box-note small">${info[1]}</p>${info[2](effData().avg)}</div>`;
+    <p class="box-note small">${info[1]}</p>${info[2](effData().avg)}${kzLink(k, 'Alle Kennzahlen erklärt')}</div>`;
   if (!dlg.open) dlg.showModal();
 }
 function leaderTeaser(m) {
@@ -1281,7 +1284,7 @@ function renderBox() {
       <p>Der Wert zeigt, wie viele Punkte ein Team im Schnitt aus einem Ballbesitz macht. Ein Angriff endet mit einem Wurf, Freiwürfen oder einem Ballverlust. Holt das Team den Abpraller selbst (Offensiv-Rebound), geht derselbe Angriff weiter.</p>
       <p>Weil beide Teams etwa gleich viele Angriffe haben, zeigt der Wert ehrlicher als die Punktzahl, wer besser angreift. Ein schnelles Spiel bringt viele Punkte, aber nicht unbedingt mehr pro Angriff. Anders als die Wurfquote zählt er auch Ballverluste, Offensiv-Rebounds und Freiwürfe mit.</p>
       <p>Berechnung: Angriffe = Wurfversuche + 0,44 × Freiwurfversuche − Offensiv-Rebounds + Ballverluste. Die 0,44 gibt es, weil nicht jeder Freiwurf einen eigenen Angriff beendet: Zwei Freiwürfe nach einem Foul zählen zusammen als ein Angriff, ein Bonus-Freiwurf nach einem Korb («And-one») als keiner. Punkte pro Angriff = Punkte ÷ Angriffe.</p>
-      <p>Einordnung EuroLeague: unter 1,00 schwach · um 1,10 Durchschnitt · ab 1,20 sehr stark. Beispiel: 1,15 heisst 115 Punkte aus 100 Angriffen. Auf der Teamseite steht derselbe Wert für die ganze Saison als «Angriff».</p></details>
+      <p>Einordnung EuroLeague: unter 1,00 schwach · um 1,10 Durchschnitt · ab 1,20 sehr stark. Beispiel: 1,15 heisst 115 Punkte aus 100 Angriffen. Auf der Teamseite steht derselbe Wert für die ganze Saison als «Angriff».</p>${kzLink('ppp', 'Alle Kennzahlen erklärt')}</details>
     <h3>Spieler</h3>
     <div class="seg" role="group" aria-label="Team wählen">${b.teams.map((t, i) => `<button type="button" data-act="box-team" data-i="${i}" aria-pressed="${i === boxState.team}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>
     ${team.coach ? `<p class="box-coach">Trainer: ${esc(team.coach)}</p>` : ''}
@@ -1553,7 +1556,7 @@ function teamProfileHtml(m, c) {
     const on = p[0] === 'pace' ? 'on' : r <= 5 ? 'on top' : r > n - 5 ? 'on low' : 'on';
     return `<div class="tp-row"><span>${p[1]}</span><span class="tp-strip" aria-hidden="true" style="--n:${n}">${Array.from({ length: n }, (_, i) => `<i${i === n - r ? ` class="${on}"` : ''}></i>`).join('')}</span><span class="tp-v num">${de1(t[p[0]])}${p[3]}<small>Rang ${r}</small></span></div>`;
   }).join('');
-  return `<h3>Teamprofil <span class="h3-sub">Rang unter ${n} Teams</span></h3><div class="ts-card">
+  return `<h3>Teamprofil <span class="h3-sub">Rang unter ${n} Teams</span>${kzQ('faktoren', 'Teamprofil')}</h3><div class="ts-card">
     <div class="tp-chips"><span>Stärke: <b>${judged[0].p[1]}</b></span><span>Schwäche: <b>${judged.at(-1).p[1]}</b></span></div>
     <div class="tp-ends" aria-hidden="true"><span>Rang ${n}</span><span>Rang 1</span></div>${rows}
     <p class="box-note small">Grün heisst Top 5, Rot heisst letzte 5. Tempo ist weder gut noch schlecht und bleibt neutral.</p></div>`;
