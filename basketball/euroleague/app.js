@@ -554,6 +554,13 @@ const isKrimi = (g) => g.status === 'final' && typeof g.exc === 'number' && g.ex
 const krimiWhy = (g) => g.excWhy || 'Spannend bis zum Schluss';
 const FLAME_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z"/></svg>';
 // Eine Spielzeile: Heim | Resultat, Live-Stand oder Anspielzeit | Gast
+// Zeitraum eines Spieltags, z. B. «Di 25. – Fr 28. Nov.» (ein Tag: «Do 27. Nov.»)
+function roundSpan(gs) {
+  const ds = [...new Set(gs.map((g) => g.date))].sort();
+  if (!ds.length) return '';
+  const f = (d, mon) => new Intl.DateTimeFormat('de-CH', { weekday: 'short', day: 'numeric', ...(mon ? { month: 'short' } : {}), timeZone: 'Europe/Zurich' }).format(new Date(`${d}T12:00:00Z`)).replace(/^([A-Za-zÄÖÜäöü]{2})\.,?/, '$1');
+  return ds.length === 1 ? f(ds[0], true) : `${f(ds[0], ds[0].slice(5, 7) !== ds.at(-1).slice(5, 7))} – ${f(ds.at(-1), true)}`;
+}
 function gameRow(m, g, hl) {
   const done = g.status === 'final';
   const side = (c, win, away) => {
@@ -566,7 +573,7 @@ function gameRow(m, g, hl) {
     : `<span class="result open num"><small>${esc(rel(g.date))}</small>${esc(g.time)}</span>`;
   const v = done ? mainVideo(g.code) : null;
   const midCol = v ? `<div class="g-mid">${mid}<button type="button" class="g-video" data-act="box-video" data-code="${g.code}" aria-label="Spielzusammenfassung ansehen, ${mmss(v.d)}" title="Spielzusammenfassung">${CAM_SVG}${PLAY_SVG}<span class="num">${mmss(v.d)}</span></button></div>` : mid;
-  const row = el('div', `game${g.status === 'live' ? ' is-live' : ''}`, side(g.home, g.hs > g.as, false) + midCol + side(g.away, g.as > g.hs, true));
+  const row = el('div', `game${g.status === 'live' ? ' is-live' : ''}${FAV.includes(g.home) || FAV.includes(g.away) ? ' fav' : ''}`, side(g.home, g.hs > g.as, false) + midCol + side(g.away, g.as > g.hs, true));
   boxTarget(row, m, g);
   return row;
 }
@@ -621,7 +628,7 @@ function renderLeft(m) {
     const t = m.st[c], form = (m.hist[c] || []).slice(-5);
     return `<article class="team-card" data-act="team" data-c="${c}" role="button" tabindex="0" aria-label="Teamseite ${esc(name(m, c))}"><span class="rank">${t.rank === 1 ? star : ''}Platz ${t.rank}</span><span class="tname">${esc(name(m, c))}</span>
       <span class="rec num">${esc(rec(m, c))}</span>
-      <span class="form" role="img" aria-label="Form: ${form.map((f) => (f.w ? 'Sieg' : 'Niederlage')).join(', ')}">${form.map((f) => `<i${f.w ? '' : ' class="l"'}></i>`).join('')}</span></article>`;
+      <span class="form" role="img" aria-label="Form: ${form.map((f) => (f.w ? 'Sieg' : 'Niederlage')).join(', ')}">${form.map((f) => `<i${f.w ? '' : ' class="l"'}>${f.w ? 'S' : 'N'}</i>`).join('')}</span></article>`;
   }).join('');
   left.innerHTML = `<section class="panel chart" aria-label="${esc(fullName(m, sel))}, Korbdifferenz über die Saison">${chartHtml(m, sel)}</section>
     <div class="chips" role="group" aria-label="Team wählen">${chips}</div>
@@ -833,7 +840,7 @@ function renderCenter(m) {
   // Tabelle (aus allen Resultaten berechnet)
   const tableBox = el('section', 'standings-wrap'); tableBox.id = 'tableBox'; tableBox.hidden = !open.table;
   tableBox.innerHTML = `<table class="standings-table"><thead><tr><th>#</th><th class="team-h">Team</th><th><abbr title="Spiele">Sp</abbr></th><th><abbr title="Siege">S</abbr></th><th><abbr title="Niederlagen">N</abbr></th><th class="pts"><abbr title="Korbdifferenz">+/-</abbr></th><th class="ha"><abbr title="Bilanz zu Hause">Heim</abbr></th><th class="ha"><abbr title="Bilanz auswärts">Ausw.</abbr></th><th class="streak-h"><abbr title="Serie: S = Siege, N = Niederlagen am Stück">Serie</abbr></th><th class="form-h"><abbr title="Letzte 5 Spiele, das neuste rechts">Form</abbr></th></tr></thead>
-    <tbody>${m.table.map((t) => `<tr class="${t.rank <= 6 ? 'zone-po' : t.rank <= 10 ? 'zone-pi' : ''}${t.rank === 6 ? ' line-po' : t.rank === 10 ? ' line-pi' : ''}${FAV.includes(t.c) ? ' fav' : ''}"><td class="pos">${t.rank}</td><td class="team"><button type="button" class="team-link" data-act="team" data-c="${t.c}">${logo(m, t.c, 'xxs')}${esc(name(m, t.c))}</button></td><td>${t.s + t.n}</td><td>${t.s}</td><td>${t.n}</td><td class="pts">${t.d > 0 ? '+' : ''}${t.d}</td><td class="ha">${t.hs}–${t.hn}</td><td class="ha">${t.as}–${t.an}</td><td class="streak ${t.streak.startsWith('S') ? 'win' : 'loss'}">${esc(t.streak)}</td><td class="form-c">${formDots(m, t.c)}</td></tr>`).join('')}</tbody></table>
+    <tbody>${m.table.map((t) => `<tr class="${t.rank <= 6 ? 'zone-po' : t.rank <= 10 ? 'zone-pi' : ''}${t.rank === 6 ? ' line-po' : t.rank === 10 ? ' line-pi' : ''}${FAV.includes(t.c) ? ' fav' : ''}"><td class="pos">${t.rank}</td><td class="team"><button type="button" class="team-link" data-act="team" data-c="${t.c}">${logo(m, t.c, 'xxs')}${esc(name(m, t.c))}</button>${t.rank <= 6 ? '<i class="zn po" aria-hidden="true">PO</i>' : t.rank <= 10 ? '<i class="zn pi" aria-hidden="true">PI</i>' : ''}</td><td>${t.s + t.n}</td><td>${t.s}</td><td>${t.n}</td><td class="pts">${t.d > 0 ? '+' : ''}${t.d}</td><td class="ha">${t.hs}–${t.hn}</td><td class="ha">${t.as}–${t.an}</td><td class="streak ${t.streak.startsWith('S') ? 'win' : 'loss'}">${esc(t.streak)}</td><td class="form-c">${formDots(m, t.c)}</td></tr>`).join('')}</tbody></table>
     <p class="zones"><span class="z-po">Platz 1–6: Playoffs</span><span class="z-pi">Platz 7–10: Play-in</span></p>
     <p class="standings-note">Aus allen Resultaten berechnet; bei gleicher Bilanz zählen die direkten Duelle, sobald alle gespielt sind, sonst die Korbdifferenz. Team antippen öffnet die Teamseite.</p>`;
   center.appendChild(tableBox);
@@ -853,7 +860,7 @@ function renderCenter(m) {
     const big = [...pl].sort(thrill)[0];
     const total = nrs.length, pos = at + 1;
     const arrow = (dir, to, label) => `<button type="button" class="round-btn" id="round-${dir}" data-act="round" data-r="${to ?? ''}"${to == null ? ' disabled' : ''} aria-label="${label}">${dir === 'prev' ? '‹' : '›'}</button>`;
-    center.appendChild(el('div', 'stats-head', `<div class="round-nav">${arrow('prev', nrs[at - 1], 'Vorheriger Spieltag')}<div class="rn-mid"><h2 class="rn-top">Spieltag ${shown}<span class="rn-of">von ${total}</span></h2><div class="rn-bar" role="img" aria-label="Spieltag ${pos} von ${total}"><i style="width:${Math.round(pos / total * 100)}%"></i></div></div>${arrow('next', nrs[at + 1], 'Nächster Spieltag')}</div>`));
+    center.appendChild(el('div', 'stats-head', `<div class="round-nav">${arrow('prev', nrs[at - 1], 'Vorheriger Spieltag')}<div class="rn-mid"><h2 class="rn-top">Spieltag ${shown}<span class="rn-of">von ${total}</span></h2><small class="rn-sub">${esc(roundSpan(gs))} · ${pl.length} von ${gs.length} gespielt</small><div class="rn-bar" role="img" aria-label="Spieltag ${pos} von ${total}"><i style="width:${Math.round(pos / total * 100)}%"></i></div></div>${arrow('next', nrs[at + 1], 'Nächster Spieltag')}</div>`));
     const withVideo = gs.filter((g) => g.status === 'final' && mainVideo(g.code));
     if (withVideo.length) {
       const strip = el('section', 'vstrip', `<div class="vstrip-list" data-keep-scroll="videos">${withVideo.map((g) => {
@@ -1251,7 +1258,7 @@ function relAgo(iso) {
 // Vorschau: Tabelle, Form, Heim/Auswärts, Duelle dieser Saison und Top-Spieler beider Teams
 function formDots(m, c) {
   const f = (m.hist[c] || []).slice(-5);
-  return `<span class="form" role="img" aria-label="Form: ${f.map((x) => (x.w ? 'Sieg' : 'Niederlage')).join(', ') || 'noch keine Spiele'}">${f.map((x) => `<i${x.w ? '' : ' class="l"'}></i>`).join('')}</span>`;
+  return `<span class="form" role="img" aria-label="Form: ${f.map((x) => (x.w ? 'Sieg' : 'Niederlage')).join(', ') || 'noch keine Spiele'}">${f.map((x) => `<i${x.w ? '' : ' class="l"'}>${x.w ? 'S' : 'N'}</i>`).join('')}</span>`;
 }
 function previewHtml(m, g) {
   const a = m.st[g.home] || {}, b = m.st[g.away] || {};

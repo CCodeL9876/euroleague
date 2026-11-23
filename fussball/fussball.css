@@ -38,7 +38,7 @@ body:not(.unlocked) .fb{display:none;}
 .fb-match:hover{background:var(--card-2);}
 .fb-st{font-family:var(--mono);font-size:0.78rem;color:var(--dim);text-align:center;}
 .fb-st.ft{color:var(--faint);}
-.fb-st.off{font-family:var(--font);font-size:0.68rem;color:var(--coral);}
+.fb-st.off{font-family:var(--font);font-size:0.68rem;color:var(--coral-text);}
 .fb-st.live{color:var(--pitch-hi);font-weight:700;}
 .fb-match.is-live{box-shadow:inset 3px 0 0 var(--pitch);}
 .fb-teams{display:flex;flex-direction:column;gap:6px;min-width:0;}
@@ -152,10 +152,10 @@ body:not(.unlocked) .fb{display:none;}
 .fb-tab tr.is-live td{background:color-mix(in srgb, #E5484D 9%, transparent);}
 .fb-tab tr.is-live.gained td{background:color-mix(in srgb, var(--pitch-hi) 16%, transparent);}
 .fb-mv{display:block;font-size:0.58rem;font-weight:700;line-height:1;margin-top:1px;}
-.fb-mv.up{color:var(--pitch-hi);} .fb-mv.down{color:var(--coral);}
+.fb-mv.up{color:var(--pitch-hi);} .fb-mv.down{color:var(--coral-text);}
 .fb-lsc{flex:none;font-family:var(--mono);font-size:0.68rem;font-weight:600;border-radius:6px;padding:1px 5px;color:#E5484D;background:color-mix(in srgb, #E5484D 13%, transparent);}
 .fb-lsc.w{color:var(--pitch-hi);background:color-mix(in srgb, var(--pitch-hi) 15%, transparent);}
-.fb-lsc.l{color:var(--coral);background:color-mix(in srgb, var(--coral) 13%, transparent);}
+.fb-lsc.l{color:var(--coral-text);background:color-mix(in srgb, var(--coral) 13%, transparent);}
 .fb-livehead{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:0 4px 8px;font-size:0.72rem;color:var(--dim);}
 .fb-livehead b{display:inline-flex;align-items:center;gap:5px;color:#E5484D;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;}
 .fb-livehead b::before{content:"";width:7px;height:7px;border-radius:50%;background:#E5484D;animation:fbLivePulse 1.6s ease-in-out infinite;}
@@ -242,7 +242,7 @@ button.fb-pl:hover .sh, button.fb-pl:focus-visible .sh{background:var(--card-2);
 .fb-ps-g:last-child{border-bottom:0;} .fb-ps-g .dt{font-family:var(--mono);font-size:0.68rem;color:var(--faint);}
 .fb-ps-g .vs{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .fb-ps-g .vs small{display:block;font-size:0.66rem;color:var(--faint);overflow:hidden;text-overflow:ellipsis;}
 .fb-ps-g .res{font-family:var(--mono);font-size:0.74rem;padding:2px 6px;border-radius:6px;background:var(--card-2);color:var(--dim);}
-.fb-ps-g .res.w{background:color-mix(in srgb, var(--pitch-hi) 20%, transparent);color:var(--pitch-hi);} .fb-ps-g .res.l{background:color-mix(in srgb, var(--coral) 20%, transparent);color:var(--coral);}
+.fb-ps-g .res.w{background:color-mix(in srgb, var(--pitch-hi) 20%, transparent);color:var(--pitch-hi);} .fb-ps-g .res.l{background:color-mix(in srgb, var(--coral) 20%, transparent);color:var(--coral-text);}
 .fb-ps-g .me{min-width:54px;text-align:right;font-size:0.72rem;color:var(--dim);} .fb-ps-g .me b{color:var(--text);}
 .fb-ps-career{position:relative;padding-left:18px;} .fb-ps-career::before{content:"";position:absolute;left:6px;top:10px;bottom:10px;width:2px;background:var(--line);}
 .fb-ps-st{position:relative;display:flex;align-items:center;gap:8px;padding:6px 0;font-size:0.84rem;}
@@ -394,7 +394,7 @@ button.fb-bpl:hover span{text-decoration:underline;}
 .fb-mine-c b{font-size:0.92rem;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .fb-mine-c small{font-size:0.76rem;color:var(--dim);line-height:1.35;}
 .fb-mine-c em{margin-top:auto;font:700 0.86rem var(--mono);font-style:normal;}
-.fb-mine-c em.w{color:var(--pitch-hi);} .fb-mine-c em.l{color:var(--coral);} .fb-mine-c em.d{color:var(--dim);}
+.fb-mine-c em.w{color:var(--pitch-hi);} .fb-mine-c em.l{color:var(--coral-text);} .fb-mine-c em.d{color:var(--dim);}
 .fb-mine-c:focus-visible{outline:2px solid var(--pitch-hi);outline-offset:2px;}
 .fb-mini{background:var(--card);border-radius:16px;padding:2px 0 6px;margin-bottom:4px;}
 .fb-mini-h{margin:0;padding:4px 6px 0 12px;}
@@ -406,7 +406,7 @@ button.fb-bpl:hover span{text-decoration:underline;}
 .fb-mini-r span:nth-child(4){font-weight:700;}
 .fb-mini-r.hd{font-size:0.7rem;color:var(--faint);padding-block:2px;} .fb-mini-r.hd span{font-weight:600;color:var(--faint);}
 .fb-mini-r.me{background:color-mix(in srgb, var(--gold) 15%, transparent);font-weight:700;}
-.fb-mini-r i{font-style:normal;font-size:0.7rem;} .fb-mini-r i.up{color:var(--pitch-hi);} .fb-mini-r i.down{color:var(--coral);}
+.fb-mini-r i{font-style:normal;font-size:0.7rem;} .fb-mini-r i.up{color:var(--pitch-hi);} .fb-mini-r i.down{color:var(--coral-text);}
 .fb-mini-gap{margin:0;text-align:center;color:var(--faint);font-size:0.8rem;line-height:1;}
 /* Ligawahl der Tabellen: wischbare Leiste, Knöpfe 44 px hoch */
 .fb-lgchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 12px 10px;scroll-padding-inline:12px;}
