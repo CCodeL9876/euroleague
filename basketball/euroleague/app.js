@@ -1612,7 +1612,7 @@ async function openPlayer(id, team) {
 }
 
 // Bisherige Teams: aufeinanderfolgende Saisons beim selben Verein zusammengefasst; Lücken = andere Ligen
-// Stationen aus der Vereinsgeschichte (Wikipedia): alle Vereine, auch NBA und andere Ligen.
+// Stationen aus der Vereinsgeschichte (Wikipedia): College und alle Vereine, auch NBA und andere Ligen.
 // Logos nur, wo die EuroLeague den Verein kennt (eigene Karriere oder heutige Teams); sonst ein Kürzel.
 const STOP = new Set(['kk', 'bc', 'sk', 'as', 'pbc', 'fc', 'cb', 'basket', 'basketball', 'club', 'de', 'the', 'real', 'city']);
 const words = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w));
@@ -1622,6 +1622,9 @@ function historyStations(d) {
   const pool = [...d.career.map((c) => ({ name: c.teamName || '', logo: c.logo, el: c.comp === 'Euroleague' ? c.year : null })),
     ...Object.values(m.teams).map((t) => ({ name: `${t.name} ${t.short || ''}`, logo: t.crest, el: null }))].filter((p) => p.logo);
   return d.history.map((h) => {
+    // College (USA): kein Logo und keine Teamseite, damit Namen wie «Miami» nicht auf einen Verein passen
+    if (h.college) return { name: h.team, from: h.from, to: h.to, now: false, logo: '', code: '', article: h.article || '', college: true,
+      badge: h.team.split(/[\s(]+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase(), sub: 'College' };
     const w = words(h.team);
     const hits = pool.filter((p) => words(p.name).some((x) => w.includes(x)));
     const lg = h.league || d.history.find((x) => x.team === h.team && x.league)?.league || '';
@@ -1772,7 +1775,7 @@ function renderPlayer() {
       ${stations.length ? `<section aria-label="Stationen"><h3>Stationen <small>bisherige Teams</small></h3><ol class="pc-path">${stations.map((s) => `<li class="pc-stop${s.now ? ' now' : ''}">${s.gap ? '' : s.code ? `<button type="button" class="pc-stop-link" data-act="team" data-c="${esc(s.code)}" aria-label="Teamseite ${esc(s.name)}"></button>`
           : `<a class="pc-stop-link" href="https://en.wikipedia.org/${s.article ? `wiki/${encodeURIComponent(s.article.replace(/ /g, '_'))}` : `w/index.php?search=${encodeURIComponent(`${s.name} basketball`)}`}" target="_blank" rel="noopener" aria-label="${esc(s.name)} auf Wikipedia"></a>`}
         <span class="logo${s.gap || !s.logo ? ' other' : ''}">${s.gap ? '···' : s.logo ? crestImg(s.logo) : esc(s.badge || '·')}</span><span class="yrs num">${s.now ? `seit ${s.from}` : s.to > s.from ? `${s.from}–${s.to}` : s.from}</span>
-        <b>${esc(s.name)}</b><small>${esc(s.gap ? s.sub : s.comps ? [...s.comps].join(', ') : s.sub)}</small></li>`).join('')}</ol>${d.history?.length ? '<p class="box-note small">Vereine laut Wikipedia</p>' : ''}</section>` : ''}
+        <b>${esc(s.name)}</b><small>${esc(s.gap ? s.sub : s.comps ? [...s.comps].join(', ') : s.sub)}</small></li>`).join('')}</ol>${d.history?.length ? '<p class="box-note small">College und Vereine laut Wikipedia</p>' : ''}</section>` : ''}
       <section aria-label="Saisonwerte"><h3>Saison ${(() => { const y = Number((/\d{4}/.exec(data?.season || '') || [])[0]); return y ? `${y}/${String(y + 1).slice(2)}` : ''; })()} <small>pro Spiel · ${a.gp} ${a.gp === 1 ? 'Spiel' : 'Spiele'}</small></h3>
         ${a.gp ? `<div class="pc-stats">${[['pts', 'Punkte'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['pir', 'PIR (Bewertung)']].map(([k, l], i) => `<div class="pc-stat${i ? '' : ' key'}"><b class="num">${de1(a[k])}</b><span>${l}</span></div>`).join('')}</div>
         ${effBlock(playerState.id)}

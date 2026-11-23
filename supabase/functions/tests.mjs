@@ -3,7 +3,7 @@
 //   /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc -m supabase/functions/tests.mjs
 // oder mit Deno: deno run supabase/functions/tests.mjs
 import { fplSame, elDetect, elMessage, mapOldb, parseFootballCareer, goalCurrentRows, goalStatMap, tableGap } from './fussball/index.ts';
-import { buildPayload, gameExcitement } from './euroleague/index.ts';
+import { buildPayload, gameExcitement, parseCollege } from './euroleague/index.ts';
 
 const out = globalThis.print || console.log;
 let failed = 0, passed = 0;
@@ -11,6 +11,13 @@ const eq = (name, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
   if (ok) passed++; else { failed++; out(`FEHLER ${name}\n  erhalten: ${JSON.stringify(got)}\n  erwartet: ${JSON.stringify(want)}`); }
 };
+
+// --- EuroLeague: College aus der Wikipedia-Infobox ---
+eq('parseCollege nowrap-Liste', parseCollege("| high_school = [[Grant High School|Grant]]\n| college = * {{nowrap|[[Eastern Arizona College|Eastern Arizona]] (2008–2010)}}\n* {{nowrap|[[Lamar Cardinals basketball|Lamar]] (2010–2012)}}\n| draft_year = 2012").map((c) => [c.team, c.from, c.to, c.article]),
+  [['Eastern Arizona', 2008, 2010, 'Eastern Arizona College'], ['Lamar', 2010, 2012, 'Lamar Cardinals basketball']]);
+eq('parseCollege einfach', parseCollege("| college = [[Duke Blue Devils men's basketball|Duke]] (2015–2016)\n| draft_year = 2016").map((c) => c.team), ['Duke']);
+eq('parseCollege ubl', parseCollege("| college = {{ubl|[[Butler Community College|Butler CC]] (2010–2012)|[[Kansas State Wildcats|Kansas State]] (2012–2014)}}").map((c) => c.team), ['Butler CC', 'Kansas State']);
+eq('parseCollege ohne Feld', parseCollege("| years1 = 2012\n| team1 = X"), []);
 
 // --- Fussball: FPL-Namen. Die Zuordnung in fplApply verlangt Heim UND Gast, weil einzelne Namen zu ähnlich sind ---
 eq('fplSame Man City', fplSame('Man City', 'Manchester City'), true);

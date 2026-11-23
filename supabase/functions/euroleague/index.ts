@@ -429,6 +429,23 @@ export function parseCareer(wikitext) {
       team: wikiClean(teamRaw).replace(/^→\s*/, ''), article: link ? link[1].trim() : '', loan: teamRaw.startsWith('→') };
   }).filter((h) => h && h.team);
 }
+// College aus der Infobox (Feld „college“): Listen als {{plainlist}}, {{ubl}}, * oder <br>, je Eintrag Name und Jahre in Klammern
+export function parseCollege(wikitext) {
+  const lines = String(wikitext || '').split('\n');
+  const i = lines.findIndex((l) => /^\s*\|\s*college\s*=/.test(l));
+  if (i < 0) return [];
+  let v = lines[i].replace(/^\s*\|\s*college\s*=/, '');
+  for (let j = i + 1; j < lines.length && !/^\s*(\|\s*\w+\s*=|\}\})/.test(lines[j]); j++) v += `\n${lines[j]}`;
+  v = v.replace(/<ref[^>]*\/>|<ref[^>]*>[\s\S]*?<\/ref>/g, '').replace(/\{\{\s*(nowrap|plainlist|flatlist|ubl|unbulleted list|hlist)\s*\|?/gi, '\n').replace(/\}\}|<br\s*\/?>|\*/g, '\n');
+  const out = [];
+  const re = /(?:\[\[([^\]|]+)(?:\|([^\]]+))?\]\]|([A-Z][^()[\]{}|\n<]*?))\s*\((\d{4})(?:\s*[–—-]\s*(\d{4}))?\)/g;
+  let m;
+  while ((m = re.exec(v))) {
+    const team = (m[2] || m[1] || m[3] || '').replace(/'{2,}/g, '').trim();
+    if (team) out.push({ from: Number(m[4]), to: Number(m[5] || m[4]), team, article: m[1] ? m[1].trim() : '', college: true, league: 'College' });
+  }
+  return out;
+}
 async function historyOf(id, first, last, birth) {
   const hit = histories.get(id);
   if (hit && Date.now() - hit.at < HISTORY_MS) return hit.data;
@@ -438,7 +455,9 @@ async function historyOf(id, first, last, birth) {
     if (title) {
       const wp = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&rvsection=0&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(title)}`,
         { headers: { 'user-agent': WIKI_UA }, signal: AbortSignal.timeout(TIMEOUT_MS) }).then((r) => r.json());
-      data = parseCareer(wp?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content);
+      const wt = wp?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content;
+      data = parseCareer(wt);
+      const colleges = parseCollege(wt);
       // Liga (ohne Europacups) und Land der Vereine; Weiterleitungen der Artikelnamen zuerst auflösen
       const arts = [...new Set(data.map((h) => h.article).filter(Boolean))].slice(0, 50);
       const canon = {};
@@ -466,6 +485,8 @@ async function historyOf(id, first, last, birth) {
       }
       // Artikelname behalten (Link auf Wikipedia in den Stationen), Weiterleitungen aufgelöst
       for (const h of data) h.article = h.article ? (canon[h.article] || h.article) : '';
+      // College-Jahre vor den Profi-Vereinen (Liga «College», keine Wikidata-Abfrage nötig)
+      if (data.length || colleges.length) data = [...colleges, ...data].sort((a, b) => a.from - b.from || (b.college ? 1 : 0) - (a.college ? 1 : 0));
     }
   } catch { ok = false; /* Wikipedia nicht erreichbar: nur EuroLeague-Stationen */ }
   // Einen Ausfall nur 5 Min. merken, nicht den ganzen Tag
@@ -1113,7 +1134,7 @@ async function handleProfile(body, cors) {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22';
+const FN_VERSION = '2026-11-23';
 async function handle(req) {
   const cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
