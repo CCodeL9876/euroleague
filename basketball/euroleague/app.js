@@ -1163,7 +1163,11 @@ function renderBox() {
 
   // Teamvergleich: Balken anteilig, bessere Seite hervorgehoben (bei Ballverlusten und Fouls ist weniger besser)
   const T = (t) => t.totals;
+  // Punkte pro Angriff: Angriffe ≈ Wurfversuche + 0,44 × Freiwurfversuche − Offensiv-Rebounds + Ballverluste
+  const poss = (t) => Math.max(0, T(t).fg2[1] + T(t).fg3[1] + 0.44 * T(t).ft[1] - T(t).oreb + T(t).tov);
+  const ppp = (t) => (poss(t) ? T(t).pts / poss(t) : 0);
   const rows = [
+    ['Punkte pro Angriff', ppp, (t) => `${ppp(t).toFixed(2).replace('.', ',')} <small>${Math.round(poss(t))} Angriffe</small>`],
     ['2-Punkte-Würfe', (t) => T(t).fg2[1] ? T(t).fg2[0] / T(t).fg2[1] : 0, (t) => `${pct(T(t).fg2)} <small>${ratio(T(t).fg2)}</small>`],
     ['3-Punkte-Würfe', (t) => T(t).fg3[1] ? T(t).fg3[0] / T(t).fg3[1] : 0, (t) => `${pct(T(t).fg3)} <small>${ratio(T(t).fg3)}</small>`],
     ['Freiwürfe', (t) => T(t).ft[1] ? T(t).ft[0] / T(t).ft[1] : 0, (t) => `${pct(T(t).ft)} <small>${ratio(T(t).ft)}</small>`],
@@ -1192,6 +1196,7 @@ function renderBox() {
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`; }).join('');
   setBox(dlg, `${head}${g.status !== 'pre' && topPlayers(b, 'pts').some((l) => l.length) ? topPlayersHtml(m, g, b, tops) : ''}${seg}${quarters}${flowHtml(m, g, b)}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
+    <p class="box-note small">Punkte pro Angriff: Punkte geteilt durch die Ballbesitze (Wurfversuche + 0,44 × Freiwurfversuche − Offensiv-Rebounds + Ballverluste). Um 1,10 ist EuroLeague-Schnitt, ab 1,20 sehr stark.</p>
     <h3>Spieler</h3>
     <div class="seg" role="group" aria-label="Team wählen">${b.teams.map((t, i) => `<button type="button" data-act="box-team" data-i="${i}" aria-pressed="${i === boxState.team}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>
     ${team.coach ? `<p class="box-coach">Trainer: ${esc(team.coach)}</p>` : ''}
