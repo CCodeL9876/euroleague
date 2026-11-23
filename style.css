@@ -1567,3 +1567,22 @@ a.pm-btn.pm-yt{text-decoration:none;}
 .ppp-info{margin-top:8px;}
 .ppp-info summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;color:var(--dim);}
 .ppp-info p{margin:0 0 8px;line-height:1.5;}
+
+/* Topspiel: Vorschau-Marke für ausstehende Spiele (Gold; Krimi nach dem Spiel bleibt Orange) */
+.result.open.top{gap:2px;}
+.top-b{display:inline-flex;align-items:center;gap:3px;padding:1px 7px 1px 5px;border-radius:999px;background:color-mix(in srgb, var(--gold) 18%, transparent);color:var(--gold);font:700 0.66rem/1.4 var(--font);letter-spacing:0.02em;white-space:nowrap;}
+.result.open small.top-b{color:var(--gold);font-weight:700;font-size:0.66rem;}
+.top-b svg{width:11px;height:11px;fill:currentColor;flex:none;}
+.game.is-top{box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--gold) 70%, transparent);}
+.tps-pre{display:grid;gap:8px;margin-bottom:6px;}
+.tps-pre h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.tps-pred{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:0.8rem;font-weight:600;color:var(--dim);}
+.tps-bar{height:8px;border-radius:4px;background:var(--card-2);overflow:hidden;display:block;}
+.tps-bar i{display:block;height:100%;background:var(--blue-hi);border-radius:4px 0 0 4px;}
+.tps-pre .box-note{margin:0;}
+.tps-why{list-style:none;margin:0;padding:0;display:grid;gap:8px;}
+.tps-why li{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start;font-size:0.88rem;}
+.tps-why li b{display:block;}
+.tps-why li small{display:block;color:var(--dim);font-size:0.78rem;}
+.tps-why .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb, var(--gold) 18%, transparent);color:var(--gold);font-size:0.75rem;font-weight:800;}
+.wl-top{color:var(--gold);font-weight:600;}

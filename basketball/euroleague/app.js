@@ -353,7 +353,7 @@ function openWelcome() {
         ${row('star', 'wl-star', 'Lieblingsteams wählen', `<p>Über dein Profil oben rechts. Deine Teams sind dann:</p><ul><li>in «Mein Sport» mit nächstem Spiel und Form</li><li>in Spieltag und Tabelle hervorgehoben</li></ul>`)}
         ${row('bell', 'wl-bell', 'Mitteilungen bei Spielen', `<p>Für deine Lieblingsteams: jeder Viertelstand und das Endresultat, bei Sieg und Niederlage mit anderem Text. Im Profil einschalten (auf dem iPhone nur in der App vom Home-Bildschirm).</p>`)}
         ${row('swipe', 'wl-swipe', 'Drei Ligen', `<p>Nach links wischen: SB League, nochmals: 2. Liga. Dort Tabelle und Bestenlisten, zum Aktualisieren herunterziehen.</p>`)}
-        ${row('bars', 'wl-spark', 'Einblicke', `<ul><li>Pfeile beim Spieltag für frühere Resultate</li><li>Spiel des Tages und <span class="wl-krimi">Krimi</span>-Badge für spannende Spiele</li><li>Tabelle mit Playoff-Linie und Form</li><li>Spiel antippen für den Spielbericht</li></ul>`)}
+        ${row('bars', 'wl-spark', 'Einblicke', `<ul><li>Pfeile beim Spieltag für frühere Resultate</li><li>Spiel des Tages und <span class="wl-krimi">Krimi</span>-Badge für spannende Spiele</li><li><span class="wl-top">Topspiel</span>-Marke für vielversprechende Spiele, mit Gründen in der Vorschau</li><li>Tabelle mit Playoff-Linie und Form</li><li>Spiel antippen für den Spielbericht</li></ul>`)}
       </div>
       <div class="wl-foot">
         <label class="wl-off"><input type="checkbox" id="wlOff"${off ? ' checked' : ''}>Nicht mehr anzeigen</label>
@@ -553,6 +553,87 @@ const KRIMI_MIN = 70;
 const isKrimi = (g) => g.status === 'final' && typeof g.exc === 'number' && g.exc >= KRIMI_MIN;
 const krimiWhy = (g) => g.excWhy || 'Spannend bis zum Schluss';
 const FLAME_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z"/></svg>';
+// ---------- Topspiel: Vorschau-Wert für ausstehende Spiele (Gegenstück zum Krimi) ----------
+// Nur aus Spielen vor diesem (Tabelle, Korbdifferenz, Form, Hinspiel), also ohne Spoiler. 0–100 Punkte:
+// Ausgeglichen ≤ 35 (Prognose = Korbdifferenz pro Spiel Heim − Gast + 2,5 Heimvorteil), Klasse ≤ 20, Es geht um etwas ≤ 20,
+// Form ≤ 10, Revanche ≤ 10, Derby + 5. Pro Runde höchstens 2 Topspiele ab TOP_MIN
+// (Saison 2026/27: Median 20, oberes Viertel ab 34, so gibt es pro Runde 1–2 Topspiele).
+const TOP_MIN = 45, TOP_PER_ROUND = 2, HOME_ADV = 2.5;
+const DERBY = new Set(['OLY|PAN', 'BAR|MAD', 'IST|ULK', 'PAR|RED', 'HTA|TEL']);
+// Blitz statt Stern: der Stern ★ markiert schon deine Teams
+const STAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 4 13.5h6.5L9 22l10-12h-6.6z"/></svg>';
+const preCache = new WeakMap();
+function preview(m, g) {
+  let memo = preCache.get(m); if (!memo) preCache.set(m, (memo = new Map()));
+  if (memo.has(g.code)) return memo.get(g.code);
+  const a = m.st[g.home], b = m.st[g.away];
+  const ga = a ? a.s + a.n : 0, gb = b ? b.s + b.n : 0;
+  let out = null;
+  if (g.status === 'pre' && ga >= 3 && gb >= 3) {
+    const margin = a.d / ga - b.d / gb + HOME_ADV;
+    const win = 1 / (1 + Math.exp(-margin / 6.5));
+    const reasons = []; let score = 0;
+    const close = Math.max(0, 1 - Math.abs(margin) / 10);
+    score += 35 * close;
+    const fav = margin >= 0 ? g.home : g.away, pm = Math.abs(margin);
+    if (pm < 3) reasons.push(['±', 'Prognose: fast ausgeglichen', `${name(m, fav)} ${pm < 0.5 ? 'minimal' : `+${de1(pm)}`} vorne`]);
+    else if (pm < 6) reasons.push(['±', `Prognose: ${name(m, fav)} +${de1(pm)}`, 'leichter Favorit, offen']);
+    const lead = Math.min(ga, gb) >= 5;
+    if (lead && a.rank <= 6 && b.rank <= 6) { score += 20; reasons.push([String(Math.min(a.rank, b.rank)), `Tabellen-${a.rank}. gegen ${b.rank}.`, 'zwei Teams aus den Top 6']); }
+    else if (lead && a.rank <= 10 && b.rank <= 10) score += 8;
+    const n = m.table.length, wd = Math.abs(a.s - b.s), line = (r, l) => Math.abs(r - (l + 0.5)) <= 2.5;
+    if (Math.min(ga, gb) >= 8 && wd <= 1) {
+      const lp = line(a.rank, 6) && line(b.rank, 6), li = n > 10 && line(a.rank, 10) && line(b.rank, 10);
+      if (lp) { score += 20; reasons.push(['6', 'Kampf um die Playoff-Plätze', `beide um Platz 6, ${wd ? 'ein Sieg' : 'kein Sieg'} auseinander`]); }
+      else if (li) { score += 15; reasons.push(['10', 'Kampf ums Play-in', `beide um Platz 10, ${wd ? 'ein Sieg' : 'kein Sieg'} auseinander`]); }
+    }
+    const form = (c) => (m.hist[c] || []).slice(-5).filter((x) => x.w).length;
+    const fa = form(g.home), fb = form(g.away);
+    const streak = (t) => (t.streak?.startsWith('S') ? Number(t.streak.slice(1)) : 0);
+    if (fa >= 4 && fb >= 4) { score += 10; reasons.push(['S', 'Beide in Form', `${name(m, g.home)} ${fa} und ${name(m, g.away)} ${fb} Siege aus den letzten 5`]); }
+    else {
+      const hot = [[a, b, g.home], [b, a, g.away]].find(([x, y]) => streak(x) >= 5 && y.rank <= 3);
+      if (hot) { score += 10; reasons.push(['S', `${name(m, hot[2])} mit ${streak(hot[0])} Siegen in Folge`, `gegen den Tabellen-${hot[1].rank}.`]); }
+    }
+    const prev = m.games.filter((x) => x.status === 'final' && x.at < g.at && ((x.home === g.home && x.away === g.away) || (x.home === g.away && x.away === g.home))).at(-1);
+    if (prev && Math.abs(prev.hs - prev.as) <= 5) {
+      score += 10;
+      reasons.push(['↺', 'Revanche', `letztes Duell ${prev.hs}:${prev.as} für ${name(m, prev.hs > prev.as ? prev.home : prev.away)}`]);
+    }
+    if (DERBY.has([g.home, g.away].sort().join('|'))) { score += 5; reasons.push(['D', 'Derby', 'Rivalen aus derselben Stadt oder demselben Land']); }
+    out = { score: Math.round(score), margin, win, reasons, top: false };
+  }
+  memo.set(g.code, out);
+  return out;
+}
+// Topspiele einer Runde: die (höchstens 2) besten ausstehenden Spiele ab TOP_MIN
+const topCache = new WeakMap();
+function isTopGame(m, g) {
+  if (g.status !== 'pre') return false;
+  let set = topCache.get(m);
+  if (!set) {
+    set = new Set();
+    for (const gs of Object.values(m.rounds)) {
+      gs.map((x) => [x, preview(m, x)]).filter(([, p]) => p && p.score >= TOP_MIN).sort((x, y) => y[1].score - x[1].score).slice(0, TOP_PER_ROUND).forEach(([x]) => set.add(x.code));
+    }
+    topCache.set(m, set);
+  }
+  return set.has(g.code);
+}
+function topReasonHtml(m, g) {
+  const p = preview(m, g);
+  if (!p) return '';
+  const hc = Math.round(p.win * 100);
+  const list = p.reasons.length ? `<ul class="tps-why">${p.reasons.map(([ic, b, sm]) => `<li><span class="ic">${esc(ic)}</span><span><b>${esc(b)}</b><small>${esc(sm)}</small></span></li>`).join('')}</ul>`
+    : '<p class="label">Keine besonderen Gründe: klarer Favorit, wenig auf dem Spiel.</p>';
+  return `<section class="tps-pre" aria-label="Darum lohnt es sich">
+    <h3>${isTopGame(m, g) ? `<span class="top-b">${STAR_SVG}Topspiel</span>` : ''}Darum lohnt es sich</h3>
+    <div class="tps-pred"><span>${esc(short(g.home))}</span><span class="tps-bar" role="img" aria-label="Siegchance ${esc(name(m, g.home))} ${hc} Prozent"><i style="width:${hc}%"></i></span><span>${esc(short(g.away))}</span></div>
+    <p class="box-note small">Prognose: ${Math.abs(p.margin) < 0.5 ? 'ausgeglichen' : `${esc(name(m, p.margin >= 0 ? g.home : g.away))} +${de1(Math.abs(p.margin))}`} · Siegchance ${esc(name(m, g.home))} ${hc} %, ${esc(name(m, g.away))} ${100 - hc} %</p>
+    ${list}
+    <p class="box-note small">Aus Tabelle, Korbdifferenz pro Spiel, Form und letztem Duell, mit Heimvorteil. Eine Schätzung, keine Wettquote.</p></section>`;
+}
+
 // Eine Spielzeile: Heim | Resultat, Live-Stand oder Anspielzeit | Gast
 // Zeitraum eines Spieltags, z. B. «Di 25. – Fr 28. Nov.» (ein Tag: «Do 27. Nov.»)
 function roundSpan(gs) {
@@ -567,13 +648,13 @@ function gameRow(m, g, hl) {
     const cls = `side${away ? ' away' : ''}${done ? (win ? ' win' : ' lose') : ''}${FAV.includes(c) ? ' fav' : ''}`;
     return `<div class="${cls}">${logo(m, c)}<span class="nm"><span class="full">${esc(name(m, c))}</span><span class="short">${esc(shortName(m, c))}</span><small>${esc(rec(m, c))}</small></span></div>`;
   };
-  const kr = isKrimi(g);
+  const kr = isKrimi(g), top = isTopGame(m, g);
   const mid = g.status === 'final' ? `<span class="result num${hl ? ' hl' : ''}${kr ? ' krimi' : ''}"${kr ? ` title="${esc(krimiWhy(g))}"` : ''}><span>${g.hs} : ${g.as}</span>${kr ? `<small class="krimi-b">${FLAME_SVG}Krimi</small>` : ''}</span>`
     : g.status === 'live' ? `<span class="result live num"><small><i class="live-dot" aria-hidden="true"></i>${esc(liveLabel(g) || 'Live')}</small>${g.hs} : ${g.as}</span>`
-    : `<span class="result open num"><small>${esc(rel(g.date))}</small>${esc(g.time)}</span>`;
+    : `<span class="result open num${top ? ' top' : ''}"><small>${esc(rel(g.date))}</small>${esc(g.time)}${top ? `<small class="top-b">${STAR_SVG}Topspiel</small>` : ''}</span>`;
   const v = done ? mainVideo(g.code) : null;
   const midCol = v ? `<div class="g-mid">${mid}<button type="button" class="g-video" data-act="box-video" data-code="${g.code}" aria-label="Spielzusammenfassung ansehen, ${mmss(v.d)}" title="Spielzusammenfassung">${CAM_SVG}${PLAY_SVG}<span class="num">${mmss(v.d)}</span></button></div>` : mid;
-  const row = el('div', `game${g.status === 'live' ? ' is-live' : ''}${FAV.includes(g.home) || FAV.includes(g.away) ? ' fav' : ''}`, side(g.home, g.hs > g.as, false) + midCol + side(g.away, g.as > g.hs, true));
+  const row = el('div', `game${g.status === 'live' ? ' is-live' : ''}${top ? ' is-top' : ''}${FAV.includes(g.home) || FAV.includes(g.away) ? ' fav' : ''}`, side(g.home, g.hs > g.as, false) + midCol + side(g.away, g.as > g.hs, true));
   boxTarget(row, m, g);
   return row;
 }
@@ -1282,7 +1363,7 @@ function previewHtml(m, g) {
   const duels = m.games.filter((x) => x.status === 'final' && ((x.home === g.home && x.away === g.away) || (x.home === g.away && x.away === g.home)));
   const tops = (c) => (players?.players || []).filter((p) => p.team === c && p.gp > 0).sort((x, y) => y.pir - x.pir).slice(0, 3);
   const topList = (c) => `<div class="tops"><h4>${esc(name(m, c))}</h4>${players ? (tops(c).map((p) => `<div class="top">${playerImg(p)}<span><b>${playerBtn(p, c)}</b><small>${num1(p.pts)} Pkt · ${num1(p.reb)} Reb · ${num1(p.ast)} Ass · PIR ${num1(p.pir)}</small></span></div>`).join('') || '<p class="label">Noch keine Werte.</p>') : `<p class="label">${esc(playersError || 'Lade …')}</p>`}</div>`;
-  return `<h3>Vorschau</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">
+  return `${topReasonHtml(m, g)}<h3>Vorschau</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">
       ${row('Tabellenplatz', a.rank ? `${a.rank}.` : '–', b.rank ? `${b.rank}.` : '–', cmpNum(a.rank || 99, b.rank || 99, true))}
       ${row('Bilanz', esc(rec(m, g.home)), esc(rec(m, g.away)), cmpNum((a.s || 0) - (a.n || 0), (b.s || 0) - (b.n || 0)))}
       ${row('Korbdifferenz', `${(a.d || 0) > 0 ? '+' : ''}${a.d || 0}`, `${(b.d || 0) > 0 ? '+' : ''}${b.d || 0}`, cmpNum(a.d || 0, b.d || 0))}
