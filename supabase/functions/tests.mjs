@@ -2,7 +2,7 @@
 // Auf dem Mac ohne Installation:
 //   /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc -m supabase/functions/tests.mjs
 // oder mit Deno: deno run supabase/functions/tests.mjs
-import { fplSame, elDetect, elMessage, mapOldb, parseFootballCareer, goalCurrentRows, goalStatMap } from './fussball/index.ts';
+import { fplSame, elDetect, elMessage, mapOldb, parseFootballCareer, goalCurrentRows, goalStatMap, tableGap } from './fussball/index.ts';
 import { buildPayload, gameExcitement } from './euroleague/index.ts';
 
 const out = globalThis.print || console.log;
@@ -74,6 +74,21 @@ eq('Verlängerung als Grund', gameExcitement({ FirstQuarter: [row('09:00', 2, 0)
   eq('GOAL Schüsse aus Tor/daneben', g.home.shots, 7);
   eq('GOAL leere Ecken', g.home.corners, null);
   eq('GOAL gefährliche Angriffe', g.away.datt, 5);
+
+// Tabelle ohne neustes Resultat (Liverpool 4:0 Man United fehlt, beide noch 10 Spiele): Spiel als «missing» erkennen
+{
+  const teams = ['Arsenal', 'Liverpool', 'Manchester United', 'Chelsea', 'Everton', 'Leeds United'];
+  const now = Date.parse('2026-11-23T08:00:00Z');
+  const ms = [];
+  for (let r = 0; r < 11; r++) for (let i = 0; i < 6; i += 2) ms.push({ id: `m${r}${i}`, st: 'ft', hs: 1, as: 0, utc: new Date(now - (12 - r) * 7 * 864e5).toISOString(), h: teams[(i + r) % 6], a: teams[(i + 1 + r) % 6] });
+  ms[ms.length - 1] = { ...ms[ms.length - 1] };
+  const last = { id: 'lfc', st: 'ft', hs: 4, as: 0, utc: '2026-11-22T16:30:00Z', h: 'Liverpool', a: 'Manchester United' };
+  const counts = {}; for (const m of ms) for (const n of [m.h, m.a]) counts[n] = (counts[n] || 0) + 1;
+  const rows = teams.map((t) => ({ team: t, p: counts[t] }));
+  eq('Tabelle vollständig: nichts fehlt', tableGap(rows, ms, now).length, 0);
+  eq('Tabelle ohne letztes Spiel: erkannt', tableGap(rows, [...ms, last], now).join(), 'lfc');
+  eq('Nachgezogen: nichts fehlt', tableGap(rows.map((r) => (r.team === 'Liverpool' || r.team === 'Manchester United' ? { ...r, p: r.p + 1 } : r)), [...ms, last], now).length, 0);
+}
 }
 }
 

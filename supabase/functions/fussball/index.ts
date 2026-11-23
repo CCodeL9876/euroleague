@@ -556,7 +556,47 @@ async function srTable(cfg, now, force) {
     return data;
   } catch { return hit?.data || { available: false }; }
 }
+// Tabelle ohne die neusten Resultate erkennen (die Quelle trägt sie teils erst Stunden später ein). Pro Team: Spiele laut Tabelle
+// minus beendete Spiele im gespeicherten Spielplan = Versatz; fast alle Teams haben denselben (häufigsten) Versatz. Liegt er bei
+// beiden Teams eines Spiels der letzten 3 Tage darunter, fehlt dieses Spiel → «missing» (die Seite rechnet es selbst ein).
+export function tableGap(rows, matches, now) {
+  const exact = new Map((rows || []).map((r) => [teamKey(r.team), r]));
+  const find = (n) => { const k = teamKey(n); return exact.get(k) || (k.length >= 5 ? (rows || []).find((r) => { const t = teamKey(r.team); return t.startsWith(k.slice(0, 6)) || k.startsWith(t.slice(0, 6)); }) : null); };
+  const ft = (matches || []).filter((m) => m.st === 'ft' && m.hs != null && m.as != null && Date.parse(m.utc) < now);
+  const cnt = new Map();
+  for (const m of ft) for (const n of [m.h, m.a]) { const r = find(n); if (r) cnt.set(r, (cnt.get(r) || 0) + 1); }
+  const freq = new Map();
+  for (const [r, c] of cnt) freq.set(r.p - c, (freq.get(r.p - c) || 0) + 1);
+  const mode = [...freq].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0]?.[0];
+  if (mode == null) return [];
+  const short = (r) => mode - (r.p - (cnt.get(r) || 0));
+  const used = new Map(), out = [];
+  for (const m of ft.filter((x) => now - Date.parse(x.utc) < 3 * 864e5).sort((a, b) => Date.parse(b.utc) - Date.parse(a.utc))) {
+    const H = find(m.h), A = find(m.a);
+    if (!H || !A || H === A) continue;
+    const uh = used.get(H) || 0, ua = used.get(A) || 0;
+    if (short(H) > uh && short(A) > ua) { out.push(m.id); used.set(H, uh + 1); used.set(A, ua + 1); }
+  }
+  return out;
+}
+const scheduleKey = (cfg) => (cfg.goal ? `gl:${cfg.goal}` : cfg.sr ? `sr:${cfg.sr}` : `bb2:${cfg.key}`);
 async function fbLeague(id, kind, now = Date.now(), force = false) {
+  let d = await fbLeagueRaw(id, kind, now, force);
+  if (kind !== 'table' || !d?.available || !BB_TABLE[id]) return d;
+  const sched = (await cacheGet(scheduleKey(BB_TABLE[id])))?.data?.matches || [];
+  let gap = tableGap(d.rows, sched, now);
+  // Fehlt etwas: höchstens alle 30 Min. bei der Quelle nachfragen, bis sie nachgezogen hat
+  if (gap.length && !force) {
+    const rk = `tabretry:${id}`, last = await cacheGet(rk);
+    if (!last || now - last.at > 30 * 60 * 1000) {
+      await cacheSet(rk, true);
+      const d2 = await fbLeagueRaw(id, kind, now, true).catch(() => null);
+      if (d2?.available) { d = d2; gap = tableGap(d.rows, sched, now); }
+    }
+  }
+  return gap.length ? { ...d, missing: [...new Set([...(d.missing || []), ...gap])] } : d;
+}
+async function fbLeagueRaw(id, kind, now = Date.now(), force = false) {
   const cfg = BB_TABLE[id];
   if (!cfg) return { available: false };
   if (cfg.goal) return kind === 'scorers' ? { available: false } : goalTable(cfg, now, force);
@@ -2211,7 +2251,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-22q';
+const FN_VERSION = '2026-11-23';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };

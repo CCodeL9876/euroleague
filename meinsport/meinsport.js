@@ -416,8 +416,10 @@ function fbRank(lgId, name, list) {
   const rows = t.rows.map((r) => ({ ...r, old: r.rank }));
   const find = (n) => { const k = tkey(n); return rows.find((r) => tkey(r.team) === k) || (k.length >= 5 ? rows.find((r) => { const x = tkey(r.team); return x.startsWith(k.slice(0, 6)) || k.startsWith(x.slice(0, 6)); }) : null); };
   let live = false;
+  // Laufende Spiele und solche, die die Tabelle laut Funktion noch nicht enthält (missing), einrechnen
+  const miss = new Set(t.missing || []);
   for (const g of list) {
-    if (g.sport !== 'f' || g.l !== lgId || g.st !== 'live' || g.hs == null || g.as == null) continue;
+    if (g.sport !== 'f' || g.l !== lgId || !(g.st === 'live' || (g.st === 'ft' && miss.has(g.id))) || g.hs == null || g.as == null) continue;
     const H = find(g.h), A = find(g.a);
     if (!H || !A || H === A) continue;
     live = true;
@@ -430,7 +432,7 @@ function fbRank(lgId, name, list) {
 async function loadTables(list) {
   const need = [...new Set(list.filter((g) => g.sport === 'f' && g.fav && FB_TABLE_LG.has(g.l)).map((g) => g.l))].filter((l) => !fbTab.has(l) || Date.now() - fbTab.get(l).at > 30 * 60e3);
   if (!need.length) return false;
-  await Promise.all(need.map(async (l) => { const d = await getJson(`${FB_URL}?fbleague=${l}`, 15000).catch(() => null); if (d?.available && Array.isArray(d.rows)) fbTab.set(l, { at: Date.now(), rows: d.rows }); }));
+  await Promise.all(need.map(async (l) => { const d = await getJson(`${FB_URL}?fbleague=${l}`, 15000).catch(() => null); if (d?.available && Array.isArray(d.rows)) fbTab.set(l, { at: Date.now(), rows: d.rows, missing: d.missing || [] }); }));
   return true;
 }
 function render() {
