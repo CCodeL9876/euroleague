@@ -1563,3 +1563,7 @@ a.pm-btn.pm-yt{text-decoration:none;}
 .sect-seg .badge{position:absolute;top:4px;right:8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--coral);color:var(--on-color);font-size:0.68rem;font-weight:700;display:grid;place-items:center;}
 .sect-seg .badge[hidden]{display:none;}
 @media (max-width:820px){ .el-seg{display:flex;} }
+
+.ppp-info{margin-top:8px;}
+.ppp-info summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;color:var(--dim);}
+.ppp-info p{margin:0 0 8px;line-height:1.5;}

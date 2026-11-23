@@ -1196,7 +1196,11 @@ function renderBox() {
       <td>${ratio(p.fg2)}</td><td>${ratio(p.fg3)}</td><td>${ratio(p.ft)}</td><td>${p.stl}</td><td>${p.tov}</td><td>${p.blk}</td><td>${p.pf}</td><td><b>${p.pir}</b></td><td>${p.pm > 0 ? '+' : ''}${p.pm}</td></tr>`; }).join('');
   setBox(dlg, `${head}${g.status !== 'pre' && topPlayers(b, 'pts').some((l) => l.length) ? topPlayersHtml(m, g, b, tops) : ''}${seg}${quarters}${flowHtml(m, g, b)}
     <h3>Teamvergleich</h3><div class="cmp-head"><span>${esc(short(g.home))}</span><span>${esc(short(g.away))}</span></div><div class="cmp-list">${compare}</div>
-    <p class="box-note small">Punkte pro Angriff: Punkte geteilt durch die Ballbesitze (Wurfversuche + 0,44 × Freiwurfversuche − Offensiv-Rebounds + Ballverluste). Um 1,10 ist EuroLeague-Schnitt, ab 1,20 sehr stark.</p>
+    <details class="ppp-info box-note small"><summary>Was heisst «Punkte pro Angriff»?</summary>
+      <p>Der Wert zeigt, wie viele Punkte ein Team im Schnitt aus einem Ballbesitz macht. Ein Angriff endet mit einem Wurf, Freiwürfen oder einem Ballverlust. Holt das Team den Abpraller selbst (Offensiv-Rebound), geht derselbe Angriff weiter.</p>
+      <p>Weil beide Teams etwa gleich viele Angriffe haben, zeigt der Wert ehrlicher als die Punktzahl, wer besser angreift. Ein schnelles Spiel bringt viele Punkte, aber nicht unbedingt mehr pro Angriff. Anders als die Wurfquote zählt er auch Ballverluste, Offensiv-Rebounds und Freiwürfe mit.</p>
+      <p>Berechnung: Angriffe = Wurfversuche + 0,44 × Freiwurfversuche − Offensiv-Rebounds + Ballverluste. Die 0,44 gibt es, weil nicht jeder Freiwurf einen eigenen Angriff beendet: Zwei Freiwürfe nach einem Foul zählen zusammen als ein Angriff, ein Bonus-Freiwurf nach einem Korb («And-one») als keiner. Punkte pro Angriff = Punkte ÷ Angriffe.</p>
+      <p>Einordnung EuroLeague: unter 1,00 schwach · um 1,10 Durchschnitt · ab 1,20 sehr stark. Beispiel: 1,15 heisst 115 Punkte aus 100 Angriffen. Auf der Teamseite steht derselbe Wert für die ganze Saison als «Angriff».</p></details>
     <h3>Spieler</h3>
     <div class="seg" role="group" aria-label="Team wählen">${b.teams.map((t, i) => `<button type="button" data-act="box-team" data-i="${i}" aria-pressed="${i === boxState.team}">${esc(name(m, i === 0 ? g.home : g.away))}</button>`).join('')}</div>
     ${team.coach ? `<p class="box-coach">Trainer: ${esc(team.coach)}</p>` : ''}
