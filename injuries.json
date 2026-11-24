@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-23",
+ "updated": "2026-11-24",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -68,11 +68,11 @@
    "team": "PAR",
    "status": "out",
    "since": "2026-10-31",
-   "note": "Knöchelverletzung aus Runde 1; fehlte gegen Besiktas",
+   "note": "Knöchelverletzung aus Runde 1; sass in der ABA League gegen Dubai nur auf der Bank, reist nicht zum Spiel in Dubai",
    "back": "offen",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
-   "reported": "2026-11-21"
+   "url": "https://www.eurohoops.net/en/euroleague/2039631/luca-vildoza-derek-willis-updates-partizan-euroleague/",
+   "reported": "2026-11-24"
   },
   {
    "id": "",
@@ -107,8 +107,8 @@
    "note": "Sehnenriss im Rectus-femoris-Muskel des rechten Beins; Milano sucht Center",
    "back": "ca. 3 Monate (bis Januar)",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
+   "url": "https://sportando.basketball/en/olimpia-milano-without-peters-bolmaro-questionable-against-asvel/",
+   "reported": "2026-11-24"
   },
   {
    "id": "",
@@ -188,11 +188,11 @@
    "team": "PAM",
    "status": "out",
    "since": "2026-11-05",
-   "note": "Knochenverletzung im Fuss",
+   "note": "Knochenverletzung im Fuss; fehlt gegen Panathinaikos",
    "back": "",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
+   "url": "https://sportando.basketball/en/valencia-face-panathinaikos-as-xavi-albert-highlights-frontcourt-concerns/",
+   "reported": "2026-11-24"
   },
   {
    "id": "",
@@ -268,18 +268,6 @@
   },
   {
    "id": "",
-   "name": "Luca Vildoza",
-   "team": "PAR",
-   "status": "out",
-   "since": "2026-11-06",
-   "note": "Knöchelprobleme, mit denen er mehrere Spiele durchspielte; fehlte gegen Besiktas",
-   "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
-   "reported": "2026-11-21"
-  },
-  {
-   "id": "",
    "name": "Kevin Punter",
    "team": "BAR",
    "status": "out",
@@ -344,11 +332,11 @@
    "team": "PAR",
    "status": "out",
    "since": "2026-11-12",
-   "note": "Hüftverletzung; fehlte gegen Besiktas",
+   "note": "Hüftverletzung; reist nicht zum Spiel in Dubai",
    "back": "offen",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
-   "reported": "2026-11-21"
+   "url": "https://www.eurohoops.net/en/euroleague/2039631/luca-vildoza-derek-willis-updates-partizan-euroleague/",
+   "reported": "2026-11-24"
   },
   {
    "id": "",
@@ -572,11 +560,11 @@
    "team": "PAR",
    "status": "out",
    "since": "2026-11-20",
-   "note": "Wadenzerrung; fehlte gegen Besiktas",
+   "note": "Wadenzerrung, Rehabilitation begonnen; reist nicht zum Spiel in Dubai",
    "back": "",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2038295/partizan-without-stevens-and-vildoza-against-besiktas-hayes-returns/",
-   "reported": "2026-11-21"
+   "url": "https://www.eurohoops.net/en/euroleague/2039631/luca-vildoza-derek-willis-updates-partizan-euroleague/",
+   "reported": "2026-11-24"
   },
   {
    "id": "",
@@ -625,6 +613,42 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2039262/josh-nebo-out-three-to-four-months-with-knee-injury/",
    "reported": "2026-11-23"
+  },
+  {
+   "id": "",
+   "name": "Alec Peters",
+   "team": "MIL",
+   "status": "out",
+   "since": "2026-11-24",
+   "note": "Verletzung am Psoas-Muskel; reiste nicht zum Spiel bei ASVEL",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/olimpia-milano-without-peters-bolmaro-questionable-against-asvel/",
+   "reported": "2026-11-24"
+  },
+  {
+   "id": "",
+   "name": "Leandro Bolmaro",
+   "team": "MIL",
+   "status": "doubtful",
+   "since": "2026-11-24",
+   "note": "Adduktorenbeschwerden; Entscheid über Einsatz bei ASVEL nach dem Shootaround",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/olimpia-milano-without-peters-bolmaro-questionable-against-asvel/",
+   "reported": "2026-11-24"
+  },
+  {
+   "id": "",
+   "name": "Papi Rivero",
+   "team": "PAM",
+   "status": "out",
+   "since": "2026-11-24",
+   "note": "fällt laut Trainer Xavi Albert gegen Panathinaikos aus, Grund nicht genannt",
+   "back": "",
+   "source": "Sportando",
+   "url": "https://sportando.basketball/en/valencia-face-panathinaikos-as-xavi-albert-highlights-frontcourt-concerns/",
+   "reported": "2026-11-24"
   }
  ]
 }
