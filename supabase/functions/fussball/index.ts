@@ -180,7 +180,10 @@ async function bbUsageRun(now) {
   if (bbUsage && now - bbUsage.at < 10 * 60 * 1000) return bbUsage.data;
   const [me, usage] = await Promise.all([bbGet('user/me').catch((e) => ({ error: String(e?.message || e) })), bbGet('usage').catch((e) => ({ error: String(e?.message || e) }))]);
   const k = `bbcount:${new Date(now).toISOString().slice(0, 10)}`;
-  const data = { me: me?.data ?? me, usage: usage?.data ?? usage, headers: bbLimits, appCounterToday: (await cacheGet(k))?.data ?? null, appDailyMax: bbDailyMax() };
+  // Keine Kontodaten nach aussen (der Endpunkt ist öffentlich): E-Mail-Adresse und Schlüssel-Kennung weglassen
+  const meRaw = me?.data ?? me;
+  const meSafe = meRaw && typeof meRaw === 'object' ? Object.fromEntries(Object.entries(meRaw).filter(([k]) => !/mail|key|token|name|id$/i.test(k))) : meRaw;
+  const data = { me: meSafe, usage: usage?.data ?? usage, headers: bbLimits, appCounterToday: (await cacheGet(k))?.data ?? null, appDailyMax: bbDailyMax() };
   bbUsage = { data, at: now };
   return data;
 }
@@ -425,6 +428,8 @@ async function bbLeagues(list, now) {
     r.matches[j] = { ...m, st: fresh.st, hs: fresh.hs, as: fresh.as, min: fresh.min, ht: fresh.ht || m.ht, note: fresh.note };
   }));
   await addScorers(list, res, now).catch(() => {});
+  await goalOverlay(list, res, now, open, others, changed).catch(() => {});
+  for (const i of changed) await cacheSet(`bb2:${list[i].key}`, res[i]).catch(() => {});
   // Big Balls hat für Fussball keinen Live-Feed (nur nachgeladene Datenbank): Ligen mit Sportradar-Wettbewerb (Champions
   // League, Premier League) über die Sportradar-Live-Liste (eine Abfrage für alle Spiele weltweit) nachführen
   if (Deno.env.get('SPORTRADAR_KEY')) {
@@ -1899,6 +1904,67 @@ async function afProbe() {
   return out;
 }
 
+// ---------- GOAL als Live-Quelle für Ligen ohne eigenen Live-Feed (Champions League, Championship, Premier League ohne FPL) ----------
+// Sportradar ist seit dem 22.11.2026 gesperrt (Kontingent aufgebraucht). GOAL liefert mit EINER Abfrage alle laufenden Spiele
+// weltweit (/fixtures/live). Zuordnung über Anpfiff (±20 Min.) und Teamnamen. Die GOAL-Liga-Kennung lernt die Funktion dabei
+// (glmap:<Liga>) und holt damit nach Spielende die Tagesliste der Liga (Schlussresultate). Kosten: an Spielabenden mit
+// Zuschauern rund 1 Abfrage pro 2 Min. (Lieblingsteam: pro Min.), sonst alle 5 Min. – innerhalb von GOAL_DAILY.
+const GL_OVERLAY = new Set(['ucl', 'efl', 'pl']);
+const glKick = (f) => Date.parse(f.kickoffUtc || `${f.matchDate || ''}T${f.matchTime || '00:00'}:00Z`);
+async function goalLiveAll(now, fav) {
+  const ck = 'gllive', hit = await cacheGet(ck);
+  const ttl = fav ? 55 * 1000 : liveEager ? 2 * 60 * 1000 : 5 * 60 * 1000;
+  if (hit && now - hit.at < ttl) return hit.data;
+  if (!Deno.env.get('GOAL_KEY') || !(await goalAllowed())) return hit?.data || null;
+  try {
+    const { d } = await goalGet('/fixtures/live');
+    const keep = ['id', 'leagueId', 'leagueName', 'kickoffUtc', 'matchDate', 'matchTime', 'matchStatus', 'matchPeriod', 'matchElapsed', 'matchExtra', 'matchMinute',
+      'homeTeamName', 'awayTeamName', 'homeTeamScore', 'awayTeamScore', 'homeTeamHalftimeScore', 'awayTeamHalftimeScore'];
+    const data = { list: goalList(d).map((f) => Object.fromEntries(keep.map((k) => [k, f[k]]))) };
+    await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || null; }
+}
+async function goalLeagueDay(lid, day, now) {
+  const ck = `glday:${lid}:${day}`, hit = await cacheGet(ck);
+  if (hit && now - hit.at < 10 * 60 * 1000) return hit.data;
+  if (!(await goalAllowed())) return hit?.data || null;
+  try {
+    const { d } = await goalGet('/fixtures', { leagueId: lid, from: day, to: day, limit: '50' });
+    const data = { list: goalList(d) };
+    await cacheSet(ck, data);
+    return data;
+  } catch { return hit?.data || null; }
+}
+const glMatch = (m, f) => !/women|femin|frauen|u1\d|u2\d|youth/i.test(String(f.leagueName || '')) && Math.abs(glKick(f) - Date.parse(m.utc)) <= 20 * 60 * 1000 && (sameTeam(m.h, f.homeTeamName) || sameTeam(m.a, f.awayTeamName));
+async function goalOverlay(list, res, now, open, others, changed) {
+  if (!Deno.env.get('GOAL_KEY')) return;
+  const idx = list.map((lg, i) => (GL_OVERLAY.has(lg.id) ? i : -1)).filter((i) => i >= 0);
+  const want = (i) => others(res[i].matches).filter((m) => open(m) || kickoffJustStarted(m, now));
+  if (!idx.some((i) => want(i).length)) return;
+  const fav = idx.some((i) => want(i).some((m) => isFavGame(m, now)));
+  const live = idx.some((i) => liveWindow(others(res[i].matches), now)) ? await goalLiveAll(now, fav) : null;
+  for (const i of idx) {
+    const lg = list[i], mk = `glmap:${lg.id}`;
+    let lid = (await cacheGet(mk))?.data || '';
+    for (let j = 0; j < res[i].matches.length; j++) {
+      const m = res[i].matches[j];
+      if (!(open(m) || kickoffJustStarted(m, now))) continue;
+      let f = (live?.list || []).find((x) => glMatch(m, x));
+      if (f && f.leagueId && f.leagueId !== lid) { lid = f.leagueId; await cacheSet(mk, lid); }
+      // Nicht (mehr) in der Live-Liste und über 100 Min. nach Anpfiff: Tagesliste der Liga (Schlussresultat)
+      if (!f && lid && now - Date.parse(m.utc) > 100 * 60 * 1000) f = ((await goalLeagueDay(lid, m.utc.slice(0, 10), now))?.list || []).find((x) => glMatch(m, x));
+      if (!f) continue;
+      const st = goalState(f);
+      if (st === 'pre') continue;
+      const hh = gInt(f.homeTeamHalftimeScore), ah = gInt(f.awayTeamHalftimeScore);
+      res[i].matches[j] = { ...m, st, hs: gInt(f.homeTeamScore) ?? m.hs, as: gInt(f.awayTeamScore) ?? m.as,
+        min: st === 'live' ? (f.matchExtra ? `${f.matchElapsed}+${f.matchExtra}` : f.matchElapsed ?? f.matchMinute ?? null) : null,
+        ht: hh !== null && ah !== null ? `${hh}:${ah}` : m.ht };
+      if (st === 'ft') changed.add(i);
+    }
+  }
+}
 // ---------- GOAL API: Super League und Challenge League ----------
 // Saisonspielplan 1× pro Tag (Blättern à 100), heutige Spiele mit Live-Stand alle 2 Min. (Lieblingsteam spielt oder jemand
 // schaut zu) bzw. alle 5 Min., Tore aus den Ereignissen. Namen und Wappen wie bisher (aus dem alten Sportradar-Stand),
@@ -2251,7 +2317,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-23';
+const FN_VERSION = '2026-11-24';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };
