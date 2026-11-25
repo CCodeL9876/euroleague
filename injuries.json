@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-24",
+ "updated": "2026-11-25",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -8,23 +8,11 @@
    "team": "ZAL",
    "status": "doubtful",
    "since": "2026-10-01",
-   "note": "Oberschenkelverletzung (Hamstring) in Runde 6 erneut verschlimmert",
+   "note": "Oberschenkelverletzung (Hamstring); hat seit Runde 6 nicht mehr gespielt",
    "back": "bis Runde 14",
-   "source": "BasketNews",
-   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
-   "reported": "2026-11-22"
-  },
-  {
-   "id": "003941",
-   "name": "Nikola Milutinov",
-   "team": "OLY",
-   "status": "doubtful",
-   "since": "2026-11-14",
-   "note": "Bruch am Finger; Einsatz gegen Real Madrid kurzfristig entschieden",
-   "back": "offen",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2038150/euroleague-updates-latest-injury-reports-before-final-round-13-games/",
-   "reported": "2026-11-21"
+   "url": "https://www.eurohoops.net/en/euroleague/2040058/facundo-campazzo-injury-update-real-madrid-euroleague/",
+   "reported": "2026-11-25"
   },
   {
    "id": "010042",
@@ -92,11 +80,11 @@
    "team": "MAD",
    "status": "out",
    "since": "2026-11-01",
-   "note": "Verletzung am linken Oberschenkel (Hamstring) im Ligaspiel",
+   "note": "Verletzung am linken Oberschenkel (Hamstring); kurz vor der Rückkehr, fehlt aber gegen Zalgiris",
    "back": "offen",
-   "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-12-2026-absences-and-game-time-calls-for-round-11/",
-   "reported": "2026-11-13"
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2040058/facundo-campazzo-injury-update-real-madrid-euroleague/",
+   "reported": "2026-11-25"
   },
   {
    "id": "",
@@ -604,27 +592,15 @@
   },
   {
    "id": "",
-   "name": "Tyrese Martin",
-   "team": "BAR",
-   "status": "doubtful",
-   "since": "2026-11-17",
-   "note": "Verstauchung des rechten Knöchels gegen Paris, Symptome verschlimmert; fehlte in Tenerife",
-   "back": "offen",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2039262/josh-nebo-out-three-to-four-months-with-knee-injury/",
-   "reported": "2026-11-23"
-  },
-  {
-   "id": "",
    "name": "Alec Peters",
    "team": "MIL",
    "status": "out",
    "since": "2026-11-24",
-   "note": "Verletzung am Psoas-Muskel; reiste nicht zum Spiel bei ASVEL",
-   "back": "",
+   "note": "Muskelverletzung am Psoas; laut ROM Pause von zwei Wochen bis über zwei Monate möglich",
+   "back": "offen",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/olimpia-milano-without-peters-bolmaro-questionable-against-asvel/",
-   "reported": "2026-11-24"
+   "url": "https://sportando.basketball/en/olimpia-milano-alec-peters-injury-under-the-spotlight-lengthy-absence-a-possibility/",
+   "reported": "2026-11-25"
   },
   {
    "id": "",
@@ -649,6 +625,66 @@
    "source": "Sportando",
    "url": "https://sportando.basketball/en/valencia-face-panathinaikos-as-xavi-albert-highlights-frontcourt-concerns/",
    "reported": "2026-11-24"
+  },
+  {
+   "id": "",
+   "name": "Kostas Sloukas",
+   "team": "PAN",
+   "status": "out",
+   "since": "2026-11-24",
+   "note": "fehlte in Runde 14 in Valencia, Grund nicht genannt",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2039943/injury-report-round-14-sloukas-rivero-peters-out-bolmaro-martin-gtd/",
+   "reported": "2026-11-25"
+  },
+  {
+   "id": "",
+   "name": "Lefteris Mantzoukas",
+   "team": "PAN",
+   "status": "out",
+   "since": "2026-11-24",
+   "note": "fehlte in Runde 14 in Valencia, Grund nicht genannt",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2039943/injury-report-round-14-sloukas-rivero-peters-out-bolmaro-martin-gtd/",
+   "reported": "2026-11-25"
+  },
+  {
+   "id": "",
+   "name": "Wenyen Gabriel",
+   "team": "BES",
+   "status": "out",
+   "since": "2026-11-24",
+   "note": "fehlte in Runde 14 gegen Paris, Grund nicht genannt",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2039943/injury-report-round-14-sloukas-rivero-peters-out-bolmaro-martin-gtd/",
+   "reported": "2026-11-25"
+  },
+  {
+   "id": "",
+   "name": "Bobi Klintman",
+   "team": "VIR",
+   "status": "out",
+   "since": "2026-11-24",
+   "note": "fehlte in Runde 14 bei Crvena Zvezda, Grund nicht genannt",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2039943/injury-report-round-14-sloukas-rivero-peters-out-bolmaro-martin-gtd/",
+   "reported": "2026-11-25"
+  },
+  {
+   "id": "",
+   "name": "Killian Hayes",
+   "team": "BAR",
+   "status": "doubtful",
+   "since": "2026-11-24",
+   "note": "vor dem Spiel gegen Fenerbahce in Runde 14 als fraglich gemeldet",
+   "back": "",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/euroleague/2039943/injury-report-round-14-sloukas-rivero-peters-out-bolmaro-martin-gtd/",
+   "reported": "2026-11-25"
   }
  ]
 }
