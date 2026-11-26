@@ -1363,7 +1363,9 @@ async function srLeagues(list, now) {
   for (const lg of list) res.push(await srFixtures(lg, now)); // nacheinander (1 Abfrage/Sek.)
   list.forEach((lg, i) => { for (const m of res[i].matches || []) MATCH_LG.set(m.id, lg.id); });
   const open = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 12 * 3600e3;
-  if (!res.some((r) => r.matches.some(open))) return res;
+  // GOAL holt auch ältere offene Spiele nach (Sportradar-Sperre seit 22.11.): bis 7 Tage zurück, über die Tagesliste der Liga
+  const openGl = (m) => m.st !== 'ft' && m.st !== 'off' && Date.parse(m.utc) <= now && now - Date.parse(m.utc) < 7 * 864e5;
+  if (!res.some((r) => r.matches.some(openGl))) return res;
   const live = res.some((r) => liveWindow(r.matches, now)) ? await srLive(now, favKickoff(res, now)) : null;
   const byId = new Map((live?.list || []).map((x) => [x.id, x]));
   const changed = new Set();
@@ -1383,6 +1385,8 @@ async function srLeagues(list, now) {
       if (st === 'ft' || st === 'off') changed.add(i);
     }
   }
+  // Sportradar gesperrt: GOAL führt Live-Stände und Schlussresultate nach (Championship)
+  await goalOverlay(list, res, now, openGl, (ms) => ms, changed).catch(() => {});
   // Schlussresultate samt Torschützen (und Verschiebungen) in den Spielplan übernehmen
   for (const i of changed) await cacheSet(`sr:${list[i].key}`, res[i]);
   return res;
@@ -1904,12 +1908,17 @@ async function afProbe() {
   return out;
 }
 
-// ---------- GOAL als Live-Quelle für Ligen ohne eigenen Live-Feed (Champions League, Championship, Premier League ohne FPL) ----------
+// ---------- GOAL als Live-Quelle für alle Ligen ausser den Schweizer (die laufen ganz über GOAL) und der 2. Bundesliga ----------
 // Sportradar ist seit dem 22.11.2026 gesperrt (Kontingent aufgebraucht). GOAL liefert mit EINER Abfrage alle laufenden Spiele
 // weltweit (/fixtures/live). Zuordnung über Anpfiff (±20 Min.) und Teamnamen. Die GOAL-Liga-Kennung lernt die Funktion dabei
 // (glmap:<Liga>) und holt damit nach Spielende die Tagesliste der Liga (Schlussresultate). Kosten: an Spielabenden mit
 // Zuschauern rund 1 Abfrage pro 2 Min. (Lieblingsteam: pro Min.), sonst alle 5 Min. – innerhalb von GOAL_DAILY.
-const GL_OVERLAY = new Set(['ucl', 'efl', 'pl']);
+// Big-Balls-Ligen und die Championship (nur Sportradar, gesperrt): GOAL ergänzt, wo Big Balls nichts liefert oder die Pause nicht meldet.
+const GL_OVERLAY = new Set(['ucl', 'pl', 'efl', 'bl1', 'laliga', 'seriea', 'ligue1', 'unl', 'wcq', 'emq', 'wc', 'em', 'fr']);
+// Kosten: Die Premier League hat immer Vorrang. Alle anderen Ligen fragen GOAL nur ab, solange heute weniger als 70 % des
+// Tageslimits verbraucht sind – der Rest bleibt der Premier League (und den Schweizer Ligen mit eigenem Weg) vorbehalten.
+const GL_PRIO = new Set(['pl']);
+const goalLowOk = async () => (Number((await cacheGet(`goalcount:${new Date().toISOString().slice(0, 10)}`))?.data) || 0) < goalDailyMax() * 0.7;
 const glKick = (f) => Date.parse(f.kickoffUtc || `${f.matchDate || ''}T${f.matchTime || '00:00'}:00Z`);
 async function goalLiveAll(now, fav) {
   const ck = 'gllive', hit = await cacheGet(ck);
@@ -1936,6 +1945,36 @@ async function goalLeagueDay(lid, day, now) {
     return data;
   } catch { return hit?.data || null; }
 }
+// GOAL-Liga-Kennungen einmalig aus der Ligaliste suchen (höchstens 12 Abfragen, 30 Tage gespeichert), falls noch kein
+// laufendes Spiel sie verraten hat – sonst könnten beendete Spiele (z. B. Championship seit der Sportradar-Sperre) nicht nachgeführt werden
+const GL_FIND = { ucl: [/champions league/i, /intl|europe|world/i], pl: [/^premier league$/i, /england/i], efl: [/championship/i, /england/i],
+  bl1: [/^bundesliga$/i, /germany|deutschland/i], laliga: [/la ?liga|primera/i, /spain/i], seriea: [/^serie a$/i, /italy/i], ligue1: [/^ligue 1$/i, /france/i] };
+async function goalFindLeague(id) {
+  if (!GL_FIND[id]) return '';
+  const ck = 'glleagues', hit = await cacheGet(ck);
+  let map = hit?.data;
+  const age = hit ? Date.now() - hit.at : Infinity;
+  // Neu suchen: nach 30 Tagen, oder nach 6 Std., wenn die letzte Suche nichts gefunden hat
+  if (!map || age > 30 * 864e5 || (!Object.keys(map).length && age > 6 * 3600e3)) {
+    map = {};
+    const all = [];
+    try {
+      for (let off = 0; off < 1200; off += 100) {
+        if (!(await goalAllowed())) break;
+        const { d } = await goalGet('/leagues', { limit: '100', offset: String(off) });
+        const l = goalList(d); all.push(...l);
+        if (l.length < 100) break;
+      }
+    } catch { /* teilweise geladen genügt */ }
+    for (const [k, [re, cre]] of Object.entries(GL_FIND)) {
+      const hits = all.filter((l) => re.test(String(l.name || '')) && cre.test(String(l.countryName || '')) && !/women|femin|u1\d|u2\d|youth/i.test(String(l.name || '')));
+      hits.sort((a, b) => (b.isActive === true) - (a.isActive === true) || String(b.season || '').localeCompare(String(a.season || '')));
+      if (hits[0]?.id) map[k] = hits[0].id;
+    }
+    await cacheSet(ck, map);
+  }
+  return map[id] || '';
+}
 const glMatch = (m, f) => !/women|femin|frauen|u1\d|u2\d|youth/i.test(String(f.leagueName || '')) && Math.abs(glKick(f) - Date.parse(m.utc)) <= 20 * 60 * 1000 && (sameTeam(m.h, f.homeTeamName) || sameTeam(m.a, f.awayTeamName));
 async function goalOverlay(list, res, now, open, others, changed) {
   if (!Deno.env.get('GOAL_KEY')) return;
@@ -1943,13 +1982,21 @@ async function goalOverlay(list, res, now, open, others, changed) {
   const want = (i) => others(res[i].matches).filter((m) => open(m) || kickoffJustStarted(m, now));
   if (!idx.some((i) => want(i).length)) return;
   const fav = idx.some((i) => want(i).some((m) => isFavGame(m, now)));
-  const live = idx.some((i) => liveWindow(others(res[i].matches), now)) ? await goalLiveAll(now, fav) : null;
+  const liveIdx = idx.filter((i) => liveWindow(others(res[i].matches), now));
+  // Live-Liste: immer, wenn die Premier League läuft; für andere Ligen nur mit Budget-Reserve
+  const liveOk = liveIdx.some((i) => GL_PRIO.has(list[i].id)) || (liveIdx.length && await goalLowOk());
+  const live = liveOk ? await goalLiveAll(now, fav) : null;
   // Zuletzt gesehene Live-Stände pro Spiel (für Lücken in der Live-Liste, z. B. in der Pause)
   const seenHit = await cacheGet('glseen'), seen = Object.fromEntries(Object.entries(seenHit?.data || {}).filter(([, v]) => now - v.at < 3 * 3600e3));
   const seenBefore = JSON.stringify(seen);
   for (const i of idx) {
     const lg = list[i], mk = `glmap:${lg.id}`;
     let lid = (await cacheGet(mk))?.data || '';
+    // Noch unbekannt und beendete Spiele offen: Kennung aus der Ligaliste (nur mit Budget-Reserve bzw. für die Premier League)
+    if (!lid && want(i).some((m) => now - Date.parse(m.utc) > 100 * 60 * 1000) && (GL_PRIO.has(lg.id) || await goalLowOk())) {
+      lid = await goalFindLeague(lg.id).catch(() => '');
+      if (lid) await cacheSet(mk, lid);
+    }
     for (let j = 0; j < res[i].matches.length; j++) {
       const m = res[i].matches[j];
       if (!(open(m) || kickoffJustStarted(m, now))) continue;
@@ -1958,7 +2005,7 @@ async function goalOverlay(list, res, now, open, others, changed) {
       if (f) seen[m.id] = { f, at: now };
       if (f && f.leagueId && f.leagueId !== lid) { lid = f.leagueId; await cacheSet(mk, lid); }
       // Nicht (mehr) in der Live-Liste und über 100 Min. nach Anpfiff: Tagesliste der Liga (Schlussresultat)
-      if (!f && lid && now - Date.parse(m.utc) > 100 * 60 * 1000) f = ((await goalLeagueDay(lid, m.utc.slice(0, 10), now))?.list || []).find((x) => glMatch(m, x));
+      if (!f && lid && now - Date.parse(m.utc) > 100 * 60 * 1000 && (GL_PRIO.has(lg.id) || await goalLowOk())) f = ((await goalLeagueDay(lid, m.utc.slice(0, 10), now))?.list || []).find((x) => glMatch(m, x));
       // Fehlt das Spiel in der Live-Liste (manche Anbieter führen die Pause nicht als live), den letzten Stand bis 25 Min. weiterzeigen;
       // um die 45. Minute als Halbzeit
       let st0 = '';
