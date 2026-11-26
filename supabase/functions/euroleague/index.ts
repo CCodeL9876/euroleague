@@ -630,7 +630,10 @@ async function playerOf(season, id, team) {
       && Date.parse(String(g.utcDate || '').endsWith('Z') ? g.utcDate : `${g.utcDate}Z`) > Date.parse(stored.data.games?.at(-1)?.utc || 0));
     if (newer) return playerFresh(season, id, team).catch(() => stored.data);
     playerPages.set(key, { at: Date.now(), data: stored.data });
-    if (Date.now() - (stored.at || 0) > PLAYER_DB_MS && !playerRefreshing.has(dk)) {
+    // Mit vorläufigen Spielen (aus dem Spielbericht) schon nach 30 Min. neu bauen: sobald die EuroLeague die Runde abgeschlossen
+    // hat, ersetzen ihre offiziellen Werte die vorläufigen
+    const maxAge = stored.data.avg?.prov ? 30 * 60 * 1000 : PLAYER_DB_MS;
+    if (Date.now() - (stored.at || 0) > maxAge && !playerRefreshing.has(dk)) {
       playerRefreshing.add(dk);
       const p = playerFresh(season, id, team).catch(() => null).finally(() => playerRefreshing.delete(dk));
       if (globalThis.EdgeRuntime?.waitUntil) globalThis.EdgeRuntime.waitUntil(p);
@@ -1189,7 +1192,7 @@ async function handleProfile(body, cors) {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-26';
+const FN_VERSION = '2026-11-26b';
 async function handle(req) {
   const cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
