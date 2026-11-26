@@ -1,18 +1,18 @@
 {
- "updated": "2026-11-25",
+ "updated": "2026-11-26",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
    "id": "007982",
    "name": "Nigel Williams-Goss",
    "team": "ZAL",
-   "status": "doubtful",
+   "status": "out",
    "since": "2026-10-01",
-   "note": "Oberschenkelverletzung (Hamstring); hat seit Runde 6 nicht mehr gespielt",
+   "note": "Oberschenkelverletzung (Hamstring); fehlte laut Klub auch in Runde 14 bei Real Madrid",
    "back": "bis Runde 14",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2040058/facundo-campazzo-injury-update-real-madrid-euroleague/",
-   "reported": "2026-11-25"
+   "url": "https://www.eurohoops.net/en/euroleague/2040477/luca-vildoza-tyler-dorsey-euroleague-round-14-injury-report-update/",
+   "reported": "2026-11-26"
   },
   {
    "id": "010042",
@@ -472,18 +472,6 @@
   },
   {
    "id": "",
-   "name": "Rolands Smits",
-   "team": "BAS",
-   "status": "out",
-   "since": "2026-11-19",
-   "note": "Virus; fällt in Runde 13 aus",
-   "back": "",
-   "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2037682/injury-report-round-13-smits-a-scratch-for-tonight/",
-   "reported": "2026-11-20"
-  },
-  {
-   "id": "",
    "name": "Dzanan Musa",
    "team": "DUB",
    "status": "doubtful",
@@ -656,11 +644,11 @@
    "team": "BES",
    "status": "out",
    "since": "2026-11-24",
-   "note": "fehlte in Runde 14 gegen Paris, Grund nicht genannt",
-   "back": "",
+   "note": "Riss des vorderen Kreuzbands im Knie, erlitten gegen Partizan; bereits operiert",
+   "back": "voraussichtlich Saisonende",
    "source": "Eurohoops",
-   "url": "https://www.eurohoops.net/en/euroleague/2039943/injury-report-round-14-sloukas-rivero-peters-out-bolmaro-martin-gtd/",
-   "reported": "2026-11-25"
+   "url": "https://www.eurohoops.net/en/euroleague/2040653/bad-news-for-besiktas-wenyen-gabriel-has-torn-his-acl/",
+   "reported": "2026-11-26"
   },
   {
    "id": "",
