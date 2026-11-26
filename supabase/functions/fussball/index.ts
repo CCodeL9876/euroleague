@@ -1918,7 +1918,7 @@ async function goalLiveAll(now, fav) {
   if (!Deno.env.get('GOAL_KEY') || !(await goalAllowed())) return hit?.data || null;
   try {
     const { d } = await goalGet('/fixtures/live');
-    const keep = ['id', 'leagueId', 'leagueName', 'kickoffUtc', 'matchDate', 'matchTime', 'matchStatus', 'matchPeriod', 'matchElapsed', 'matchExtra', 'matchMinute',
+    const keep = ['id', 'leagueId', 'leagueName', 'kickoffUtc', 'matchDate', 'matchTime', 'matchStatus', 'matchPeriod', 'matchLive', 'matchElapsed', 'matchExtra', 'matchMinute',
       'homeTeamName', 'awayTeamName', 'homeTeamScore', 'awayTeamScore', 'homeTeamHalftimeScore', 'awayTeamHalftimeScore'];
     const data = { list: goalList(d).map((f) => Object.fromEntries(keep.map((k) => [k, f[k]]))) };
     await cacheSet(ck, data);
@@ -1944,6 +1944,9 @@ async function goalOverlay(list, res, now, open, others, changed) {
   if (!idx.some((i) => want(i).length)) return;
   const fav = idx.some((i) => want(i).some((m) => isFavGame(m, now)));
   const live = idx.some((i) => liveWindow(others(res[i].matches), now)) ? await goalLiveAll(now, fav) : null;
+  // Zuletzt gesehene Live-Stände pro Spiel (für Lücken in der Live-Liste, z. B. in der Pause)
+  const seenHit = await cacheGet('glseen'), seen = Object.fromEntries(Object.entries(seenHit?.data || {}).filter(([, v]) => now - v.at < 3 * 3600e3));
+  const seenBefore = JSON.stringify(seen);
   for (const i of idx) {
     const lg = list[i], mk = `glmap:${lg.id}`;
     let lid = (await cacheGet(mk))?.data || '';
@@ -1951,11 +1954,22 @@ async function goalOverlay(list, res, now, open, others, changed) {
       const m = res[i].matches[j];
       if (!(open(m) || kickoffJustStarted(m, now))) continue;
       let f = (live?.list || []).find((x) => glMatch(m, x));
+      const inLive = !!f;
+      if (f) seen[m.id] = { f, at: now };
       if (f && f.leagueId && f.leagueId !== lid) { lid = f.leagueId; await cacheSet(mk, lid); }
       // Nicht (mehr) in der Live-Liste und über 100 Min. nach Anpfiff: Tagesliste der Liga (Schlussresultat)
       if (!f && lid && now - Date.parse(m.utc) > 100 * 60 * 1000) f = ((await goalLeagueDay(lid, m.utc.slice(0, 10), now))?.list || []).find((x) => glMatch(m, x));
+      // Fehlt das Spiel in der Live-Liste (manche Anbieter führen die Pause nicht als live), den letzten Stand bis 25 Min. weiterzeigen;
+      // um die 45. Minute als Halbzeit
+      let st0 = '';
+      if (!f && seen[m.id] && now - seen[m.id].at < 25 * 60 * 1000 && now - Date.parse(m.utc) < 130 * 60 * 1000) {
+        f = seen[m.id].f;
+        const el = Number(f.matchElapsed ?? f.matchMinute) || 0;
+        if (goalState(f) !== 'ft') st0 = el >= 40 && el <= 55 ? 'ht' : goalState(f) === 'pre' ? 'live' : goalState(f);
+      }
       if (!f) continue;
-      const st = goalState(f);
+      let st = st0 || goalState(f);
+      if (st === 'pre' && inLive) st = 'live';
       if (st === 'pre') continue;
       const hh = gInt(f.homeTeamHalftimeScore), ah = gInt(f.awayTeamHalftimeScore);
       res[i].matches[j] = { ...m, st, hs: gInt(f.homeTeamScore) ?? m.hs, as: gInt(f.awayTeamScore) ?? m.as,
@@ -1964,6 +1978,7 @@ async function goalOverlay(list, res, now, open, others, changed) {
       if (st === 'ft') changed.add(i);
     }
   }
+  if (JSON.stringify(seen) !== seenBefore) await cacheSet('glseen', seen).catch(() => {});
 }
 // ---------- GOAL API: Super League und Challenge League ----------
 // Saisonspielplan 1× pro Tag (Blättern à 100), heutige Spiele mit Live-Stand alle 2 Min. (Lieblingsteam spielt oder jemand
@@ -1987,11 +2002,16 @@ function goalName(map, raw, badge) {
   return hit ? { n: hit.n, logo: hit.logo || srLogo(hit.n) } : { n: String(raw || '').trim(), logo: '' };
 }
 const gInt = (v) => (v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
+// Status robust lesen: GOAL meldet die Pause je nach Spiel als Status («HT», «HALF_TIME», «BREAK») oder nur als Periode,
+// teils mit matchLive = true. Unbekannt, aber als laufend markiert → live (sonst fiel ein Spiel in der Pause auf «pre» zurück)
+const G_PAUSE = /HALF_?TIME|^HT$|BREAK|PAUSE|INTERVAL/;
 function goalState(f) {
   const s = String(f.matchStatus || '').toUpperCase(), p = String(f.matchPeriod || '').toUpperCase();
-  if (s === 'LIVE') return /HALF_?TIME|BREAK/.test(p) ? 'ht' : 'live';
-  if (/FINISH|FT|AFTER|ENDED/.test(s)) return 'ft';
+  const liveFlag = f.matchLive === true || f.matchLive === 1 || /^(true|1|yes)$/i.test(String(f.matchLive ?? ''));
   if (/POSTP|CANC|ABAND|SUSP|DELAY/.test(s)) return 'off';
+  if (/FINISH|^FT$|FULL_?TIME|AFTER|ENDED|^AET$|^PEN$/.test(s)) return 'ft';
+  if (G_PAUSE.test(s) || ((s === 'LIVE' || liveFlag) && G_PAUSE.test(p))) return 'ht';
+  if (s === 'LIVE' || /IN_?PLAY|^1H$|^2H$|FIRST_HALF|SECOND_HALF|EXTRA|PENALT/.test(s) || liveFlag) return 'live';
   return 'pre';
 }
 // Tore aus den Ereignissen (Feldnamen defensiv: GOAL nennt sie nicht vollständig in der Doku)
@@ -2317,7 +2337,7 @@ async function capProbe() {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-24';
+const FN_VERSION = '2026-11-26';
 async function handle(req) {
   const cors = corsFor(req);
   const headers = { ...cors, 'Content-Type': 'application/json' };

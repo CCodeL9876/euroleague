@@ -127,6 +127,9 @@ function status(m) {
   if (m.st === 'ht') return '<span class="fb-st live">HZ</span>';
   if (m.st === 'live') return `<span class="fb-st live">${m.min ? `${m.min}'` : '<i class="live-dot" aria-hidden="true"></i>Live'}</span>`;
   if (m.st === 'off') return `<span class="fb-st off">${esc(/postpon/i.test(m.note) ? 'Verschoben' : /cancel/i.test(m.note) ? 'Abgesagt' : 'Unterbr.')}</span>`;
+  // Anpfiff vorbei, aber noch ohne Live-Stand (Quelle hinkt nach): nicht wie ein kommendes Spiel aussehen lassen
+  const since = Date.now() - Date.parse(m.utc);
+  if (since > 3 * 60 * 1000 && since < 130 * 60 * 1000) return `<span class="fb-st live" title="Anpfiff ${zTime(new Date(m.utc))}, Stand folgt"><i class="live-dot" aria-hidden="true"></i>Läuft</span>`;
   return `<span class="fb-st">${zTime(new Date(m.utc))}</span>`;
 }
 
