@@ -372,6 +372,40 @@ export function buildPlayerPage(id, season, bio, entry, seasonStats, careerRaw) 
     since: String(entry?.startDate || '').slice(0, 10), avg, games, career };
 }
 
+// ---------- Beendete Spiele sofort im Spielerprofil ----------
+// Die Saisonstatistik der EuroLeague (people/<id>/stats) kommt erst nach Abschluss der Runde. Spiele, die schon beendet sind,
+// aber dort noch fehlen, nimmt die Funktion aus dem Boxscore: als Zeile in der Spielliste (prov: true = vorläufig) und im Schnitt.
+// extra: [{ r, utc, home, away, hs, as, team, p }] mit p = Spielerzeile aus buildBox
+const mmssMin = (v) => { const m = /^(\d+):(\d+)$/.exec(String(v || '').trim()); return m ? Number(m[1]) + Number(m[2]) / 60 : 0; };
+export function mergeLatestGames(data, extra) {
+  const add = (extra || []).filter((x) => x?.p && mmssMin(x.p.min) > 0);
+  if (!add.length) return data;
+  const a = data.avg, n0 = a.gp || 0, n = n0 + add.length;
+  const sum = (k, f) => (a[k] || 0) * n0 + add.reduce((t, x) => t + f(x.p), 0);
+  const avg1 = (k, f) => r1(sum(k, f) / n);
+  const pair = (k) => [r1(((a[k]?.[0] || 0) * n0 + add.reduce((t, x) => t + x.p[k][0], 0)) / n), r1(((a[k]?.[1] || 0) * n0 + add.reduce((t, x) => t + x.p[k][1], 0)) / n)];
+  const fg2 = pair('fg2'), fg3 = pair('fg3'), ft = pair('ft');
+  const pct = (x) => (x[1] ? r1(x[0] / x[1] * 100) : 0);
+  const avg = { ...a, gp: n, gs: (a.gs || 0) + add.filter((x) => x.p.start).length, min: avg1('min', (p) => mmssMin(p.min)),
+    pts: avg1('pts', (p) => p.pts), reb: avg1('reb', (p) => p.reb), oreb: avg1('oreb', (p) => p.oreb), ast: avg1('ast', (p) => p.ast),
+    stl: avg1('stl', (p) => p.stl), tov: avg1('tov', (p) => p.tov), blk: avg1('blk', (p) => p.blk), pir: avg1('pir', (p) => p.pir), pm: avg1('pm', (p) => p.pm),
+    fd: r1(((a.fd || 0) * n0) / n), fg2, fg3, ft, fga: r1(fg2[1] + fg3[1]), fta: ft[1], fg2p: pct(fg2), fg3p: pct(fg3), ftp: pct(ft), prov: add.length };
+  const games = [...data.games, ...add.map((x) => ({ r: x.r, utc: x.utc, home: x.home, away: x.away, hs: x.hs, as: x.as, team: x.team, start: Boolean(x.p.start),
+    min: Math.round(mmssMin(x.p.min)), pts: x.p.pts, reb: x.p.reb, ast: x.p.ast, stl: x.p.stl, tov: x.p.tov, pir: x.p.pir, pm: x.p.pm, prov: true }))]
+    .sort((x, y) => x.utc.localeCompare(y.utc));
+  return { ...data, avg, games };
+}
+// Beendete Spiele des Teams (Anpfiff vor über 2 Std. oder als gespielt markiert), die in der Saisonstatistik noch fehlen
+async function missingGames(season, team, known) {
+  if (!team) return [];
+  const sched = await loadSchedule(season).catch(() => null);
+  const now = Date.now();
+  return (sched?.data || []).filter((g) => {
+    const c = Number(g.gameCode), utc = String(g.utcDate || ''), at = Date.parse(utc.endsWith('Z') ? utc : `${utc}Z`);
+    return c > 0 && !known.has(c) && (g.local?.club?.code === team || g.road?.club?.code === team) && (g.played || now - at > 2 * 3600e3) && at < now;
+  }).slice(-4);
+}
+
 // ---------- Würfe der Saison (für die Wurfkarte der Spielerseite) ----------
 const pointsCache = new Map();
 async function pointsOf(season, code) {
@@ -587,7 +621,14 @@ async function playerOf(season, id, team) {
   if (hit && Date.now() - hit.at < PLAYER_MS) return hit.data;
   const dk = `pl:${season}:${key}`;
   const stored = await videoCacheGet(dk).catch(() => null);
+  // Gespeicherte Seite, aber das Team hat seither ein Spiel beendet, das darin fehlt: gleich neu bauen
   if (stored?.data?.id) {
+    const have = new Set((stored.data.games || []).map((g) => g.utc));
+    const sched = await loadSchedule(season).catch(() => null), now = Date.now(), t = stored.data.team;
+    const newer = t && (sched?.data || []).some((g) => (g.local?.club?.code === t || g.road?.club?.code === t) && !have.has(String(g.utcDate || ''))
+      && (g.played || now - Date.parse(String(g.utcDate || '').endsWith('Z') ? g.utcDate : `${g.utcDate}Z`) > 2 * 3600e3)
+      && Date.parse(String(g.utcDate || '').endsWith('Z') ? g.utcDate : `${g.utcDate}Z`) > Date.parse(stored.data.games?.at(-1)?.utc || 0));
+    if (newer) return playerFresh(season, id, team).catch(() => stored.data);
     playerPages.set(key, { at: Date.now(), data: stored.data });
     if (Date.now() - (stored.at || 0) > PLAYER_DB_MS && !playerRefreshing.has(dk)) {
       playerRefreshing.add(dk);
@@ -610,10 +651,24 @@ async function playerFresh(season, id, team) {
   const club = team || String(seasonStats?.games?.at?.(-1)?.playerClubCode || '');
   const roster = club ? await rosterOf(season, club).catch(() => []) : [];
   const entry = (Array.isArray(roster) ? roster : []).find((p) => p?.person?.code === id) || null;
-  const data = buildPlayerPage(id, season, bio, entry, seasonStats, careerRaw);
+  let data = buildPlayerPage(id, season, bio, entry, seasonStats, careerRaw);
+  const known = new Set((seasonStats?.games || []).map((x) => Number(x.game?.gameCode) || 0));
+  const miss = await missingGames(season, data.team, known).catch(() => []);
+  const extra = [];
+  for (const g of miss) {
+    const box = await boxOf(season, Number(g.gameCode)).catch(() => null);
+    if (!box || box.live) continue;
+    const ti = box.teams.findIndex((t) => t.players.some((p) => p.id === id));
+    if (ti < 0) continue;
+    const utc = String(g.utcDate || '');
+    extra.push({ code: Number(g.gameCode), r: roundOf(g), utc, home: String(g.local?.club?.code || ''), away: String(g.road?.club?.code || ''),
+      hs: Number(g.local?.score) || 0, as: Number(g.road?.score) || 0, team: box.teams[ti].code || data.team, p: box.teams[ti].players.find((p) => p.id === id) });
+  }
+  data = mergeLatestGames(data, extra);
+  const allCodes = { games: [...(seasonStats?.games || []), ...extra.map((x) => ({ game: { gameCode: x.code, round: x.r } }))] };
   const [history, shots] = await Promise.all([
     historyOf(id, data.first, data.last, data.birth).catch(() => []),
-    seasonShots(season, id, seasonStats).catch(() => []),
+    seasonShots(season, id, allCodes).catch(() => []),
     Promise.all(data.career.map(async (c) => { c.teamName = await clubName(c.team, season); })),
   ]);
   data.history = history; data.shots = shots;
@@ -1134,7 +1189,7 @@ async function handleProfile(body, cors) {
 }
 
 // Versionsangabe für den Abgleich mit dem Repository: bei jeder Änderung dieser Funktion erhöhen. Abruf: ?version=1
-const FN_VERSION = '2026-11-23';
+const FN_VERSION = '2026-11-26';
 async function handle(req) {
   const cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });

@@ -3,7 +3,7 @@
 //   /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc -m supabase/functions/tests.mjs
 // oder mit Deno: deno run supabase/functions/tests.mjs
 import { fplSame, elDetect, elMessage, mapOldb, parseFootballCareer, goalCurrentRows, goalStatMap, tableGap } from './fussball/index.ts';
-import { buildPayload, gameExcitement, parseCollege } from './euroleague/index.ts';
+import { buildPayload, gameExcitement, parseCollege, mergeLatestGames } from './euroleague/index.ts';
 
 const out = globalThis.print || console.log;
 let failed = 0, passed = 0;
@@ -11,6 +11,20 @@ const eq = (name, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
   if (ok) passed++; else { failed++; out(`FEHLER ${name}\n  erhalten: ${JSON.stringify(got)}\n  erwartet: ${JSON.stringify(want)}`); }
 };
+
+// --- EuroLeague: beendetes Spiel vor Rundenabschluss im Spielerprofil ---
+{
+  const base = { avg: { gp: 2, gs: 1, min: 20, pts: 10, reb: 4, oreb: 1, ast: 2, stl: 1, tov: 2, blk: 0, fd: 3, pir: 12, pm: 2, fg2: [3, 6], fg3: [1, 3], ft: [1, 2], fga: 9, fta: 2, fg2p: 50, fg3p: 33.3, ftp: 50 },
+    games: [{ utc: '2026-11-10T19:00:00', pts: 8 }, { utc: '2026-11-17T19:00:00', pts: 12 }] };
+  const p = { min: '30:00', start: true, pts: 22, reb: 7, oreb: 2, ast: 5, stl: 2, tov: 1, blk: 1, pir: 27, pm: 9, fg2: [6, 9], fg3: [2, 4], ft: [4, 4] };
+  const out = mergeLatestGames(base, [{ r: 12, utc: '2026-11-24T19:00:00', home: 'PAN', away: 'OLY', hs: 88, as: 80, team: 'PAN', p }]);
+  eq('mergeLatest Spiele', out.avg.gp, 3);
+  eq('mergeLatest Punkte', out.avg.pts, 14);
+  eq('mergeLatest Minuten', out.avg.min, 23.3);
+  eq('mergeLatest Startformation', out.avg.gs, 2);
+  eq('mergeLatest Zeile vorläufig', [out.games.length, out.games.at(-1).prov, out.games.at(-1).pts], [3, true, 22]);
+  eq('mergeLatest ohne Einsatz', mergeLatestGames(base, [{ r: 12, utc: 'x', p: { ...p, min: '' } }]).avg.gp, 2);
+}
 
 // --- EuroLeague: College aus der Wikipedia-Infobox ---
 eq('parseCollege nowrap-Liste', parseCollege("| high_school = [[Grant High School|Grant]]\n| college = * {{nowrap|[[Eastern Arizona College|Eastern Arizona]] (2008–2010)}}\n* {{nowrap|[[Lamar Cardinals basketball|Lamar]] (2010–2012)}}\n| draft_year = 2012").map((c) => [c.team, c.from, c.to, c.article]),
