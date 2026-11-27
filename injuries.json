@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-26",
+ "updated": "2026-11-27",
  "note": "Gepflegt von der täglichen News-Aufgabe: neue Verletzungen aus den Meldungen ergänzen, Einträge bei gemeldeter Rückkehr entfernen.",
  "players": [
   {
@@ -428,11 +428,11 @@
    "team": "OLY",
    "status": "out",
    "since": "2026-11-17",
-   "note": "Suspendierung durch den Klub und Fitness; reiste nicht nach Zypern",
-   "back": "",
+   "note": "einmonatige Suspendierung abgesessen, fehlt seit Runde 6; laut Bartzokas kein Zeitplan für die Rückkehr",
+   "back": "offen",
    "source": "Sportando",
-   "url": "https://sportando.basketball/en/euroleague-injury-report-november-17-2026-round-12-absences-and-game-time-calls/",
-   "reported": "2026-11-18"
+   "url": "https://sportando.basketball/en/bartzokas-on-dorsey-there-is-no-timeline-im-here-for-players-who-give-everything/",
+   "reported": "2026-11-27"
   },
   {
    "id": "",
@@ -481,18 +481,6 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2037858/dzanan-musa-suffered-a-severe-eye-injury/",
    "reported": "2026-11-20"
-  },
-  {
-   "id": "",
-   "name": "Justin Anderson",
-   "team": "DUB",
-   "status": "doubtful",
-   "since": "2026-11-19",
-   "note": "Oberschenkelprobleme (Hamstring), verpasste die Runden 1 bis 13; darf den Klub verlassen",
-   "back": "",
-   "source": "BasketNews",
-   "url": "https://basketnews.com/news-212393-euroleague-injury-report-updated.html",
-   "reported": "2026-11-22"
   },
   {
    "id": "",
@@ -673,6 +661,18 @@
    "source": "Eurohoops",
    "url": "https://www.eurohoops.net/en/euroleague/2039943/injury-report-round-14-sloukas-rivero-peters-out-bolmaro-martin-gtd/",
    "reported": "2026-11-25"
+  },
+  {
+   "id": "",
+   "name": "Dinos Mitoglou",
+   "team": "PAN",
+   "status": "doubtful",
+   "since": "2026-11-26",
+   "note": "Verletzung an der Rückseite des linken Beins im WM-Qualifikationsspiel gegen Georgien, Spiel zu Beginn der Verlängerung verlassen",
+   "back": "offen",
+   "source": "Eurohoops",
+   "url": "https://www.eurohoops.net/en/fibawc/2041510/dinos-mitoglou-injured-exits-game-against-georgia/",
+   "reported": "2026-11-27"
   }
  ]
 }
